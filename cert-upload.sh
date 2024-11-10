@@ -16,4 +16,4 @@ fi;
 echo -n "Enter file name (!!make sure in same dir as script!!): ";
 read file;
 
-echo "scp $file $user@$dest:$loc/$file";
+scp $file $user@$dest:$loc/$file;
