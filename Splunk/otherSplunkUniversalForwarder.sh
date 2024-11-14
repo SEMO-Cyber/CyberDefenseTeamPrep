@@ -36,13 +36,13 @@ cat <<EOF> /opt/splunkforwarder/etc/apps/nwl_all_deploymentclient/local/deployme
 [deployment-client]
 phoneHomeIntervalInSecs = 60
 [target-broker:deploymentServer]
-targetUri = 172.20.241.20:8089
+targetUri = 172.20.241.20:9997
 EOF
 
 cat <<EOF> /opt/splunkforwarder/etc/system/local/user-seed.conf
 [user_info]
 USERNAME = admin
-PASSWORD = IncrediblySecureAndSafePasswordRightHere
+PASSWORD = Changeme1!
 EOF
 
 
