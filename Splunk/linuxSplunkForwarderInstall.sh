@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ########################## FUNC 
 function UFYUM(){
 cd /tmp
