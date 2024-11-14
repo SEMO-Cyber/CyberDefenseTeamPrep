@@ -39,7 +39,7 @@ do
 			mv splunkforwarder.deb $SPLUNK_HOME
 			cd $SPLUNK_HOME
 			#dpkg -i splunkforwarder-9.3.2-d8bb32809498-linux-2.6-amd64.deb
-			dpkg -i splunkforwarder.deb
+			sudo dpkg -i splunkforwarder.deb
 
 			#Start and configure splunk
 			#echo "Configuring Splunk..."
@@ -92,8 +92,8 @@ if [[ $? -ne 0 ]]
 then
 	echo "Failed to install, check network settings and try again"
 	exit 1
-else
-	echo "Splunk forwader installed successfully"
+#else
+#	echo "Splunk forwader installed successfully"
 fi
 
 
