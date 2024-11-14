@@ -42,9 +42,9 @@ do
 			dpkg -i splunkforwarder.deb
 
 			#Start and configure splunk
-			echo "Configuring Splunk..."
-			sudo ${SPLUNK_HOME}/bin/splunk start --accept-license --answer-yes --no-prompt
-			sudo ${SPLUNK_HOME}/bin/splunk enable boot-start
+			#echo "Configuring Splunk..."
+			#sudo ${SPLUNK_HOME}/bin/splunk start --accept-license --answer-yes --no-prompt
+			#sudo ${SPLUNK_HOME}/bin/splunk enable boot-start
 
 			echo -e "\n\n~~~~~~~~~~~~~"
 			echo "To continue configuring Splunk, go to /opt/splunkforwarder/bin and run:"
