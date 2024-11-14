@@ -9,6 +9,11 @@ then
 	exit 1
 fi
 
+#set vars
+SPLUNK_USER="sysadmin"
+SPLUNK_PASSWORD="Changeme1!"
+export SPLUNK_HOME=/opt/splunkforwarder
+mkdir $SPLUNK_HOME
 
 #Install
 useradd -m splunk
@@ -17,12 +22,8 @@ groupadd splunk
 #groupadd splunkfwd
 chown -R splunk:splunk $SPLUNK_HOME
 #chown -R splunkfwd:splunkfwd $SPLUNK_HOME
-export SPLUNK_HOME=/opt/splunkforwarder
-mkdir $SPLUNK_HOME
 
-#account params
-SPLUNK_USER="sysadmin"
-SPLUNK_PASSWORD="Changeme1!"
+
 
 
 echo "Installing Forwarder"
@@ -45,13 +46,17 @@ do
 			sudo ${SPLUNK_HOME}/bin/splunk start --accept-license --answer-yes --no-prompt
 			sudo ${SPLUNK_HOME}/bin/splunk enable boot-start
 
+			echo -e "\n\n~~~~~~~~~~~~~"
+			echo "To continue configuring Splunk, go to /opt/splunkforwarder/bin and run:"
+			echo "splunk start"
+
 			# Set admin credentials
-			echo "Setting up admin credentials..."
-			sudo ${SPLUNK_HOME}/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth admin:changeme
+			#echo "Setting up admin credentials..."
+			#sudo ${SPLUNK_HOME}/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth admin:changeme
 
 			# Start Splunk Forwarder
-			echo "Starting Splunk Universal Forwarder..."
-			sudo ${SPLUNK_HOME}/bin/splunk start
+			#echo "Starting Splunk Universal Forwarder..."
+			#sudo ${SPLUNK_HOME}/bin/splunk start
 
 			break;;
 		"RedHat")
