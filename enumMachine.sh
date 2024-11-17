@@ -62,7 +62,7 @@ ip a >> "$REPORT" 2>/dev/null || ifconfig >> "$REPORT" 2>/dev/null
 echo -e "\n[Routing Table]" >> "$REPORT"
 route -n >> "$REPORT" 2>/dev/null
 echo -e "\n[Listening Ports]" >> "$REPORT"
-if command -v ss &> /dev/null; then
+if command -v ss antp &> /dev/null; then
     ss -tuln | awk '/LISTEN/' >> "$REPORT"
 elif command -v netstat &> /dev/null; then
     netstat -tuln | awk '/LISTEN/' >> "$REPORT"
