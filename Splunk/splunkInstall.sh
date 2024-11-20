@@ -25,13 +25,3 @@ if [ $? -ne 0 ]; then
     echo "Failed to install Splunk. Exiting."
     exit 1
 fi
-
-# Start Splunk and accept the license
-echo "Starting Splunk and accepting the license..."
-sudo /opt/splunk/bin/splunk start --accept-license
-
-# Enable Splunk to start at boot
-echo "Enabling Splunk to start at boot..."
-sudo /opt/splunk/bin/splunk enable boot-start
-
-echo "Splunk installation and setup completed successfully."
