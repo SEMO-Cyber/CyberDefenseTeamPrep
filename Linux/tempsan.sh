@@ -1,5 +1,4 @@
 #!/bin/bash
-#for a quick project lol, just ignore this
 
 # Function to display usage instructions
 usage() {
@@ -35,7 +34,7 @@ fi
 
 # Perform the nmap scan
 echo "Starting nmap scan..."
-nmap -v -p $PORT_RANGE --script http-* -p $HTTP_PORT,$HTTPS_PORT http://localhost/DVWA > "scanResults.txt"
+nmap -v -p $PORT_RANGE --script http-* -p $HTTP_PORT,$HTTPS_PORT localhost > "scanResults.txt"
 
 # Display scan results
 if [ "$VERBOSE" = true ]; then
