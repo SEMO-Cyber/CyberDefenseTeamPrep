@@ -1,0 +1,150 @@
+# Function to log actions
+function Write-Log {
+    param ([string]$message)
+    $logFile = "$env:HOMEDRIVE\AllInOneHardening\Logs\log.txt"
+    $currentTime = Get-Date -Format "MM/dd/yyyy HH:mm:ss K"
+    $logMessage = "$currentTime - $message"
+    Add-Content -Path $logFile -Value $logMessage
+}
+
+# Create log directory if it doesn't exist
+if (-not (Test-Path -Path "$env:HOMEDRIVE\AllInOneHardening\Logs")) {
+    New-Item -Path "$env:HOMEDRIVE\AllInOneHardening\Logs" -ItemType Directory
+}
+
+# Function to disable Windows features
+function Disable-Features {
+    $featuresToDisable = @(
+        "Printing-Server-Role", "IIS-WebServer", "IIS-FTPServer", "IIS-WebServerRole", 
+        "IIS-WebServerManagementTools", "IIS-ManagementScriptingTools", "IIS-IIS6ManagementCompatibility", 
+        "IIS-Metabase", "IIS-ManagementConsole", "RDS-RD-Server", "RDS-Licensing", 
+        "RDS-RD-Web-Access", "RDS-Connection-Broker", "RDS-Remote-Desktop", "RDS-Gateway", 
+        "RDS-RemoteApp-Server", "RDS-RemoteDesktopGateway", "RDS-RemoteDesktopSessionHost", 
+        "RDS-RD-Connection-Broker", "RDS-RD-Gateway", "RDS-RD-Licensing-Diagnosis-UI", "TelnetClient", 
+        "TelnetServer", "SMB1Protocol", "MSMQ-Server", "MSMQ-HTTP", "MSMQ-Triggers", "SimpleTCP", 
+        "SNMP", "SNMP-Service", "SNMP-WMI-Provider", "RemoteAssistance", "RemoteAssistance-Helper", 
+        "WindowsMediaPlayer", "WindowsMediaPlayer-OCX", "MediaPlayback", "MediaCenter", 
+        "MediaCenter-OCX", "Xps-Foundation-Xps-Viewer", "Xps-Viewer"
+    )
+
+    foreach ($feature in $featuresToDisable) {
+        Disable-WindowsOptionalFeature -Online -FeatureName $feature -NoRestart
+        Write-Log "Disabled feature: $feature"
+    }
+
+    # Disable EternalBlue-related services (SMB1, Teredo, etc.)
+    Write-Host "Disabling Teredo, 6to4, and ISATAP tunneling..."
+    netsh interface teredo set state disabled
+    netsh interface ipv6 6to4 set state state=disabled undoonstop=disabled
+    netsh interface ipv6 isatap set state state=disabled
+    Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+    Write-Host "Disabled SMB1 (EternalBlue), Teredo, 6to4, and ISATAP"
+    Write-Log "Disabled SMB1 and tunneling protocols."
+}
+
+# Function to set up firewall rules
+function Setup-Firewall {
+    Write-Host "Setting up firewall rules..."
+    # Turn on Windows Firewall for all profiles
+    Set-NetFirewallProfile -Profile @("Domain", "Public", "Private") -Enabled True
+    Write-Log "Enabled firewall for all profiles."
+
+    # Set default policy to block all
+    netsh advfirewall set allprofiles firewallpolicy "blockinbound,blockoutbound"
+    Write-Log "Set firewall policy to block all inbound/outbound."
+
+    # Clear out old rules
+    Get-NetFirewallRule | Remove-NetFirewallRule
+    Write-Log "Cleared old firewall rules."
+
+    # Inbound TCP rules
+    $inboundTCPPorts = 25, 53, 80, 110, 143, 389, 443, 587, 636, 993, 995, 9997
+    foreach ($port in $inboundTCPPorts) {
+        New-NetFirewallRule -DisplayName "Allow Inbound TCP Port $port" -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow
+        Write-Log "Allowed inbound TCP port $port"
+    }
+
+    # Outbound TCP rules
+    $outboundTCPPorts = 53, 80, 443, 8080, 9997
+    foreach ($port in $outboundTCPPorts) {
+        New-NetFirewallRule -DisplayName "Allow Outbound TCP Port $port" -Direction Outbound -Protocol TCP -LocalPort $port -Action Allow
+        Write-Log "Allowed outbound TCP port $port"
+    }
+
+    # Inbound UDP rules
+    $inboundUDPPorts = 53, 80, 123, 443
+    foreach ($port in $inboundUDPPorts) {
+        New-NetFirewallRule -DisplayName "Allow Inbound UDP Port $port" -Direction Inbound -Protocol UDP -LocalPort $port -Action Allow
+        Write-Log "Allowed inbound UDP port $port"
+    }
+
+    # Outbound UDP rules
+    $outboundUDPPorts = 25, 53, 80, 123, 138, 389, 443
+    foreach ($port in $outboundUDPPorts) {
+        New-NetFirewallRule -DisplayName "Allow Outbound UDP Port $port" -Direction Outbound -Protocol UDP -LocalPort $port -Action Allow
+        Write-Log "Allowed outbound UDP port $port"
+    }
+
+    # ICMP Inbound/Outbound
+    New-NetFirewallRule -DisplayName "ICMP Inbound" -Protocol ICMPv4 -IcmpType 8 -Direction Inbound -Action Allow
+    New-NetFirewallRule -DisplayName "ICMP Outbound" -Protocol ICMPv4 -IcmpType 8 -Direction Outbound -Action Allow
+    Write-Log "Allowed ICMP Inbound/Outbound"
+
+    # Allow outbound traffic on dynamic ports (49152-65535) for web browsing
+    New-NetFirewallRule -DisplayName "Allow Outbound Dynamic Ports" -Direction Outbound -Protocol TCP -LocalPort 49152-65535 -Action Allow
+    New-NetFirewallRule -DisplayName "Allow Outbound Dynamic Ports" -Direction Outbound -Protocol UDP -LocalPort 49152-65535 -Action Allow
+    Write-Log "Allowed outbound dynamic ports for TCP and UDP."
+
+    Write-Host "Firewall setup complete."
+}
+
+# Function to randomize passwords for all users except the admin
+function Randomize-Passwords {
+    Write-Host "Randomizing passwords for all users except the current administrator..."
+    $adminUser = $env:USERNAME
+    $users = Get-LocalUser | Where-Object { $_.Name -ne $adminUser }
+    
+    foreach ($user in $users) {
+        $newPassword = [System.Web.Security.Membership]::GeneratePassword(12, 3)
+        Set-LocalUser -Name $user.Name -Password (ConvertTo-SecureString -String $newPassword -AsPlainText -Force)
+        Write-Log "Password randomized for user: $($user.Name)"
+        Write-Host "Password randomized for user: $($user.Name)"
+    }
+    Write-Host "Passwords have been randomized."
+}
+
+# Main menu for user interaction
+function Show-Menu {
+    Write-Host "`nSelect an option:"
+    Write-Host "1. Disable Windows Features (Including EternalBlue Hardening)"
+    Write-Host "2. Set Up Firewall"
+    Write-Host "3. Randomize User Passwords (Except Administrator)"
+    Write-Host "4. Exit"
+}
+
+# Main script loop
+$choice = ""
+while ($choice -ne "4") {
+    Show-Menu
+    $choice = Read-Host "Enter your choice"
+    switch ($choice) {
+        "1" {
+            Disable-Features
+        }
+        "2" {
+            Setup-Firewall
+        }
+        "3" {
+            Randomize-Passwords
+        }
+        "4" {
+            Write-Host "Exiting script..."
+            Write-Log "Script exited by user."
+        }
+        default {
+            Write-Host "Invalid choice, please try again."
+        }
+    }
+}
+
+Read-Host "Press Enter to exit..."

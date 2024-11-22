@@ -1,0 +1,29 @@
+### AD password policy ##
+Import-Module ActiveDirectory
+
+# Set the minimum password length
+Set-ADDefaultDomainPasswordPolicy -MinPasswordLength 10
+
+# Set password expiration (in days)
+Set-ADDefaultDomainPasswordPolicy -MaxPasswordAge (New-TimeSpan -Days 30)
+
+# Set minimum password age (in days)
+Set-ADDefaultDomainPasswordPolicy -MinPasswordAge (New-TimeSpan -Days 1)
+
+# Enforce password complexity
+Set-ADDefaultDomainPasswordPolicy -PasswordComplexityEnabled $true
+
+
+
+
+# Define the banner caption and text
+$bannerCaption = "Welcome to [Your Company/Organization]"
+$bannerText = "This system is for authorized use only. Unauthorized access is prohibited and may result in disciplinary actions or legal prosecution."
+
+# Set the Legal Notice Caption
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "LegalNoticeCaption" -Value $bannerCaption -PropertyType String -Force
+
+# Set the Legal Notice Text
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "LegalNoticeText" -Value $bannerText -PropertyType String -Force
+
+Write-Output "Login banner has been successfully set."

@@ -1,0 +1,47 @@
+﻿# Turn on Windows Firewall for all profiles
+Set-NetFirewallProfile -Profile @("Domain", "Public", "Private") -Enabled True
+
+# Set default policy to block all
+Netsh advfirewall set allprofiles firewallpolicy "blockinbound,blockoutbound"
+
+# Turn on Windows Firewall for all profiles
+Set-NetFirewallProfile -Profile @("Domain", "Public", "Private") -Enabled True
+
+# Set default policy to block all
+Netsh advfirewall set allprofiles firewallpolicy "blockinbound,blockoutbound"
+
+# Clear out old rules
+Get-NetFirewallRule | Remove-NetFirewallRule
+
+# Inbound TCP
+$inboundTCPPorts = 25, 53, 80, 110, 143, 389, 443, 587, 636, 993, 995, 9997
+foreach ($port in $inboundTCPPorts) {
+    New-NetFirewallRule -DisplayName "Allow Inbound TCP Port $port" -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow
+}
+
+# Outbound TCP
+$outboundTCPPorts = 53, 80, 443, 8080, 9997
+foreach ($port in $outboundTCPPorts) {
+    New-NetFirewallRule -DisplayName "Allow Outbound TCP Port $port" -Direction Outbound -Protocol TCP -LocalPort $port -Action Allow
+}
+
+# Inbound UDP
+$inboundUDPPorts = 53, 80, 123, 443
+foreach ($port in $inboundUDPPorts) {
+    New-NetFirewallRule -DisplayName "Allow Inbound UDP Port $port" -Direction Inbound -Protocol UDP -LocalPort $port -Action Allow
+}
+
+# Outbound UDP
+$outboundUDPPorts = 25, 53, 80, 123, 138, 389, 443
+foreach ($port in $outboundUDPPorts) {
+    New-NetFirewallRule -DisplayName "Allow Outbound UDP Port $port" -Direction Outbound -Protocol UDP -LocalPort $port -Action Allow
+}
+
+# ICMP Inbound/Outbound
+New-NetFirewallRule -DisplayName "ICMP Inbound" -Protocol ICMPv4 -IcmpType 8 -Direction Inbound -Action Allow
+New-NetFirewallRule -DisplayName "ICMP Outbound" -Protocol ICMPv4 -IcmpType 8 -Direction Outbound -Action Allow
+
+# Upstream DNS
+New-NetFirewallRule -DisplayName "Upstream DNS" -Protocol UDP -Direction Outbound -Action Allow
+
+Read-Host "Press Enter to exit..."
