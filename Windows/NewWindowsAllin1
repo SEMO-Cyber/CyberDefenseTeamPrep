@@ -1,0 +1,424 @@
+# Function to log actions
+function Write-Log {
+    param ([string]$message)
+    $logFile = "$env:HOMEDRIVE\AllInOneHardening\Logs\log.txt"
+    $currentTime = Get-Date -Format "MM/dd/yyyy HH:mm:ss K"
+    $logMessage = "$currentTime - $message"
+    Add-Content -Path $logFile -Value $logMessage
+}
+
+# Create log directory if it doesn't exist
+if (-not (Test-Path -Path "$env:HOMEDRIVE\AllInOneHardening\Logs")) {
+    New-Item -Path "$env:HOMEDRIVE\AllInOneHardening\Logs" -ItemType Directory
+}
+
+# Function to disable Windows features
+function Disable-Features {
+    $featuresToDisable = @(
+        "Printing-Server-Role", "RDS-RD-Server", "RDS-Licensing", 
+        "RDS-RD-Web-Access", "RDS-Connection-Broker", "RDS-Remote-Desktop", "RDS-Gateway", 
+        "RDS-RemoteApp-Server", "RDS-RemoteDesktopGateway", "RDS-RemoteDesktopSessionHost", 
+        "RDS-RD-Connection-Broker", "RDS-RD-Gateway", "RDS-RD-Licensing-Diagnosis-UI", "TelnetClient", 
+        "TelnetServer", "SMB1Protocol", "MSMQ-Server", "MSMQ-HTTP", "MSMQ-Triggers", "SimpleTCP", 
+        "SNMP", "SNMP-Service", "SNMP-WMI-Provider", "RemoteAssistance", "RemoteAssistance-Helper", 
+        "WindowsMediaPlayer", "WindowsMediaPlayer-OCX", "MediaPlayback", "MediaCenter", 
+        "MediaCenter-OCX", "Xps-Foundation-Xps-Viewer", "Xps-Viewer"
+    )
+
+    foreach ($feature in $featuresToDisable) {
+        try {
+            Disable-WindowsOptionalFeature -Online -FeatureName $feature -NoRestart
+            Write-Log "Disabled feature: $feature"
+        } catch {
+            Write-Log "Failed to disable feature: $feature - $_"
+        }
+    }
+
+
+    # Disable EternalBlue-related services (SMB1, Teredo, etc.)
+    Write-Host "Disabling Teredo, 6to4, and ISATAP tunneling..."-ForegroundColor Cyan
+    netsh interface teredo set state disabled
+    netsh interface ipv6 6to4 set state state=disabled undoonstop=disabled
+    netsh interface ipv6 isatap set state state=disabled
+    Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+    Write-Host "Disabled SMB1 (EternalBlue), Teredo, 6to4, and ISATAP"
+    Write-Log "Disabled SMB1 and tunneling protocols."
+}
+
+# Function to set up firewall rules
+Function Setup-Firewall {
+    Write-Host "Configuring firewall rules..."-ForegroundColor Cyan
+    
+    # Enable firewall for all profiles
+    Set-NetFirewallProfile -Profile @("Domain", "Public", "Private") -Enabled True
+    Write-Host "Firewall enabled for all profiles."
+
+    # Block all traffic by default
+    netsh advfirewall set allprofiles firewallpolicy "blockinbound,blockoutbound"
+    Write-Host "Default policy set to block all inbound and outbound traffic."
+
+    # Clear old firewall rules
+    Get-NetFirewallRule | Remove-NetFirewallRule
+    Write-Host "Old firewall rules cleared."
+
+    # Define port lists
+    $inboundTCPPorts = "25,53,80,110,143,389,443,587,636,993,995,9997"
+    $outboundTCPPorts = "53,80,443,8080,9997"
+
+    $inboundUDPPorts = "53,80,123,443"
+    $outboundUDPPorts = "25,53,80,123,138,389,443"
+
+    # Configure inbound TCP rules
+    netsh advfirewall firewall add rule name="Allow Inbound TCP" protocol=TCP dir=in localport=$inboundTCPPorts action=allow
+    Write-Host "Inbound TCP ports allowed: $inboundTCPPorts"
+
+    # Configure outbound TCP rules
+    netsh advfirewall firewall add rule name="Allow Outbound TCP" protocol=TCP dir=out remoteport=$outboundTCPPorts action=allow
+    Write-Host "Outbound TCP ports allowed: $outboundTCPPorts"
+
+    # Configure inbound UDP rules
+    netsh advfirewall firewall add rule name="Allow Inbound UDP" protocol=UDP dir=in localport=$inboundUDPPorts action=allow
+    Write-Host "Inbound UDP ports allowed: $inboundUDPPorts"
+
+    # Configure outbound UDP rules
+    netsh advfirewall firewall add rule name="Allow Outbound UDP" protocol=UDP dir=out remoteport=$outboundUDPPorts action=allow
+    Write-Host "Outbound UDP ports allowed: $outboundUDPPorts"
+
+    # Allow ICMP traffic (wide open for scoring purposes)
+    netsh advfirewall firewall add rule name="Allow ICMP Inbound" protocol=icmpv4:8,any dir=in action=allow
+    netsh advfirewall firewall add rule name="Allow ICMP Outbound" protocol=icmpv4:8,any dir=out action=allow
+    Write-Host "ICMP traffic allowed (inbound and outbound)."
+
+    # Allow dynamic outbound ports for application compatibility
+    netsh advfirewall firewall add rule name="Allow Outbound Dynamic Ports TCP" protocol=TCP dir=out localport=49152-65535 action=allow
+    netsh advfirewall firewall add rule name="Allow Outbound Dynamic Ports UDP" protocol=UDP dir=out localport=49152-65535 action=allow
+    Write-Host "Dynamic outbound ports allowed for TCP and UDP."
+
+    Write-Host "Firewall configuration complete."
+}
+
+
+
+
+
+# Function to randomize passwords for all users except the admin
+function Randomize-Passwords {
+    Write-Host "Randomizing passwords for all users except the current administrator..."
+    $adminUser = $env:USERNAME
+    $users = Get-LocalUser | Where-Object { $_.Name -ne $adminUser }
+    
+    foreach ($user in $users) {
+        $newPassword = [System.Web.Security.Membership]::GeneratePassword(12, 3)
+        Set-LocalUser -Name $user.Name -Password (ConvertTo-SecureString -String $newPassword -AsPlainText -Force)
+        Write-Log "Password randomized for user: $($user.Name)"
+        Write-Host "Password randomized for user: $($user.Name)"
+    }
+    Write-Host "Passwords have been randomized."
+}
+
+# Function for system enumeration (infodump)
+function System-Enumeration {
+    $outputFile = "$env:USERPROFILE\Desktop\infodump_report.txt"
+    Start-Transcript -Path $outputFile -Append
+
+    Write-Host "Starting Windows system enumeration... Please wait."
+    Write-Log "System enumeration started."
+
+    # Section 1: OS Information
+    Write-Host "`n====================="-ForegroundColor Cyan
+    Write-Host "=== OS Information ==="-ForegroundColor Cyan
+    Write-Host "====================="-ForegroundColor Cyan
+    Write-Output "`n=== OS Information ==="
+    Get-SmbServerConfiguration | Select-Object -Property EnableSMB1Protocol, EnableSMB2Protocol 
+    Get-ComputerInfo | Select-Object CsName, WindowsVersion, OsArchitecture, Manufacturer, InstallDate | Format-Table -AutoSize
+    
+
+    # Section 2: Users
+Write-Host "`n========================="-ForegroundColor Cyan
+Write-Host "===*******USERS*******==="-ForegroundColor Cyan
+Write-Host "=========================`n"-ForegroundColor Cyan
+Write-Output "=== Users ==="
+Get-LocalUser | Format-Table Name, Enabled, LastLogon -AutoSize
+
+# Section 3: Groups
+Write-Host "`n=========================="-ForegroundColor Cyan
+Write-Host "===*******GROUPS*******==="-ForegroundColor Cyan
+Write-Host "==========================`n"-ForegroundColor Cyan
+Write-Output "=== Groups ==="
+Get-LocalGroup | Format-Table Name, Description -AutoSize
+
+# Section 4: Admin/Sudo Users
+Write-Host "`n==========================="-ForegroundColor Cyan
+Write-Host "===*******SUDOERS*******==="-ForegroundColor Cyan
+Write-Host "===========================`n"-ForegroundColor Cyan
+Write-Output "=== Admin Users ==="
+Get-LocalGroupMember -Group "Administrators" | Format-Table Name, ObjectClass
+
+# Section 5: Network Configuration
+Write-Host "`n=================================="-ForegroundColor Cyan
+Write-Host "===*******NETWORK CONFIG*******==="-ForegroundColor Cyan
+Write-Host "==================================`n"-ForegroundColor Cyan
+Write-Output "=== Network Configuration ==="
+Get-NetIPAddress | Format-Table InterfaceAlias, IPAddress, AddressFamily
+Write-Output "`n=== Hosts File ==="
+Get-Content "C:\Windows\System32\drivers\etc\hosts"
+Write-Output "`n=== DNS Configuration ==="
+Get-DnsClientServerAddress | Format-Table InterfaceAlias, ServerAddresses
+
+# Section 6: Network Connections with PID and Process Name
+Write-Host "`n====================================="-ForegroundColor Cyan
+Write-Host "===*******NETWORK CONNECTIONS*******==="-ForegroundColor Cyan
+Write-Host "=====================================`n"-ForegroundColor Cyan
+Write-Output "=== Active Network Connections with Process Name ==="
+
+Get-NetTCPConnection | ForEach-Object {
+    $processId = $_.OwningProcess
+    $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+
+    [PSCustomObject]@{
+        LocalAddress  = $_.LocalAddress
+        LocalPort     = $_.LocalPort
+        RemoteAddress = $_.RemoteAddress
+        RemotePort    = $_.RemotePort
+        State         = $_.State
+        ProcessID     = $processId
+        ProcessName   = $process.ProcessName
+    }
+} | Format-Table -AutoSize
+
+
+# Section 7: Scheduled Tasks
+Write-Host "`n============================"-ForegroundColor Cyan
+Write-Host "===*******SCHEDULED TASKS*******==="-ForegroundColor Cyan
+Write-Host "============================`n"-ForegroundColor Cyan
+Write-Output "=== Scheduled Tasks ==="
+Get-ScheduledTask | Format-Table TaskName, State, LastRunTime
+
+# Section 9: Running Services
+Write-Host "`n==================================="-ForegroundColor Cyan
+Write-Host "===*******ACTIVE SERVICES*******==="-ForegroundColor Cyan
+Write-Host "==================================`n"-ForegroundColor Cyan
+Write-Output "=== Running Services ==="
+Get-Service | Where-Object {$_.Status -eq 'Running'} | Format-Table Name, DisplayName, Status
+
+# Section 10: Searching for Executables with Special Permissions (SUID/SGID equivalent)
+Write-Host "`n==========================================="
+Write-Host "===*******SPECIAL PERMISSIONS EXECUTABLES*******==="
+Write-Host "===========================================`n"
+Write-Output "=== Executables with Special Permissions ==="
+$directories = @("C:\Windows\System32", "C:\Program Files", "C:\Program Files (x86)")
+foreach ($dir in $directories) {
+    Get-ChildItem -Path $dir -Recurse -ErrorAction SilentlyContinue |
+    Where-Object {($_.Attributes -match "Archive") -and ($_.Mode -match "s")} |
+    Format-Table FullName, Mode
+}
+
+
+    # [Other sections from your infodump script here...]
+
+    # Section 9: Active Processes with Certificate Information
+    Write-Host "`n===============================" -ForegroundColor Cyan
+    Write-Host "=== Active Processes (with Signer) ==="-ForegroundColor Cyan
+    Write-Host "==============================="-ForegroundColor Cyan
+    Write-Output "`n=== Active Processes (with Certificate Information) ==="
+
+    Get-Process | Sort-Object CPU -Descending | ForEach-Object {
+        try {
+            $exePath = $_.Path
+            $signature = if ($exePath -and (Test-Path $exePath)) {
+                Get-AuthenticodeSignature -FilePath $exePath
+            } else {
+                $null
+            }
+            [PSCustomObject]@{
+                ProcessID    = $_.Id
+                ProcessName  = $_.ProcessName
+                CPU          = $_.CPU
+                StartTime    = $_.StartTime
+                IsSigned     = if ($signature -and $signature.SignerCertificate) { "Yes" } else { "No" }
+                Signer       = if ($signature -and $signature.SignerCertificate) { $signature.SignerCertificate.Subject } else { "N/A" }
+            }
+        } catch {
+            Write-Warning "Failed to retrieve details for process $($_.ProcessName). Error: $_"
+        }
+    } | Format-Table -AutoSize
+
+    # Stop transcript
+    Stop-Transcript
+    Write-Log "System enumeration completed and saved to: $outputFile."
+    Write-Host "Enumeration completed! Report saved at: $outputFile"
+}
+
+#Sysinternals install
+function Sysinternals-install {
+# Define the download URL and installation path
+$downloadUrl = "https://download.sysinternals.com/files/SysinternalsSuite.zip"
+$installPath = "C:\SysinternalsSuite"
+
+# Check if the installation directory exists; if not, create it
+if (-Not (Test-Path $installPath)) {
+    Write-Output "Creating installation directory at $installPath..."
+    New-Item -ItemType Directory -Path $installPath -Force | Out-Null
+}
+
+# Define the path for the downloaded zip file
+$zipFile = "$installPath\SysinternalsSuite.zip"
+
+# Download the Sysinternals Suite
+Write-Output "Downloading Sysinternals Suite from $downloadUrl..."
+Invoke-WebRequest -Uri $downloadUrl -OutFile $zipFile
+
+# Extract the contents of the zip file
+Write-Output "Extracting Sysinternals Suite to $installPath..."
+Expand-Archive -Path $zipFile -DestinationPath $installPath -Force
+
+# Remove the zip file after extraction
+Write-Output "Cleaning up temporary files..."
+Remove-Item -Path $zipFile -Force
+
+# Add the installation path to the system PATH environment variable
+Write-Output "Adding Sysinternals Suite to the system PATH..."
+$envPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+if (-Not ($envPath -like "*$installPath*")) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$envPath;$installPath", "Machine")
+    Write-Output "Sysinternals Suite added to the system PATH. Restart PowerShell to use the tools directly."
+} else {
+    Write-Output "Sysinternals Suite is already in the system PATH."
+}
+
+Write-Output "Sysinternals Suite installation complete! Tools are located in $installPath."
+}
+
+# Patch & Vuln Mgmt
+function patch-MGMT {
+    # Add a separator line before the SMB configuration
+    Write-Host "----------------------`n"
+
+    # Display SMB Configuration
+    try {
+        Get-SmbServerConfiguration | Select-Object -Property EnableSMB1Protocol, EnableSMB2Protocol
+    } catch {
+        Write-Host "Failed to retrieve SMB configuration. Ensure the cmdlet is supported and you are running as administrator." -ForegroundColor Red
+        return
+    }
+
+    # Initialize update session and search for updates
+    try {
+        Write-Host "Checking for updates..."
+        $UpdateSession = New-Object -ComObject Microsoft.Update.Session
+        $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()
+        $Updates = $UpdateSearcher.Search("IsInstalled=0").Updates
+    } catch {
+        Write-Host "Failed to initialize update session. This feature might not be available on this system." -ForegroundColor Red
+        return
+    }
+
+    # Display updates
+    if ($Updates.Count -eq 0) {
+        Write-Host "No updates available." -ForegroundColor Green
+    } else {
+        Write-Host "Updates available:" -ForegroundColor Yellow
+        $Updates | ForEach-Object {
+            Write-Host $_.Title
+        }
+    }
+}
+
+
+# Disable IIS / Web-related features
+function Disable-WebFeatures {
+    # List of features to disable
+    $featuresToDisable = @(
+        "IIS-WebServer", 
+        "IIS-FTPServer", 
+        "IIS-WebServerRole", 
+        "IIS-WebServerManagementTools", 
+        "IIS-ManagementScriptingTools", 
+        "IIS-IIS6ManagementCompatibility", 
+        "IIS-Metabase", 
+        "IIS-ManagementConsole"
+    )
+
+    # Loop through each feature and disable it
+    foreach ($feature in $featuresToDisable) {
+        Write-Host "Disabling feature: $feature"
+        Remove-WindowsFeature -Name $feature -ErrorAction SilentlyContinue
+    }
+}
+
+#show file shares
+function File-Shares {
+Write-Host "SMB Shares:" -ForegroundColor Cyan
+Get-SmbShare | Select-Object Name, Path, Description | Format-Table -AutoSize
+
+Write-Host "`nAll Shared Resources:" -ForegroundColor Cyan
+Get-CimInstance -ClassName Win32_Share | Select-Object Name, Path, Description, Type | Format-Table -AutoSize
+}
+
+#upgrade SMB
+function SBM-fix {
+Set-SmbServerConfiguration -EnableSMB2Protocol $true -Force
+Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+}
+
+
+
+# Main menu for user interaction
+function Show-Menu {
+    Write-Host "`nSelect an option:"
+    Write-Host "1. Disable Windows Features (Including EternalBlue Hardening)"
+    Write-Host "2. Set Up Firewall"
+    Write-Host "3. Randomize User Passwords (Except Administrator)"
+    Write-Host "4. System Information Dump (Enumeration)"
+    Write-Host "5. Sysinternals install"
+    Write-Host "6. Patch&Vlun MGMT"
+    write-Host "7. Diasble Web-Ser related fetures (IIS)"
+    write-Host "8. show file shares"
+    write-host "9. Upgrade SMB 1 to SMB 2, disable SMB1"
+    Write-Host "e. Exit"
+}
+
+# Main script loop
+$choice = ""
+while ($choice -ne "e") {
+    Show-Menu
+    $choice = Read-Host "Enter your choice"
+    switch ($choice) {
+        "1" {
+            Disable-Features
+        }
+        "2" {
+            Setup-Firewall
+        }
+        "3" {
+            Randomize-Passwords
+        }
+        "4" {
+            System-Enumeration
+        }
+        "5" {
+            Sysinternals-install
+        }
+        "6" {
+            patch-MGMT
+        }
+        "7" {
+            Disable-WebFeatures
+        }
+        "8" {
+            File-Shares
+        }
+        "9" {
+            SBM-fix
+        }
+        "e" {
+            Write-Host "Exiting script..."
+            Write-Log "Script exited by user."
+        }
+        default {
+            Write-Host "Invalid choice, please try again."
+        }
+    }
+}
+
+Read-Host "Press Enter to exit..."
