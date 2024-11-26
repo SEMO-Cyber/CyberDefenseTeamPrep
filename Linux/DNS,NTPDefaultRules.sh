@@ -1,4 +1,5 @@
 #!/bin/bash
+
 #Flush rules
 iptables -F
 iptables -X
@@ -20,6 +21,9 @@ sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 #Allow NTP traffic
 sudo iptables -A INPUT -p udp --dport 123 -j ACCEPT
 sudo iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
+
+#Allow Splunk Forwarding
+sudo iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 #Allow loopback traffic
 sudo iptables -A INPUT -i lo -j ACCEPT
