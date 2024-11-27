@@ -5,94 +5,43 @@
 
 
 
-# Function to check if the script is run as root
-check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        echo "Please run as root."
-        exit 1
-    fi
-}
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root."
+    exit 1
+fi
 
-# Function to harden cron and at permissions
-harden_cron_permissions() {
-    echo "Locking down Cron and AT permissions..."
-    touch /etc/cron.allow
-    chmod 600 /etc/cron.allow
-    awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
 
-    touch /etc/at.allow
-    chmod 600 /etc/at.allow
-    awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
-}
+echo "Locking down Cron and AT permissions..."
+touch /etc/cron.allow
+chmod 600 /etc/cron.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
 
-# Function to create directories for cron job dumps
-create_directories() {
-    local base_dir=~/cronJobs
-    local sub_dirs=("varSpool" "etc" "etc/cron.d" "etc/hourly" "etc/daily" "etc/weekly" "etc/monthly")
+touch /etc/at.allow
+chmod 600 /etc/at.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 
-    echo "Checking and creating base directory for cron job dumps..."
-    mkdir -p "$base_dir"
 
-    echo "Creating subdirectories for cron job dumps..."
-    for dir in "${sub_dirs[@]}"; do
-        mkdir -p "$base_dir/$dir"
-    done
-}
 
-# Function to copy cron jobs and related files
-copy_cron_jobs() {
-    local source_dirs=(
-        "/var/spool/cron/crontabs"
-        "/etc/crontab"
-        "/etc/cron.d"
-        "/etc/cron.hourly"
-        "/etc/cron.daily"
-        "/etc/cron.weekly"
-        "/etc/cron.monthly"
-        "/etc/cron.allow"
-        "/etc/cron.deny"
-    )
-    local dest_dirs=(
-        "~/cronJobs/varSpool"
-        "~/cronJobs/etc"
-        "~/cronJobs/etc/cron.d"
-        "~/cronJobs/etc/hourly"
-        "~/cronJobs/etc/daily"
-        "~/cronJobs/etc/weekly"
-        "~/cronJobs/etc/monthly"
-        "~/cronJobs/etc"
-        "~/cronJobs/etc"
-    )
+echo "Dumping cron jobs into /cronJobs"
+mkdir -p ~/cronJobs
+mkdir -p ~/cronJobs/varSpool/
+mkdir -p ~/cronJobs/etc/hourly
+mkdir -p ~/cronJobs/etc/daily
+mkdir -p ~/cronJobs/etc/weekly
+mkdir -p ~/cronJobs/etc/monthly
 
-    echo "Dumping cron jobs and related files into ~/cronJobs..."
-    for i in "${!source_dirs[@]}"; do
-        if [ -e "${source_dirs[$i]}" ]; then
-            cp -r "${source_dirs[$i]}" "${dest_dirs[$i]}"
-            printf "Dumped %s to %s\n" "${source_dirs[$i]}" "${dest_dirs[$i]}"
-        else
-            printf "Warning: %s does not exist.\n" "${source_dirs[$i]}"
-        fi
-    done
-}
+echo "Dumping /var/spool"
+cp -r /var/spool/cron/crontabs ~/cronJobs/varSpool/
+echo "Dumping /etc"
+cp -r /etc/crontab ~/cronJobs/etc/
+echo "Dumping hourly,daily,weekly,monthly"
+cp -r /etc/cron.hourly ~/cronJobs/etc/hourly
+cp -r /etc/cron.daily ~/cronJobs/daily
+cp -r /etc/cron.weekly ~/cronJobs/weekly
+cp -r /etc/cron.monthly ~/cronJobs/monthly
 
-# Function to display files
-display_files() {
-    local input=""
-    while true; do
-        read -p "Display list of files? (y/n) " input
-        case $input in
-            [Yy]* ) find ~/cronJobs/ -type f; break;;
-            [Nn]* ) break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-}
-
-# Main script execution
-check_root
-harden_cron_permissions
-create_directories
-copy_cron_jobs
-display_files
-
-echo "Cron job dump complete."
+input=""
+read -p "Display list of files? (y/n) " input
+if [ $input = "y" ]
+        then find ~/cronJobs/ -type f
+fi
