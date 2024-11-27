@@ -1,20 +1,8 @@
 #!/bin/bash
-#Taken almost character-for-character from  Drury's 2023-2024 Github
+#A script meant to harden some of the perms for cron jobs and copy all cron locations into a central, easy to reference directory. This is a time saver with a tiny bit of hardening, nothing special.
 
-#Harden cron permissions
-echo "Locking down Cron"
-touch /etc/cron.allow
-chmod 600 /etc/cron.allow
-awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
-echo "Locking down AT"
-touch /etc/at.allow
-chmod 600 /etc/at.allow
-awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
+#I took both influences, made some changes, ran it through AI, and then did a little more configuration. 
 
-
-#Check cron locations, bring into single directory
-#Made original script based off of: https://github.com/dacx910/CCDC-Scripts/blob/main/Linux%20Scripts/dumpCronJobs.sh
-#Did some edits, ran it through AI, and then edited again
 
 # Function to check if the script is run as root
 check_root() {
@@ -24,14 +12,28 @@ check_root() {
     fi
 }
 
-# Function to create directories
+# Function to harden cron and at permissions
+harden_cron_permissions() {
+    echo "Locking down Cron and AT permissions..."
+    touch /etc/cron.allow
+    chmod 600 /etc/cron.allow
+    awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
+
+    touch /etc/at.allow
+    chmod 600 /etc/at.allow
+    awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
+}
+
+# Function to create directories for cron job dumps
 create_directories() {
+    local base_dir=~/cronJobs
+    local sub_dirs=("varSpool" "etc/hourly" "etc/daily" "etc/weekly" "etc/monthly")
+
     echo "Creating directories for cron job dumps..."
-    mkdir -p /cronJobs/varSpool
-    mkdir -p /cronJobs/etc/hourly
-    mkdir -p /cronJobs/etc/daily
-    mkdir -p /cronJobs/etc/weekly
-    mkdir -p /cronJobs/etc/monthly
+    mkdir -p "$base_dir"
+    for dir in "${sub_dirs[@]}"; do
+        mkdir -p "$base_dir/$dir"
+    done
 }
 
 # Function to copy cron jobs
@@ -45,21 +47,21 @@ copy_cron_jobs() {
         "/etc/cron.monthly"
     )
     local dest_dirs=(
-        "/cronJobs/varSpool"
-        "/cronJobs/etc"
-        "/cronJobs/etc/hourly"
-        "/cronJobs/etc/daily"
-        "/cronJobs/etc/weekly"
-        "/cronJobs/etc/monthly"
+        "~/cronJobs/varSpool"
+        "~/cronJobs/etc"
+        "~/cronJobs/etc/hourly"
+        "~/cronJobs/etc/daily"
+        "~/cronJobs/etc/weekly"
+        "~/cronJobs/etc/monthly"
     )
 
-    echo "Dumping cron jobs into /cronJobs..."
+    echo "Dumping cron jobs into ~/cronJobs..."
     for i in "${!source_dirs[@]}"; do
         if [ -e "${source_dirs[$i]}" ]; then
             cp -r "${source_dirs[$i]}" "${dest_dirs[$i]}"
-            echo "Dumped ${source_dirs[$i]} to ${dest_dirs[$i]}"
+            printf "Dumped %s to %s\n" "${source_dirs[$i]}" "${dest_dirs[$i]}"
         else
-            echo "Warning: ${source_dirs[$i]} does not exist."
+            printf "Warning: %s does not exist.\n" "${source_dirs[$i]}"
         fi
     done
 }
@@ -70,7 +72,7 @@ display_files() {
     while true; do
         read -p "Display list of files? (y/n) " input
         case $input in
-            [Yy]* ) find /cronJobs/ -type f; break;;
+            [Yy]* ) find ~/cronJobs/ -type f; break;;
             [Nn]* ) break;;
             * ) echo "Please answer yes or no.";;
         esac
@@ -79,6 +81,7 @@ display_files() {
 
 # Main script execution
 check_root
+harden_cron_permissions
 create_directories
 copy_cron_jobs
 display_files
