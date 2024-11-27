@@ -4,6 +4,9 @@
 #I took both influences, made some changes, ran it through AI, and then did a little more configuration. 
 
 
+#!/bin/bash
+# Script to harden cron and at permissions and dump cron jobs
+
 # Function to check if the script is run as root
 check_root() {
     if [ "$EUID" -ne 0 ]; then
@@ -29,8 +32,10 @@ create_directories() {
     local base_dir=~/cronJobs
     local sub_dirs=("varSpool" "etc/hourly" "etc/daily" "etc/weekly" "etc/monthly")
 
-    echo "Creating directories for cron job dumps..."
+    echo "Checking and creating base directory for cron job dumps..."
     mkdir -p "$base_dir"
+
+    echo "Creating subdirectories for cron job dumps..."
     for dir in "${sub_dirs[@]}"; do
         mkdir -p "$base_dir/$dir"
     done
