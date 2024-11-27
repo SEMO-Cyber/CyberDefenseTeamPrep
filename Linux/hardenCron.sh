@@ -4,8 +4,6 @@
 #I took both influences, made some changes, ran it through AI, and then did a little more configuration. 
 
 
-#!/bin/bash
-# Script to harden cron and at permissions and dump cron jobs
 
 # Function to check if the script is run as root
 check_root() {
@@ -30,7 +28,7 @@ harden_cron_permissions() {
 # Function to create directories for cron job dumps
 create_directories() {
     local base_dir=~/cronJobs
-    local sub_dirs=("varSpool" "etc/hourly" "etc/daily" "etc/weekly" "etc/monthly")
+    local sub_dirs=("varSpool" "etc" "etc/cron.d" "etc/hourly" "etc/daily" "etc/weekly" "etc/monthly")
 
     echo "Checking and creating base directory for cron job dumps..."
     mkdir -p "$base_dir"
@@ -41,26 +39,32 @@ create_directories() {
     done
 }
 
-# Function to copy cron jobs
+# Function to copy cron jobs and related files
 copy_cron_jobs() {
     local source_dirs=(
         "/var/spool/cron/crontabs"
         "/etc/crontab"
+        "/etc/cron.d"
         "/etc/cron.hourly"
         "/etc/cron.daily"
         "/etc/cron.weekly"
         "/etc/cron.monthly"
+        "/etc/cron.allow"
+        "/etc/cron.deny"
     )
     local dest_dirs=(
         "~/cronJobs/varSpool"
         "~/cronJobs/etc"
+        "~/cronJobs/etc/cron.d"
         "~/cronJobs/etc/hourly"
         "~/cronJobs/etc/daily"
         "~/cronJobs/etc/weekly"
         "~/cronJobs/etc/monthly"
+        "~/cronJobs/etc"
+        "~/cronJobs/etc"
     )
 
-    echo "Dumping cron jobs into ~/cronJobs..."
+    echo "Dumping cron jobs and related files into ~/cronJobs..."
     for i in "${!source_dirs[@]}"; do
         if [ -e "${source_dirs[$i]}" ]; then
             cp -r "${source_dirs[$i]}" "${dest_dirs[$i]}"
