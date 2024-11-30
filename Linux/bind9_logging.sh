@@ -3,16 +3,16 @@
 BIND_CONFIG_FILE="/etc/bind/named.conf"  # Adjust this path if necessary
 LOGGING_CONFIG_FILE="bind9_logging_config.conf"  # Temporary file to store logging config
 
+# Check if the logging block already exists
+if grep -q "logging {" "$BIND_CONFIG_FILE"; then
+    echo "Logging configuration already exists in $BIND_CONFIG_FILE. Aborting..."
+    exit 1
+fi
+
 # Backup the original BIND configuration file
 backup_file="${BIND_CONFIG_FILE}.bak_$(date +%Y%m%d%H%M%S)"
 cp "$BIND_CONFIG_FILE" "$backup_file"
 echo "Backup of $BIND_CONFIG_FILE created at $backup_file"
-
-# Check if the logging block already exists
-if grep -q "logging {" "$BIND_CONFIG_FILE"; then
-    echo "Logging configuration already exists in $BIND_CONFIG_FILE. Aborting."
-    exit 1
-fi
 
 # Write the logging configuration to a temporary file
 cat << EOF > "$LOGGING_CONFIG_FILE"
