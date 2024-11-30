@@ -85,7 +85,6 @@ logging {
      category dispatch { default_log; };
      category network { default_log; };
      category general { default_log; };
-     category zoneload { default_log; };
      category resolver { auth_servers_log; };
      category cname { auth_servers_log; };
      category delegation-only { auth_servers_log; };
