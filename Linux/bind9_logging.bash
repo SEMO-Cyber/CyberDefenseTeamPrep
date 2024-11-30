@@ -2,7 +2,7 @@
 
 # Define variables
 BIND_CONFIG_FILE="/etc/bind/named.conf"  # Adjust this path if necessary
-LOGGING_CONFIG_FILE="bind9_logging_config.conf"  # Temporary file to store logging config
+LOGGING_CONFIG_FILE="bind9_logging.conf"  # Temporary file to store logging config
 
 # Backup the original BIND configuration file
 backup_file="${BIND_CONFIG_FILE}.bak_$(date +%Y%m%d%H%M%S)"
