@@ -27,7 +27,7 @@ sudo iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 #Allow loopback traffic
 sudo iptables -A INPUT -i lo -j ACCEPT
-sudo iptables -A OUTPUIT -o lo -j ACCEPT
+sudo iptables -A OUTPUT -o lo -j ACCEPT
 sudo iptables -A FORWARD -i lo -j ACCEPT
 sudo iptables -A FORWARD -o lo -j ACCEPT
 
