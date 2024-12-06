@@ -9,8 +9,8 @@ sudo iptables -P OUTPUT DROP
 sudo iptables -P FORWARD DROP
 
 #Allow traffic from exisiting/established connections
-sudo iptables -A INPUT -m conntrack --cstate ESTABLISHED,RELATED -j ACCEPT
-sudo iptables -A OUTPUT -m conntrack --cstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 #Allow DNS Traffic
 sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
