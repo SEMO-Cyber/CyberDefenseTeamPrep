@@ -16,7 +16,7 @@ sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
 sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 sudo iptables -A INPUT -p udp --dport 53 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 
 #Allow NTP traffic
 sudo iptables -A INPUT -p udp --dport 123 -j ACCEPT
