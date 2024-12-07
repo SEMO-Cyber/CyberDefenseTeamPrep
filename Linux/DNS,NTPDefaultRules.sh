@@ -9,14 +9,14 @@ sudo iptables -P OUTPUT DROP
 sudo iptables -P FORWARD DROP
 
 #Allow traffic from exisiting/established connections
-sudo iptables -A INPUT -m conntrack --cstate ESTABLISHED,RELATED -j ACCEPT
-sudo iptables -A OUTPUT -m conntrack --cstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 #Allow DNS Traffic
 sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
 sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 sudo iptables -A INPUT -p udp --dport 53 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 
 #Allow NTP traffic
 sudo iptables -A INPUT -p udp --dport 123 -j ACCEPT
@@ -27,6 +27,9 @@ sudo iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 #Allow loopback traffic
 sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A OUTPUT -o lo -j ACCEPT
+sudo iptables -A FORWARD -i lo -j ACCEPT
+sudo iptables -A FORWARD -o lo -j ACCEPT
 
 #Allow to install
 sudo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
