@@ -1,5 +1,6 @@
 #!/bin/bash
 #Scraped together from a multitude of scripts, ideas, and a dash of AI for easy documentation and suggestions
+#Hardening script for the workstation Ubuntu. My networkers use this box, plz be gentle read team. 
 
 
 
