@@ -20,7 +20,6 @@ fi
 # Check if nmap is already installed
 if command -v nmap &> /dev/null; then
     echo "nmap is already installed"
-    exit 0
 fi
 
 # Update and upgrade the system
