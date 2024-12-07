@@ -68,9 +68,7 @@ iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
 #Allow to install
-udo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
-
+sudo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 
 iptables-save > /etc/iptables/rules.v4
 
