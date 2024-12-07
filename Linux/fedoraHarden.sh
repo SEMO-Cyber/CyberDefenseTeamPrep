@@ -133,18 +133,6 @@ tripwire --init
 # Set up a cron job to run Tripwire checks regularly
 (crontab -l 2>/dev/null; echo "0 2 * * * /usr/sbin/tripwire --check") | crontab -
 
-# Configure LDAP
-echo "Configuring LDAP..."
-# Add LDAP configuration here
-
-# Configure Dovecot
-echo "Configuring Dovecot..."
-# Add Dovecot configuration here
-
-# Configure Roundcube
-echo "Configuring Roundcube..."
-# Add Roundcube configuration here
-
 # Uninstall SSH
 echo "Uninstalling SSH..."
 dnf remove --purge openssh-server -y
