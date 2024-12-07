@@ -73,7 +73,7 @@ echo "Configuring Tripwire..."
 tripwire-setup-keyfiles
 
 # Edit the Tripwire policy file
-cat >> /etc/tripwire/twpol.txt << EOF
+cat << 'EOF' >> /etc/tripwire/twpol.txt
 
 # Critical system directories and files
 /etc/passwd                -> $(SEC_BIN) ;
@@ -105,6 +105,7 @@ cat >> /etc/tripwire/twpol.txt << EOF
 /etc/tripwire              -> $(SEC_BIN) ;
 /var/lib/tripwire          -> $(SEC_BIN) ;
 EOF
+
 
 # Regenerate the Tripwire policy file
 twadmin --create-polfile /etc/tripwire/twpol.txt
