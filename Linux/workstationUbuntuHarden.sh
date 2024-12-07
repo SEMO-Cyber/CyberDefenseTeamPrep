@@ -69,37 +69,6 @@ iptables-save > /etc/iptables/rules.v4
 
 
 #
-#   Fail2Ban Configuration
-#
-#
-
-# Enable and start Fail2ban
-echo "Enabling and starting Fail2ban..."
-systemctl enable fail2ban
-systemctl start fail2ban
-
-# Configure Fail2ban
-echo "Configuring Fail2ban..."
-cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-
-# Edit jail.local file
-sed -i 's/bantime  = 10m/bantime  = 1h/' /etc/fail2ban/jail.local
-sed -i 's/findtime  = 10m/findtime  = 30m/' /etc/fail2ban/jail.local
-sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.local
-
-# Add ignoreip (adjust as needed)
-sed -i 's/ignoreip = 127.0.0.1\/8 ::1/ignoreip = 127.0.0.1\/8 ::1 172.20.0.0\/16/' /etc/fail2ban/jail.local
-
-# Enable SSH protection
-sed -i 's/\[sshd\]/[sshd]\nenabled = true/' /etc/fail2ban/jail.local
-
-# Restart Fail2ban
-echo "Restarting Fail2ban..."
-systemctl restart fail2ban
-
-
-
-#
 #   Uninstall SSH, harden cron, final notes
 #
 #
