@@ -50,10 +50,7 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-# Set default policies
-iptables -P INPUT DROP
-iptables -P OUTPUT DROP
-iptables -P FORWARD DROP
+
 
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -93,6 +90,11 @@ iptables -A INPUT -p udp --dport 123 -m state --state ESTABLISHED -j ACCEPT
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
+
+# Set default policies
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
 
 
 # Save the rules
