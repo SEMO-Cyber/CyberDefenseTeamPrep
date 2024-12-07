@@ -32,10 +32,7 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-# Set default policies
-iptables -P INPUT DROP
-iptables -P OUTPUT ACCEPT
-iptables -P FORWARD DROP
+
 
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -54,16 +51,22 @@ iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
 iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
 
 # Allow web access
-iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 80 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
 
 # Allow DNS traffic
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Allow NTP traffic  
-iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
-iptables -A INPUT -p udp --sport 123 -m state --state ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p udp --sport 123 -j ACCEPT
+iptables -A INPUT -p udp --dport 123 -m state --state ESTABLISHED -j ACCEPT
+
+
+# Set default policies
+iptables -P INPUT DROP
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD DROP
 
 # Save the rules
 iptables-save > /etc/iptables/rules.v4
