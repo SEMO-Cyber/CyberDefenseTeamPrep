@@ -65,21 +65,23 @@ iptables -A OUTPUT -o lo -j ACCEPT
 
 # Allow incoming Splunk traffic
 iptables -A INPUT -p tcp --dport 9997 -j ACCEPT  # Splunk forwarder port
+iptables -A INPUT -m udp --dport 9997 -j ACCEPT  #udp forwarder
 iptables -A INPUT -p tcp --dport 8089 -j ACCEPT  # Splunk management port
 iptables -A INPUT -p tcp --dport 8000 -j ACCEPT   # Splunk web interface (HTTPS)
 
 # Allow outgoing Splunk traffic
-iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 8089 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 8000 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
+iptables -A OUTPUT -p udp --sport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 8000 -j ACCEPT
 
 # Allow DNS traffic
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Allow NTP traffic
-iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
-iptables -A INPUT -p udp --sport 123 -m state --state ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p udp --sport 123 -j ACCEPT
+iptables -A INPUT -p udp --dport 123 -m state --state ESTABLISHED -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
