@@ -52,59 +52,49 @@ iptables -X
 
 # Set default policies
 iptables -P INPUT DROP
-iptables -P OUTPUT ACCEPT
+iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
 
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 # Allow loopback traffic
 iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
 
-# Allow incoming ICMP traffic (ping)
-iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+# Allow incoming Splunk traffic
+iptables -A INPUT -p tcp --dport 9997 -j ACCEPT  # Splunk forwarder port
+iptables -A INPUT -p tcp --dport 8089 -j ACCEPT  # Splunk management port
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT   # Splunk web interface (HTTPS)
+
+# Allow outgoing Splunk traffic
+iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 8089 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
 # Allow DNS traffic
-iptables -A INPUT -p tcp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
-iptables -A INPUT -p udp --dport 53 -j ACCEPT
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 
-# Allow NTP
-iptables -A INPUT -p udp --dport 123 -j ACCEPT
+# Allow NTP traffic
+iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
+iptables -A INPUT -p udp --sport 123 -m state --state ESTABLISHED -j ACCEPT
 
-# Allow incoming traffic on port 8000 (Splunk web interface)
-iptables -A INPUT -p tcp --dport 8000 -j ACCEPT
-
-# Allow incoming traffic on port 8089 (Splunk data input)
-iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
-
-# Allow incoming traffic on port 8191 (Splunk data input)
-iptables -A INPUT -p tcp --dport 8191 -j ACCEPT
-
-# Allow incoming traffic on port 8065 (Splunk data input)
-iptables -A INPUT -p tcp --dport 8065 -j ACCEPT
-
-# Allow incoming traffic on port 9997 (Splunk data input)
-iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
-
-# Allow incoming traffic from specific IP addresses or subnets
-# Internal, e1/2 subnet
-iptables -A INPUT -s 172.20.240.0/24 -j ACCEPT
-# User, e1/4 subnet 
-iptables -A INPUT -s 172.20.242.0/24 -j ACCEPT
-# Public, e1/1 subnet 
-iptables -A INPUT -s 172.20.241.0/24 -j ACCEPT
+# Allow SSH (if needed)
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
-# Drop all other incoming traffic
+# Drop all other traffic
 iptables -A INPUT -j DROP
+iptables -A OUTPUT -j DROP
+iptables -A FORWARD -j DROP
 
-# Save iptables rules
-iptables-save > /etc/iptables.rules
+# Save the rules
+iptables-save > /etc/iptables/rules.v4
 
 #
 #   Uninstall SSH, harden cron, final notes

@@ -54,7 +54,7 @@ EOF
 
     cat << EOF > /opt/splunkforwarder/etc/system/local/user-seed.conf
     [user_info]
-    USERNAME = admin
+    USERNAME = sysadmin
     PASSWORD = Changeme1!
 EOF
 
@@ -88,6 +88,8 @@ EOF
 
 # Function to configure Splunk forwarder
 function configure_splunk_forwarder() {
+
+    sudo chown -R splunkfwd:splunkfwd /opt/splunkforwarder
 
 # Function to add monitor
 function add_monitor() {
