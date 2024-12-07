@@ -1,6 +1,5 @@
 #!/bin/bash
-#Hardening script for Fedora 21. God I hate this operating system.
-#CCDC has taught me that a RedHat OS is just a hint at how it makes me want to decorate my walls.
+#Ubuntu 18 web hardening script
 
 
 # Check if running as root
@@ -9,25 +8,13 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-
-# Determine package manager
-if command -v dnf &> /dev/null; then
-    PKG_MANAGER="dnf"
-elif command -v yum &> /dev/null; then
-    PKG_MANAGER="yum"
-else
-    echo "Neither dnf nor yum found. Exiting."
-    exit 1
-fi
-
 # Update and upgrade the system
 echo "Updating and upgrading the system..."
-$PKG_MANAGER update -y
+apt update && apt upgrade -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-$PKG_MANAGER install -y curl wget nmap fail2ban iptables-services cronie
-
+apt install -y curl wget nmap fail2ban iptables-persistent cron
 
 
 #
@@ -44,51 +31,41 @@ iptables -X
 
 # Set default policies
 iptables -P INPUT DROP
-iptables -P OUTPUT ACCEPT
+iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
 
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 # Allow loopback traffic
 iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
 
-# Allow incoming LDAP traffic
-iptables -A INPUT -p tcp --dport 389 -j ACCEPT
-iptables -A INPUT -p tcp --dport 636 -j ACCEPT
-
-# Allow incoming IMAP traffic
-iptables -A INPUT -p tcp --dport 143 -j ACCEPT
-iptables -A INPUT -p tcp --dport 993 -j ACCEPT
-
-# Allow incoming SMTP traffic
-iptables -A INPUT -p tcp --dport 25 -j ACCEPT
-iptables -A INPUT -p tcp --dport 465 -j ACCEPT
-iptables -A INPUT -p tcp --dport 587 -j ACCEPT
-
-# Allow incoming HTTP/HTTPS traffic for Roundcube
+# Allow incoming HTTP traffic
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-
-# Allow Splunk forwarder traffic
-iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 # Allow outgoing DNS traffic
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 
-# Allow incoming DNS responses
-iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
-iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+# Allow outgoing NTP traffic
+iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
+
+# Allow Splunk forwarder traffic
+iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
+iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
-# Drop all other incoming traffic
+# Drop all other traffic
 iptables -A INPUT -j DROP
+iptables -A OUTPUT -j DROP
+iptables -A FORWARD -j DROP
 
 # Save iptables rules
-iptables-save > /etc/iptables.rules
+iptables-save > /etc/iptables/rules.v4
 
 
 #
@@ -128,7 +105,7 @@ systemctl restart fail2ban
 
 # Uninstall SSH
 echo "Uninstalling SSH..."
-dnf remove --purge openssh-server -y
+apt remove --purge openssh-server -y
 
 # Harden cron
 echo "Locking down Cron and AT permissions..."
@@ -142,7 +119,7 @@ awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 
 # Final steps
 echo "Final steps..."
-dnf autoremove -y
+apt autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNEL!!!!!!"

@@ -127,7 +127,7 @@ sed -i 's/findtime  = 10m/findtime  = 30m/' /etc/fail2ban/jail.local
 sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.local
 
 # Add ignoreip (adjust as needed)
-sed -i 's/ignoreip = 127.0.0.1\/8 ::1/ignoreip = 127.0.0.1\/8 ::1 192.168.1.0\/24/' /etc/fail2ban/jail.local
+sed -i 's/ignoreip = 127.0.0.1\/8 ::1/ignoreip = 127.0.0.1\/8 ::1 172.20.0.0\/16/' /etc/fail2ban/jail.local
 
 # Enable SSH protection
 sed -i 's/\[sshd\]/[sshd]\nenabled = true/' /etc/fail2ban/jail.local
@@ -163,4 +163,4 @@ echo "Final steps..."
 $PKG_MANAGER autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
-echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNAL!!!!!!"
+echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNEL!!!!!!"
