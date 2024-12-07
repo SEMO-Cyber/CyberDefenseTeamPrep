@@ -42,10 +42,7 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-# Set default policies
-iptables -P INPUT DROP
-iptables -P OUTPUT ACCEPT
-iptables -P FORWARD DROP
+
 
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -71,21 +68,25 @@ iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 
 # Allow Splunk forwarder traffic
-iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
 
 # Allow outgoing DNS traffic
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 53 -j ACCEPT
 
 # Allow incoming DNS responses
-iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
-iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
+iptables -A INPUT -p tcp --dport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
+
 # Drop all other incoming traffic
-iptables -A INPUT -j DROP
+# Set default policies
+iptables -P INPUT DROP
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD DROP
 
 # Save iptables rules
 iptables-save > /etc/iptables.rules
