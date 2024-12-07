@@ -17,7 +17,7 @@ apt update && apt upgrade -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-apt install -y curl wget gnupg2 ca-certificates lsb-release iptables-persistent nmap tripwire snort
+apt install -y curl wget iptables-persistent nmap tripwire snort cron
 
 
 #Begin firewall rules
@@ -72,7 +72,37 @@ systemctl restart fail2ban
 # Configure Tripwire
 echo "Configuring Tripwire..."
 tripwire-setup-keyfiles
-tripwire-init
+
+# Edit the Tripwire policy file
+cat >> /etc/tripwire/twpol.txt << EOF
+
+# Critical system directories and files
+/etc/passwd                -> $(SEC_BIN) ;
+/etc/shadow                -> $(SEC_BIN) ;
+/etc/group                 -> $(SEC_BIN) ;
+/etc/gshadow               -> $(SEC_BIN) ;
+/etc/sudoers               -> $(SEC_BIN) ;
+/etc/hosts                 -> $(SEC_BIN) ;
+/etc/hosts.allow           -> $(SEC_BIN) ;
+/etc/hosts.deny            -> $(SEC_BIN) ;
+/etc/ssh                   -> $(SEC_BIN) ;
+/etc/ssh/sshd_config       -> $(SEC_BIN) ;
+/etc/iptables              -> $(SEC_BIN) ;
+/etc/iptables/rules.v4     -> $(SEC_BIN) ;
+/etc/iptables/rules.v6     -> $(SEC_BIN) ;
+EOF
+
+# Regenerate the Tripwire policy file
+twadmin --create-polfile /etc/tripwire/twpol.txt
+
+# Update the Tripwire database
+tripwire --update --twrfile /var/lib/tripwire/report/$(hostname)-$(date +%Y%m%d)-$(date +%H%M%S).twr
+
+# Initialize Tripwire
+tripwire --init
+
+# Set up a cron job to run Tripwire checks regularly
+(crontab -l 2>/dev/null; echo "0 2 * * * /usr/sbin/tripwire --check") | crontab -
 
 
 # Uninstall SSH

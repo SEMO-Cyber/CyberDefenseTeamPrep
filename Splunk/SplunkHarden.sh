@@ -1,8 +1,6 @@
 #!/bin/bash
 #Hardening script for Splunk. Assumes some version of Oracle Linux.
 
-
-
 # Check if running as root
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
@@ -31,7 +29,7 @@ $PKG_MANAGER update -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-$PKG_MANAGER install -y nmap tripwire fail2ban iptables-services
+$PKG_MANAGER install -y curl wget nmap tripwire fail2ban iptables-services cronie
 
 # Verify iptables-save is installed
 if ! command -v iptables-save &> /dev/null; then
@@ -59,6 +57,12 @@ iptables -A INPUT -i lo -j ACCEPT
 
 # Allow incoming ICMP traffic (ping)
 iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+
+# Allow DNS traffic
+iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 
 # Allow NTP
 iptables -A INPUT -p udp --dport 123 -j ACCEPT
@@ -88,6 +92,7 @@ iptables -A INPUT -s 172.20.241.0/24 -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
+iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
 # Drop all other incoming traffic
 iptables -A INPUT -j DROP
@@ -104,7 +109,49 @@ systemctl restart fail2ban
 # Configure Tripwire
 echo "Configuring Tripwire..."
 tripwire-setup-keyfiles
-tripwire-init
+
+# Edit the Tripwire policy file
+cat >> /etc/tripwire/twpol.txt << EOF
+
+# Splunk directories and files
+/opt/splunk                -> $(SEC_BIN) ;
+/opt/splunk/etc            -> $(SEC_BIN) ;
+/opt/splunk/etc/system     -> $(SEC_BIN) ;
+/opt/splunk/etc/apps       -> $(SEC_BIN) ;
+/opt/splunk/etc/users      -> $(SEC_BIN) ;
+/opt/splunk/var            -> $(SEC_BIN) ;
+/opt/splunk/var/log        -> $(SEC_BIN) ;
+/opt/splunk/var/run        -> $(SEC_BIN) ;
+/opt/splunk/bin            -> $(SEC_BIN) ;
+/opt/splunk/lib            -> $(SEC_BIN) ;
+
+# Critical system directories and files
+/etc/passwd                -> $(SEC_BIN) ;
+/etc/shadow                -> $(SEC_BIN) ;
+/etc/group                 -> $(SEC_BIN) ;
+/etc/gshadow               -> $(SEC_BIN) ;
+/etc/sudoers               -> $(SEC_BIN) ;
+/etc/hosts                 -> $(SEC_BIN) ;
+/etc/hosts.allow           -> $(SEC_BIN) ;
+/etc/hosts.deny            -> $(SEC_BIN) ;
+/etc/ssh                   -> $(SEC_BIN) ;
+/etc/ssh/sshd_config       -> $(SEC_BIN) ;
+/etc/iptables              -> $(SEC_BIN) ;
+/etc/iptables/rules.v4     -> $(SEC_BIN) ;
+/etc/iptables/rules.v6     -> $(SEC_BIN) ;
+EOF
+
+# Regenerate the Tripwire policy file
+twadmin --create-polfile /etc/tripwire/twpol.txt
+
+# Update the Tripwire database
+tripwire --update --twrfile /var/lib/tripwire/report/$(hostname)-$(date +%Y%m%d)-$(date +%H%M%S).twr
+
+# Initialize Tripwire
+tripwire --init
+
+# Set up a cron job to run Tripwire checks regularly
+(crontab -l 2>/dev/null; echo "0 2 * * * /usr/sbin/tripwire --check") | crontab -
 
 # Uninstall SSH
 echo "Uninstalling SSH..."
