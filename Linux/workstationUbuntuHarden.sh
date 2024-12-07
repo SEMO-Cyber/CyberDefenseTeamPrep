@@ -17,7 +17,7 @@ apt update && apt upgrade -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-apt install -y curl wget iptables-persistent nmap fail2ban cron
+apt install -y curl wget iptables-persistent nmap cron
 
 
 #

@@ -13,7 +13,7 @@ apt update && apt upgrade -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-apt install -y curl wget nmap fail2ban iptables-persistent
+apt install -y curl wget nmap iptables-persistent
 
 
 

@@ -26,7 +26,7 @@ $PKG_MANAGER update -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-$PKG_MANAGER install -y curl wget nmap fail2ban iptables-services cronie
+$PKG_MANAGER install -y curl wget nmap iptables-services cronie
 
 
 
