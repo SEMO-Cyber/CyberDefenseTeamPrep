@@ -110,13 +110,20 @@ tripwire-init
 echo "Uninstalling SSH..."
 $PKG_MANAGER remove --purge openssh-server -y
 
+
+#harden cron
+echo "Locking down Cron and AT permissions..."
+touch /etc/cron.allow
+chmod 600 /etc/cron.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
+
+touch /etc/at.allow
+chmod 600 /etc/at.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
+
+
 # Final steps
 echo "Final steps..."
 $PKG_MANAGER autoremove -y
 
-# Delay for 6 seconds before rebooting
-echo "Rebooting in 6 seconds..."
-echo "MAKE SURE YOU STILL ENUMERATE!!!"
-sleep 6
-
-reboot
+echo "MAKE SURE YOU STILL ENUMERATE!!"

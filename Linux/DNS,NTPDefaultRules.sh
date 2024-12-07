@@ -100,6 +100,20 @@ systemctl restart ntp
 echo "Uninstalling SSH..."
 apt remove --purge openssh-server -y
 
+
+#harden cron
+echo "Locking down Cron and AT permissions..."
+touch /etc/cron.allow
+chmod 600 /etc/cron.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
+
+touch /etc/at.allow
+chmod 600 /etc/at.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
+
+
 # Final steps
 echo "Final steps..."
 apt autoremove -y
+
+echo "MAKE SURE YOU ENUMERATE!!!"
