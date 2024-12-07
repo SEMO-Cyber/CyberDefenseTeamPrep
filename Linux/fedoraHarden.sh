@@ -9,13 +9,24 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+
+# Determine package manager
+if command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
+elif command -v yum &> /dev/null; then
+    PKG_MANAGER="yum"
+else
+    echo "Neither dnf nor yum found. Exiting."
+    exit 1
+fi
+
 # Update and upgrade the system
 echo "Updating and upgrading the system..."
-dnf update -y
+$PKG_MANAGER update -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-dnf install -y nmap tripwire fail2ban iptables-services cronie 
+$PKG_MANAGER install -y nmap tripwire fail2ban iptables-services cronie
 
 # Configure firewall rules using iptables
 echo "Configuring firewall rules..."
