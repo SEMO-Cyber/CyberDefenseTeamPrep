@@ -39,18 +39,18 @@ iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 #Allow DNS Traffic
 iptables -A INPUT -p tcp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 53 -j ACCEPT
 iptables -A INPUT -p udp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
 
 #Allow NTP traffic
 iptables -A INPUT -p udp --dport 123 -j ACCEPT
-iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
+iptables -A OUTPUT -p udp --sport 123 -j ACCEPT
 
 # Allow incoming traffic on Splunk ports
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
-iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A INPUT -p tcp --sport 8089 -j ACCEPT
+iptables -A INPUT -p tcp --sport 9997 -j ACCEPT
 
 # Allow outgoing traffic on Splunk ports
 iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
