@@ -1,16 +1,67 @@
 #!/bin/bash
+#Hardening script for Splunk. Assumes some version of Oracle Linux.
 
-# Flush existing iptables rules
+
+
+# Check if running as root
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
+# Determine package manager
+if command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
+elif command -v yum &> /dev/null; then
+    PKG_MANAGER="yum"
+else
+    echo "Neither dnf nor yum found. Exiting."
+    exit 1
+fi
+
+# Check if nmap is already installed
+if command -v nmap &> /dev/null; then
+    echo "nmap is already installed"
+    exit 0
+fi
+
+# Update and upgrade the system
+echo "Updating and upgrading the system..."
+$PKG_MANAGER update -y
+
+# Install necessary tools and dependencies
+echo "Installing necessary tools and dependencies..."
+$PKG_MANAGER install -y nmap tripwire fail2ban iptables-services
+
+# Verify iptables-save is installed
+if ! command -v iptables-save &> /dev/null; then
+    echo "iptables-save not found. Installing..."
+    $PKG_MANAGER install -y iptables
+fi
+
+# Configure firewall rules using iptables
+echo "Configuring firewall rules..."
+
+# Flush existing rules
 iptables -F
+iptables -X
 
-#Allow for already established connections
+# Set default policies
+iptables -P INPUT DROP
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD DROP
+
+# Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-# Allow incoming ICMP traffic
-iptables -A INPUT -p icmp -m state --state NEW,ESTABLISHED -j ACCEPT
+# Allow loopback traffic
+iptables -A INPUT -i lo -j ACCEPT
 
-#Allow ntpstat
-iptables -A INPUT -p udp -m udp -j ACCEPT
+# Allow incoming ICMP traffic (ping)
+iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+
+# Allow NTP
+iptables -A INPUT -p udp --dport 123 -j ACCEPT
 
 # Allow incoming traffic on port 8000 (Splunk web interface)
 iptables -A INPUT -p tcp --dport 8000 -j ACCEPT
@@ -35,6 +86,8 @@ iptables -A INPUT -s 172.20.242.0/24 -j ACCEPT
 # Public, e1/1 subnet 
 iptables -A INPUT -s 172.20.241.0/24 -j ACCEPT
 
+# Log dropped packets
+iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
 # Drop all other incoming traffic
 iptables -A INPUT -j DROP
@@ -42,10 +95,28 @@ iptables -A INPUT -j DROP
 # Save iptables rules
 iptables-save > /etc/iptables.rules
 
-echo "# Require the root pw when booting into single user mode" >> /etc/inittab
-echo "~~:S:wait:/sbin/sulogin" >> /etc/inittab
-echo "Don't allow any nut to kill the server"
-perl -npe 's/ca::ctrlaltdel:\/sbin\/shutdown/#ca::ctrlaltdel:\/sbin\/shutdown/' -i /etc/inittab
+# Configure Fail2ban
+echo "Configuring Fail2ban..."
+cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+sed -i 's/bantime  = 10m/bantime  = 1h/' /etc/fail2ban/jail.local
+systemctl restart fail2ban
 
-echo "Disabling USB Mass Storage"
-echo "blacklist usb-storage" > /etc/modprobe.d/blacklist-usbstorage
+# Configure Tripwire
+echo "Configuring Tripwire..."
+tripwire-setup-keyfiles
+tripwire-init
+
+# Uninstall SSH
+echo "Uninstalling SSH..."
+$PKG_MANAGER remove --purge openssh-server -y
+
+# Final steps
+echo "Final steps..."
+$PKG_MANAGER autoremove -y
+
+# Delay for 6 seconds before rebooting
+echo "Rebooting in 6 seconds..."
+echo "MAKE SURE YOU STILL ENUMERATE!!!"
+sleep 6
+
+reboot
