@@ -9,21 +9,6 @@ fi
 # Determine the OS
 OS=$(cat /etc/os-release | grep ^NAME= | cut -d= -f2 | tr -d '"')
 
-# Install Splunk forwarder (adjust URL as needed)
-echo "Installing Splunk forwarder..."
-if [[ $OS == *"Ubuntu"* ]] || [[ $OS == *"Debian"* ]]; then
-    wget -O splunkforwarder.deb "https://download.splunk.com/products/universalforwarder/releases/9.0.3/linux/splunkforwarder-9.0.3-82c987350fde-Linux-x86_64.deb"
-    dpkg -i splunkforwarder.deb
-elif [[ $OS == *"CentOS"* ]] || [[ $OS == *"Red Hat"* ]]; then
-    wget -O splunkforwarder.rpm "https://download.splunk.com/products/universalforwarder/releases/9.0.3/linux/splunkforwarder-9.0.3-82c987350fde-Linux-x86_64.rpm"
-    rpm -i splunkforwarder.rpm
-else
-    echo "Unsupported OS. Please install Splunk forwarder manually."
-    exit 1
-fi
-
-# Start Splunk forwarder
-/opt/splunkforwarder/bin/splunk start --accept-license
 
 # Configure Splunk forwarder
 echo "Configuring Splunk forwarder..."
