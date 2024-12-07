@@ -26,7 +26,14 @@ $PKG_MANAGER update -y
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-$PKG_MANAGER install -y nmap tripwire fail2ban iptables-services cronie
+$PKG_MANAGER install -y nmap fail2ban iptables-services cronie
+
+
+
+#
+#   IPTables Rules
+#
+#
 
 # Configure firewall rules using iptables
 echo "Configuring firewall rules..."
@@ -83,63 +90,41 @@ iptables -A INPUT -j DROP
 # Save iptables rules
 iptables-save > /etc/iptables.rules
 
+
+#
+#   Fail2Ban Configuration
+#
+#
+
+# Enable and start Fail2ban
+echo "Enabling and starting Fail2ban..."
+systemctl enable fail2ban
+systemctl start fail2ban
+
 # Configure Fail2ban
 echo "Configuring Fail2ban..."
 cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+# Edit jail.local file
 sed -i 's/bantime  = 10m/bantime  = 1h/' /etc/fail2ban/jail.local
+sed -i 's/findtime  = 10m/findtime  = 30m/' /etc/fail2ban/jail.local
+sed -i 's/maxretry = 5/maxretry = 3/' /etc/fail2ban/jail.local
+
+# Add ignoreip (adjust as needed)
+sed -i 's/ignoreip = 127.0.0.1\/8 ::1/ignoreip = 127.0.0.1\/8 ::1 192.168.1.0\/24/' /etc/fail2ban/jail.local
+
+# Enable SSH protection
+sed -i 's/\[sshd\]/[sshd]\nenabled = true/' /etc/fail2ban/jail.local
+
+# Restart Fail2ban
+echo "Restarting Fail2ban..."
 systemctl restart fail2ban
 
-# Configure Tripwire
-echo "Configuring Tripwire..."
-tripwire-setup-keyfiles
 
-# Edit the Tripwire policy file
-cat >> /etc/tripwire/twpol.txt << EOF
-
-# Critical system directories and files
-/etc/passwd                -> $(SEC_BIN) ;
-/etc/shadow                -> $(SEC_BIN) ;
-/etc/group                 -> $(SEC_BIN) ;
-/etc/gshadow               -> $(SEC_BIN) ;
-/etc/sudoers               -> $(SEC_BIN) ;
-/etc/hosts                 -> $(SEC_BIN) ;
-/etc/hosts.allow           -> $(SEC_BIN) ;
-/etc/hosts.deny            -> $(SEC_BIN) ;
-/etc/ssh                   -> $(SEC_BIN) ;
-/etc/ssh/sshd_config       -> $(SEC_BIN) ;
-/etc/iptables              -> $(SEC_BIN) ;
-/etc/iptables/rules.v4     -> $(SEC_BIN) ;
-/etc/iptables/rules.v6     -> $(SEC_BIN) ;
-
-# LDAP directories and files
-/etc/openldap             -> $(SEC_BIN) ;
-/var/lib/ldap             -> $(SEC_BIN) ;
-
-# Dovecot directories and files
-/etc/dovecot              -> $(SEC_BIN) ;
-/var/lib/dovecot          -> $(SEC_BIN) ;
-
-# Roundcube directories and files
-/var/www/roundcubemail     -> $(SEC_BIN) ;
-/etc/roundcubemail         -> $(SEC_BIN) ;
-
-# Tripwire directories and files
-/usr/sbin/tripwire         -> $(SEC_BIN) ;
-/etc/tripwire              -> $(SEC_BIN) ;
-/var/lib/tripwire          -> $(SEC_BIN) ;
-EOF
-
-# Regenerate the Tripwire policy file
-twadmin --create-polfile /etc/tripwire/twpol.txt
-
-# Update the Tripwire database
-tripwire --update --twrfile /var/lib/tripwire/report/$(hostname)-$(date +%Y%m%d)-$(date +%H%M%S).twr
-
-# Initialize Tripwire
-tripwire --init
-
-# Set up a cron job to run Tripwire checks regularly
-(crontab -l 2>/dev/null; echo "0 2 * * * /usr/sbin/tripwire --check") | crontab -
+#
+#   Uninstall SSH, harden cron, final notes
+#
+#
 
 # Uninstall SSH
 echo "Uninstalling SSH..."
@@ -160,3 +145,4 @@ echo "Final steps..."
 dnf autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
+echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNAL!!!!!!"
