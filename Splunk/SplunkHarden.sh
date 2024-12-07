@@ -8,10 +8,10 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 # Determine package manager
-if command -v dnf &> /dev/null; then
-    PKG_MANAGER="dnf"
-elif command -v yum &> /dev/null; then
+if command -v yum &> /dev/null; then
     PKG_MANAGER="yum"
+elif command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
 else
     echo "Neither dnf nor yum found. Exiting."
     exit 1
