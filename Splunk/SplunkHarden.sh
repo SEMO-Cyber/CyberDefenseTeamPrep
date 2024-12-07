@@ -63,8 +63,10 @@ sudo iptables -A INPUT -p icmp -j ACCEPT
 sudo iptables -A OUTPUT -p icmp -j ACCEPT
 
 # Allow DNS traffic
-sudo iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
-sudo iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
+sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+sudo iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+sudo iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Allow HTTP/HTTPS traffic
 sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
@@ -83,6 +85,8 @@ sudo iptables -A OUTPUT -p tcp --sport 8000 -j ACCEPT
 # Log dropped packets
 sudo iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 sudo iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
+
+
 # Set default policies
 iptables -P INPUT DROP
 iptables -P OUTPUT DROP
