@@ -50,43 +50,39 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-# Allow traffic from existing/established connections
-iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+# Allow established connections
+sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 # Allow loopback traffic
-iptables -A INPUT -i lo -j ACCEPT
-iptables -A OUTPUT -o lo -j ACCEPT
+sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A OUTPUT -o lo -j ACCEPT
 
-# Allow incoming Splunk traffic
-iptables -A INPUT -p tcp --dport 9997 -j ACCEPT  # Splunk forwarder port
-iptables -A INPUT -m udp --dport 9997 -j ACCEPT  #udp forwarder
-iptables -A INPUT -p tcp --dport 8089 -j ACCEPT  # Splunk management port
-iptables -A INPUT -p tcp --dport 8000 -j ACCEPT   # Splunk web interface (HTTPS)
-
-# Allow outgoing Splunk traffic
-iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
-iptables -A OUTPUT -p udp --sport 9997 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 8000 -j ACCEPT
-
-sudo iptables -A OUTPUT -p tcp --sport 80 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+# Allow ICMP (ping)
+sudo iptables -A INPUT -p icmp -j ACCEPT
+sudo iptables -A OUTPUT -p icmp -j ACCEPT
 
 # Allow DNS traffic
-iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
-iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
+sudo iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
 
-# Allow NTP traffic
-iptables -A OUTPUT -p udp --sport 123 -j ACCEPT
-iptables -A INPUT -p udp --dport 123 -m state --state ESTABLISHED -j ACCEPT
+# Allow HTTP/HTTPS traffic
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+
+# Allow Splunk-specific traffic
+sudo iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 8000 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 8000 -j ACCEPT
 
 # Log dropped packets
-iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-
+sudo iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
+sudo iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 # Set default policies
 iptables -P INPUT DROP
 iptables -P OUTPUT DROP
@@ -95,6 +91,7 @@ iptables -P FORWARD DROP
 
 # Save the rules
 iptables-save > /etc/iptables/rules.v4
+
 
 #
 #   Uninstall SSH, harden cron, final notes
