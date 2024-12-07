@@ -29,40 +29,47 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-sudo iptables -P INPUT DROP
-sudo iptables -P OUTPUT DROP
-sudo iptables -P FORWARD DROP
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
 
 #Allow traffic from exisiting/established connections
-sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 #Allow DNS Traffic
-sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
-sudo iptables -A INPUT -p udp --dport 53 -j ACCEPT
-sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 
 #Allow NTP traffic
-sudo iptables -A INPUT -p udp --dport 123 -j ACCEPT
-sudo iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
+iptables -A INPUT -p udp --dport 123 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 
-#Allow Splunk Forwarding
-sudo iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+# Allow incoming traffic on Splunk ports
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
+iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
+
+# Allow outgoing traffic on Splunk ports
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 8089 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 #Allow loopback traffic
-sudo iptables -A INPUT -i lo -j ACCEPT
-sudo iptables -A OUTPUT -o lo -j ACCEPT
-sudo iptables -A FORWARD -i lo -j ACCEPT
-sudo iptables -A FORWARD -o lo -j ACCEPT
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+iptables -A FORWARD -i lo -j ACCEPT
+iptables -A FORWARD -o lo -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
 #Allow to install
-sudo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+udo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
 
 iptables-save > /etc/iptables/rules.v4
