@@ -46,12 +46,12 @@ iptables -A INPUT -i lo -j ACCEPT
 # Allow incoming traffic on Splunk ports
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
-iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
+
 
 # Allow outgoing traffic on Splunk ports
-iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 8089 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
 
 # Allow web access
 iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
