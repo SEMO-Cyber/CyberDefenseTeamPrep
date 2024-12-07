@@ -88,108 +88,57 @@ EOF
 
 # Function to configure Splunk forwarder
 function configure_splunk_forwarder() {
-    # Start Splunk forwarder
-    /opt/splunkforwarder/bin/splunk start --accept-license
 
-    # Create or update inputs.conf
-    cat << EOF | sudo tee /opt/splunkforwarder/etc/system/local/inputs.conf
-[monitor:///var/log]
-disabled = false
-index = linux_logs
+# Function to add monitor
+function add_monitor() {
+    /opt/splunkforwarder/bin/splunk add monitor "$1" -index "$2" -sourcetype "$3"
+}
 
-[monitor:///opt/splunkforwarder/var/log/splunk]
-disabled = false
-index = _internal
+# Add monitors
+add_monitor "/var/log" "linux_logs" "linux_log"
+add_monitor "/opt/splunkforwarder/var/log/splunk" "_internal" "splunk_log"
 
 # Add OS-specific monitors
 if [[ $OS == *"Ubuntu"* ]] || [[ $OS == *"Debian"* ]]; then
-        echo "[monitor:///var/log/apache2/access.log]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = web_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = access_combined" >> /opt/splunkforwarder/etc/system/local/inputs.conf
+    add_monitor "/var/log/apache2/access.log" "web_logs" "access_combined"
+    add_monitor "/var/log/apache2/error.log" "web_logs" "apache_error"
+elif [[ $OS == *"CentOS"* ]] || [[ $OS == *"Red Hat"* ]]; then
+    add_monitor "/var/log/httpd/access_log" "web_logs" "access_combined"
+    add_monitor "/var/log/httpd/error_log" "web_logs" "apache_error"
+fi
 
-        echo "[monitor:///var/log/apache2/error.log]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = web_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = apache_error" >> /opt/splunkforwarder/etc/system/local/inputs.conf
+# Add OS-specific monitors
+if [[ $OS == *"Ubuntu"* ]]; then
+    add_monitor "/home/*/.*history" "user_activity" "shell_history"
+    add_monitor "/home/*/.*browser*" "browser_logs" "browser_history"
+fi
 
-    elif [[ $OS == *"CentOS"* ]] || [[ $OS == *"Red Hat"* ]]; then
-        echo "[monitor:///var/log/httpd/access_log]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = web_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = access_combined" >> /opt/splunkforwarder/etc/system/local/inputs.conf
+# Add Prestashop-specific monitors
+if [[ $OS == *"CentOS"* ]]; then
+    add_monitor "/var/www/prestashop/var/logs" "prestashop_logs" "prestashop"
+fi
 
-        echo "[monitor:///var/log/httpd/error_log]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = web_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = apache_error" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-    fi
+# Add DNS and NTP monitors for Debian
+if [[ $OS == *"Debian"* ]]; then
+    add_monitor "/var/log/named" "dns_logs" "dns"
+    add_monitor "/var/log/ntp" "ntp_logs" "ntp"
+fi
 
-    # Add OS-specific monitors
-    if [[ $OS == *"Ubuntu"* ]]; then
-        echo "[monitor:///home/*/.*history]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = user_activity" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = shell_history" >> /opt/splunkforwarder/etc/system/local/inputs.conf
+# Add LDAP, Dovecot, and RoundCube monitors for Fedora
+if [[ $OS == *"Fedora"* ]]; then
+    add_monitor "/var/log/slapd" "ldap_logs" "ldap"
+    add_monitor "/var/log/dovecot" "dovecot_logs" "dovecot"
+    add_monitor "/var/log/roundcube" "roundcube_logs" "roundcube"
+fi
 
-        echo "[monitor:///home/*/.*browser*]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = browser_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = browser_history" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-    fi
+# Add forward server
+/opt/splunkforwarder/bin/splunk add forward-server 172.20.241.20:9997
 
-    # Add Prestashop-specific monitors
-    if [[ $OS == *"CentOS"* ]]; then
-        echo "[monitor:///var/www/prestashop/var/logs]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = prestashop_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = prestashop" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-    fi
+# Restart Splunk forwarder
+/opt/splunkforwarder/bin/splunk restart
 
-    # Add DNS and NTP monitors for Debian
-    if [[ $OS == *"Debian"* ]]; then
-        echo "[monitor:///var/log/named]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = dns_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = dns" >> /opt/splunkforwarder/etc/system/local/inputs.conf
+echo "Splunk forwarder configuration complete."
 
-        echo "[monitor:///var/log/ntp]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = ntp_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = ntp" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-    fi
-
-    # Add LDAP, Dovecot, and RoundCube monitors for Fedora
-    if [[ $OS == *"Fedora"* ]]; then
-        echo "[monitor:///var/log/slapd]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = ldap_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = ldap" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-
-        echo "[monitor:///var/log/dovecot]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = dovecot_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = dovecot" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-
-        echo "[monitor:///var/log/roundcube]" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "disabled = false" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "index = roundcube_logs" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-        echo "sourcetype = roundcube" >> /opt/splunkforwarder/etc/system/local/inputs.conf
-    fi
-
-    # Create or update outputs.conf
-    cat << EOF | sudo tee /opt/splunkforwarder/etc/system/local/outputs.conf
-[tcpout]
-defaultGroup = default-autolb-group
-
-[tcpout:default-autolb-group]
-server = 172.20.241.20:9997
-EOF
-
-    # Restart Splunk forwarder
-    /opt/splunkforwarder/bin/splunk restart
-
-    echo "Splunk forwarder configuration complete."
 }
 
 # Main execution
