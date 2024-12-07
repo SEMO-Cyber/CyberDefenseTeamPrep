@@ -75,10 +75,10 @@ iptables -A OUTPUT -p udp --sport 9997 -j ACCEPT
 iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
 iptables -A OUTPUT -p tcp --sport 8000 -j ACCEPT
 
-sudo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
-sudo iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
-sudo iptables -A INPUT -p tcp --sport 80 -j ACCEPT
-sudo iptables -A INPUT -p tcp --sport 443 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 80 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 
 
 
@@ -94,10 +94,6 @@ iptables -A INPUT -p udp --dport 123 -m state --state ESTABLISHED -j ACCEPT
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
-# Drop all other traffic
-iptables -A INPUT -j DROP
-iptables -A OUTPUT -j DROP
-iptables -A FORWARD -j DROP
 
 # Save the rules
 iptables-save > /etc/iptables/rules.v4
