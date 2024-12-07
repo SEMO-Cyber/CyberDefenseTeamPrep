@@ -28,28 +28,34 @@ apt install -y curl wget iptables-persistent nmap fail2ban cron
 #Begin firewall rules
 echo "Configuring firewall rules..."
 
-#Flush rules
+# Flush existing rules
 iptables -F
 iptables -X
 
+# Set default policies
 iptables -P INPUT DROP
-iptables -P OUTPUT DROP
+iptables -P OUTPUT ACCEPT
 iptables -P FORWARD DROP
 
-#Allow traffic from exisiting/established connections
-iptables -A INPUT -m conntrack --cstate ESTABLISHED,RELATED -j ACCEPT
+# Allow traffic from existing/established connections
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-
-#Allow Splunk Forwarding
-iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
-
-#Allow loopback traffic
+# Allow loopback traffic
 iptables -A INPUT -i lo -j ACCEPT
 
-#Allow web access
+# Allow incoming traffic on Splunk ports
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
+iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
+
+# Allow outgoing traffic on Splunk ports
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 8089 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+
+# Allow web access
 iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
-
 
 # Allow DNS traffic
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
@@ -59,14 +65,8 @@ iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 iptables -A INPUT -p udp --sport 123 -m state --state ESTABLISHED -j ACCEPT
 
-
-#Allow access to Splunk webGUI and management
-iptables -A OUTPUT -p tcp --dport 8000 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 8089 -j ACCEPT
-
-#Save the rules
+# Save the rules
 iptables-save > /etc/iptables/rules.v4
-
 
 #
 #   Uninstall SSH, harden cron, final notes
