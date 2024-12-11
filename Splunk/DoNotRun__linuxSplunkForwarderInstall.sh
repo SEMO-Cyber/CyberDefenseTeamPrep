@@ -34,12 +34,7 @@ is_visible = false
 is_manageable = false
 EOF
 
-cat >> /opt/splunkforwarder/etc/apps/nwl_all_deploymentclient/local/deploymentclient.conf << EOF
-[deployment-client]
-phoneHomeIntervalInSecs = 60
-[target-broker:deploymentServer]
-targetUri = 172.20.241.20:9997
-EOF
+
 
 cat >> /opt/splunkforwarder/etc/system/local/user-seed.conf << EOF
 [user_info]
