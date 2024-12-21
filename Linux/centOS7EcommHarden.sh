@@ -29,8 +29,6 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-
-
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -42,6 +40,10 @@ iptables -A OUTPUT -o lo -j ACCEPT
 # Allow incoming HTTP/HTTPS traffic
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Allows outgoing HTTP/HTTPS traffic (for installing packages)
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 
 # Allow outgoing DNS traffic
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
@@ -62,6 +64,11 @@ iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A INPUT -j DROP
 iptables -A OUTPUT -j DROP
 iptables -A FORWARD -j DROP
+
+# Drop all IPv6 Traffic
+ip6tables -A INPUT -j DROP
+ip6tables -A OUTPUT -j DROP
+ip6tables -A FORWARD -j DROP
 
 # Save iptables rules
 iptables-save > /etc/iptables/rules.v4
