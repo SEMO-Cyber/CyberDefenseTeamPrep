@@ -69,6 +69,11 @@ iptables -P INPUT DROP
 iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
 
+#Drop all IPv6 Traffic
+ip6tables -P INPUT DROP
+ip6tables -P OUTPUT DROP
+ip6tables -P FORWARD DROP
+
 iptables-save > /etc/iptables/rules.v4
 
 #
