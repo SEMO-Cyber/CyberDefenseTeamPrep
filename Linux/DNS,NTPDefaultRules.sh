@@ -45,7 +45,7 @@ iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j
 
 #Allow to install
 iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
 #Allow DNS Traffic
 iptables -A INPUT -p tcp --dport 53 -j ACCEPT
