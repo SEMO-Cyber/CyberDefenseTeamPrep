@@ -29,9 +29,23 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
+# Drop all traffic by default
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+#Drop all IPv6 traffic by default
+ip6tables -P INPUT DROP
+ip6tables -P OUTPUT DROP
+ip6tables -P FORWARD DROP
+
 #Allow traffic from exisiting/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j 
+
+#Allow to install
+iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
 
 #Allow DNS Traffic
 iptables -A INPUT -p tcp --dport 53 -j ACCEPT
@@ -60,19 +74,6 @@ iptables -A FORWARD -o lo -j ACCEPT
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-
-#Allow to install
-iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
-
-iptables -P INPUT DROP
-iptables -P OUTPUT DROP
-iptables -P FORWARD DROP
-
-#Drop all IPv6 Traffic
-ip6tables -P INPUT DROP
-ip6tables -P OUTPUT DROP
-ip6tables -P FORWARD DROP
 
 iptables-save > /etc/iptables/rules.v4
 
