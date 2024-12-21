@@ -29,6 +29,16 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
+# Drop all traffic by default
+iptables -P INPUT -j DROP
+iptables -P OUTPUT -j DROP
+iptables -P FORWARD -j DROP
+
+# Drop all IPv6 traffic by default
+ip6tables -P INPUT -j DROP
+ip6tables -P OUTPUT -j DROP
+ip6tables -P FORWARD -j DROP
+
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -59,16 +69,6 @@ iptables -A INPUT -p tcp --sport 9997 -j ACCEPT
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-
-# Drop all other traffic
-iptables -A INPUT -j DROP
-iptables -A OUTPUT -j DROP
-iptables -A FORWARD -j DROP
-
-# Drop all IPv6 Traffic
-ip6tables -A INPUT -j DROP
-ip6tables -A OUTPUT -j DROP
-ip6tables -A FORWARD -j DROP
 
 # Save iptables rules
 iptables-save > /etc/iptables/rules.v4
