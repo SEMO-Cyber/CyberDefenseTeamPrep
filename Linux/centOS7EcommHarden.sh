@@ -61,6 +61,10 @@ iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 # Allow outgoing NTP traffic
 iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 
+# Allow ICMP
+iptables -A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT
+iptables -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+
 # Allow Splunk forwarder traffic
 iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 iptables -A OUTPUT -p udp --dport 9997 -j ACCEPT #changed from -m to -p because -m only works if -p is defined
