@@ -41,7 +41,7 @@ ip6tables -P FORWARD DROP
 
 #Allow traffic from exisiting/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j 
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 #Allow to install
 iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
