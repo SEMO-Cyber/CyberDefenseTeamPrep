@@ -6,9 +6,6 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# Update system packages
-yum update -y
-
 # Install MySQL server
 yum install -y community-mysql-server
 systemctl start mysqld
