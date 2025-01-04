@@ -1,5 +1,7 @@
 #!/bin/bash
 #Hardening script for Splunk. Assumes some version of Oracle Linux.
+#CCDC has taught me that a RedHat OS is just a hint at how it makes me want to decorate my walls.
+
 
 # Check if running as root
 if [ "$(id -u)" != "0" ]; then

@@ -73,12 +73,12 @@ EOF
 yum install -y dovecot dovecot-mysql
 
 # Configure Dovecot
-cat > /etc/dovecot/dovecot.conf <<EOF
+cat > /etc/dovecot/dovecot.conf << EOF
 protocols = imap
 mail_location = maildir:/var/mail/vhosts/%d/%n
 EOF
 
-cat > /etc/dovecot/conf.d/10-auth.conf <<EOF
+cat > /etc/dovecot/conf.d/10-auth.conf << EOF
 disable_plaintext_auth = no
 auth_mechanisms = plain login
 !include auth-sql.conf.ext
