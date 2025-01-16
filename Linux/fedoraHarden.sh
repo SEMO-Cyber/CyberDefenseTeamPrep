@@ -68,6 +68,10 @@ iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 # Allow incoming NTP traffic
 iptables -A INPUT -p udp --dport 123 -j ACCEPT
 
+# Allow icmp
+iptables -A INPUT -p icmp -j ACCEPT
+iptables -A OUTPUT -p icmp -j ACCEPT
+
 # Allow Splunk forwarder traffic
 iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
 
