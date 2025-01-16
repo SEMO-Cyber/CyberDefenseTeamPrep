@@ -82,7 +82,7 @@ iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 # Drop all other incoming traffic
 # Set default policies
 iptables -P INPUT DROP
-iptables -P OUTPUT ACCEPT
+iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
 
 # Save iptables rules
