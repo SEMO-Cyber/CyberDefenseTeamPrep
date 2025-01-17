@@ -52,15 +52,26 @@ iptables -A INPUT -i lo -j ACCEPT
 # Allow incoming LDAP traffic
 iptables -A INPUT -p tcp --dport 389 -j ACCEPT
 iptables -A INPUT -p tcp --dport 636 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 389 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 636 -j ACCEPT
 
-# Allow incoming IMAP traffic
+# Allow IMAP traffic
 iptables -A INPUT -p tcp --dport 143 -j ACCEPT
 iptables -A INPUT -p tcp --dport 993 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 143 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 993 -j ACCEPT
 
-# Allow incoming SMTP traffic
+# Allow SMTP traffic
 iptables -A INPUT -p tcp --dport 25 -j ACCEPT
 iptables -A INPUT -p tcp --dport 465 -j ACCEPT
 iptables -A INPUT -p tcp --dport 587 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 25 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 465 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 587 -j ACCEPT
+
+# Allow POP3 traffic
+iptables -A INPUT -p tcp --dport 110 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 110 -j ACCEPT
 
 # Allow incoming HTTP/HTTPS traffic for Roundcube
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
