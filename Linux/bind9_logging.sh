@@ -1,4 +1,11 @@
 #!/bin/bash
+
+# Check if running as root
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 # Define variables
 BIND_CONFIG_FILE="/etc/bind/named.conf"  # Adjust this path if necessary
 LOGGING_CONFIG_FILE="bind9_logging_config.conf"  # Temporary file to store logging config
