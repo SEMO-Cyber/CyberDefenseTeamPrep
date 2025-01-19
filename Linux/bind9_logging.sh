@@ -14,6 +14,9 @@ backup_file="${BIND_CONFIG_FILE}.bak_$(date +%Y%m%d%H%M%S)"
 cp "$BIND_CONFIG_FILE" "$backup_file"
 echo "Backup of $BIND_CONFIG_FILE created at $backup_file"
 
+echo "Making directory to store bind logs..."
+mkdir /var/log/dns; chmod 755 /var/log/dns; chown bind:bind /var/log/dns
+
 # Write the logging configuration to a temporary file
 cat << EOF > "$LOGGING_CONFIG_FILE"
 logging {
