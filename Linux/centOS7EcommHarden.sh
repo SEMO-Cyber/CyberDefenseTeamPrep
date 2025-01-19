@@ -30,14 +30,14 @@ iptables -F
 iptables -X
 
 # Drop all traffic by default
-iptables -P INPUT -j DROP
-iptables -P OUTPUT -j DROP
-iptables -P FORWARD -j DROP
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
 
 # Drop all IPv6 traffic by default
-ip6tables -P INPUT -j DROP
-ip6tables -P OUTPUT -j DROP
-ip6tables -P FORWARD -j DROP
+ip6tables -P INPUT DROP
+ip6tables -P OUTPUT DROP
+ip6tables -P FORWARD DROP
 
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -57,6 +57,7 @@ iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 
 # Allow outgoing DNS traffic
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 
 # Allow outgoing NTP traffic
 iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
