@@ -23,7 +23,15 @@ echo "Backup of $BIND_CONFIG_FILE created at $backup_file"
 
 echo "Making directories to store bind logs..."
 mkdir /var/log/dns; chmod 745 /var/log/dns; chown bind:bind /var/log/dns
-
+mkdir /var/log/dns/default; chmod 745 /var/log/dns/default; chown bind:bind /var/log/dns/default
+mkdir /var/log/dns/auth_servers; chmod 745 /var/log/dns/auth_servers; chown bind:bind /var/log/dns/auth_servers
+mkdir /var/log/dns/dnssec; chmod 745 /var/log/dns/dnssec; chown bind:bind /var/log/dns/dnssec
+mkdir /var/log/dns/zone_transfers; chmod 745 /var/log/dns/zone_transfers; chown bind:bind /var/log/dns/zone_tranfers
+mkdir /var/log/dns/ddns; chmod 745 /var/log/dns/ddns; chown bind:bind /var/log/dns/ddns
+mkdir /var/log/dns/client_security; chmod 745 /var/log/dns/client_security; chown bind:bind /var/log/dns/client_securtiy
+mkdir /var/log/dns/rate_limiting; chmod 745 /var/log/dns/rate_limiting; chown bind:bind /var/log/dns/late_limiting
+mkdir /var/log/dns/queries; chmod 745 /var/log/dns/queries; chown bind:bind /var/log/dns/queries
+mkdir /var/log/dns/query-errors; chmod 745 /var/log/dns/query-errors; chown bind:bind /var/log/dns/query-errors
 
 # Write the logging configuration to a temporary file
 cat << EOF > "$LOGGING_CONFIG_FILE"
