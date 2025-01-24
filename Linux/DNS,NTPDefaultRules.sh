@@ -66,8 +66,7 @@ sudo iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --l
 sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 
 # Allow outgoing ICMP traffic
-sudo iptables -A OUTPUT -p icmp --icmp-type echo-request -j ACCEPT
-sudo iptables -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
+sudo iptables -A OUTPUT -p icmp -j ACCEPT
 
 #Allow loopback traffic
 iptables -A INPUT -i lo -j ACCEPT
