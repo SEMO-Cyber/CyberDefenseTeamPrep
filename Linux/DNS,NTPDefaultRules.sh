@@ -62,8 +62,8 @@ iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 # Allow limited incomming ICMP traffic
-sudo iptables -A INPUT -p icmp -m limit --limit 1/s --limit-burst 5 -j ACCEPT
-#sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 
 # Allow outgoing ICMP traffic
 sudo iptables -A OUTPUT -p icmp -j ACCEPT
