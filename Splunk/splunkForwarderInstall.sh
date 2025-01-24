@@ -78,7 +78,7 @@ case $OS_TYPE in
     centos|fedora)
         install_centos_fedora_dependencies
         ;;
-    oracle)
+    ol)
         install_oracle_linux_dependencies
         ;;
     *)
