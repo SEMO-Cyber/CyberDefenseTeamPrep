@@ -12,7 +12,7 @@ SPLUNK_BUILD="64e843ea36b1"
 SPLUNK_PACKAGE_TGZ="splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-Linux-x86_64.tgz"
 SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PACKAGE_TGZ}"
 INSTALL_DIR="/opt/splunkforwarder"
-INDEXER_IP="<INDEXER_IP>"  # Replace with the IP of your Splunk indexer
+INDEXER_IP="172.20.241.20" 
 RECEIVER_PORT="9997"       # Default port for Splunk receiving logs
 
 # Check the OS and install the necessary package
