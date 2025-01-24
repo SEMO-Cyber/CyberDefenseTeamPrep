@@ -1,109 +1,141 @@
 #!/bin/bash
 
-# Define variables
-SPLUNK_URL="https://download.splunk.com/products/universalforwarder/releases/8.2.6/linux/splunkforwarder-8.2.6-87bd0d129ee3-linux-2.6-x86_64.tgz"
-SPLUNK_TGZ="splunkforwarder-8.2.6-87bd0d129ee3-linux-2.6-x86_64.tgz"
+# Variables
+SPLUNK_URL_RPM="https://www.splunk.com/en_us/download/universal-forwarder.html?locale=en_us"
 SPLUNK_INSTALL_DIR="/opt/splunkforwarder"
 SPLUNK_SERVER="172.20.241.20:9997"
+SPLUNK_VERSION="8.2.6"
+SPLUNK_TGZ="splunkforwarder-${SPLUNK_VERSION}-87bd0d129ee3-linux-2.6-x86_64.tgz"
+DEPENDENCY_PACKAGES=("wget" "curl" "tar")
 
-# Check if the script is run as root
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root!" 
-   exit 1
-fi
+# Function to install required dependencies
+install_dependencies() {
+    echo "Installing required dependencies..."
+    for package in "${DEPENDENCY_PACKAGES[@]}"; do
+        if ! command -v $package &>/dev/null; then
+            echo "$package not found. Installing..."
+            if command -v apt-get &>/dev/null; then
+                apt-get install -y $package
+            elif command -v yum &>/dev/null; then
+                yum install -y $package
+            else
+                echo "Package manager not found. Cannot install $package."
+                exit 1
+            fi
+        fi
+    done
+}
 
-# Function to detect the OS type more reliably
+# Function to detect OS type (Debian/Ubuntu, CentOS/RedHat/Fedora, Oracle Linux)
 detect_os() {
-    # Try using lsb_release, if available
     if command -v lsb_release &>/dev/null; then
         OS_TYPE=$(lsb_release -si)
-    # Fallback to /etc/os-release for other systems
     elif [[ -f /etc/os-release ]]; then
         OS_TYPE=$(grep -i ^ID= /etc/os-release | cut -d= -f2 | tr -d '"')
-    # Use uname as a last resort for more generic checks
     else
         OS_TYPE=$(uname -s)
     fi
     echo $OS_TYPE
 }
 
-# Function to install dependencies for Debian/Ubuntu-based systems
-install_debian_ubuntu_dependencies() {
-    echo "Installing dependencies for Debian/Ubuntu..."
-    apt-get update && apt-get install -y wget tar
+# Function to install Splunk forwarder on YUM-based systems (CentOS, RHEL, Oracle Linux)
+install_splunk_yum() {
+    echo "Installing Splunk Universal Forwarder using YUM..."
+    cd /tmp
+    RPM_URL=$(curl -s $SPLUNK_URL_RPM | grep -oP '"https:.*(?<=download).*x86_64.rpm"' | sed 's/\"//g' | head -n 1)
+    if [ -z "$RPM_URL" ]; then
+        echo "Error: Unable to find RPM package URL."
+        exit 1
+    fi
+    rpm -Uvh --nodeps $RPM_URL
+    yum -y install splunkforwarder.x86_64
 }
 
-# Function to install dependencies for CentOS/Fedora-based systems
-install_centos_fedora_dependencies() {
-    echo "Installing dependencies for CentOS/Fedora..."
-    yum install -y wget tar
+# Function to install Splunk forwarder on DEB-based systems (Debian, Ubuntu)
+install_splunk_deb() {
+    echo "Installing Splunk Universal Forwarder using DEB..."
+    cd /tmp
+    DEB_URL=$(curl -s $SPLUNK_URL_RPM | grep -oP '"https:.*(?<=download).*amd64.deb"' | sed 's/\"//g' | head -n 1)
+    if [ -z "$DEB_URL" ]; then
+        echo "Error: Unable to find DEB package URL."
+        exit 1
+    fi
+    wget $DEB_URL -O splunkforwarder.deb
+    dpkg -i splunkforwarder.deb
 }
 
-# Function to install dependencies for Oracle Linux
-install_oracle_linux_dependencies() {
-    echo "Installing dependencies for Oracle Linux..."
-    yum install -y wget tar
-}
-
-# Function to download and install Splunk forwarder
-install_splunk_forwarder() {
-    echo "Downloading and installing Splunk Universal Forwarder..."
-    
-    # Download the Splunk forwarder
-    wget -O $SPLUNK_TGZ $SPLUNK_URL
-
-    # Extract the tarball
+# Function to install Splunk forwarder on systems where neither YUM nor DEB is available
+install_splunk_tarball() {
+    echo "Installing Splunk Universal Forwarder using TAR package..."
+    cd /tmp
+    wget -O $SPLUNK_TGZ "https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/splunkforwarder-${SPLUNK_VERSION}-87bd0d129ee3-linux-2.6-x86_64.tgz"
     tar -xvf $SPLUNK_TGZ -C /opt/
-
-    # Remove the tarball after extraction
     rm -f $SPLUNK_TGZ
-
-    # Change ownership to root
     chown -R root:root $SPLUNK_INSTALL_DIR
-
-    # Accept the license agreement
-    $SPLUNK_INSTALL_DIR/bin/splunk start --accept-license --answer-yes
-
-    # Enable Splunk to start on boot
-    $SPLUNK_INSTALL_DIR/bin/splunk enable boot-start -user root
 }
 
-# Function to configure Splunk forwarder to forward logs to the specified server
+# Function to configure the Splunk forwarder to forward logs to Splunk server
 configure_splunk_forwarder() {
     echo "Configuring Splunk Universal Forwarder..."
 
-    # Set the forwarder destination
-    $SPLUNK_INSTALL_DIR/bin/splunk add forward-server $SPLUNK_SERVER
+    # Configure deployment client
+    mkdir -p $SPLUNK_INSTALL_DIR/etc/apps/nwl_all_deploymentclient/local/
+    cat > $SPLUNK_INSTALL_DIR/etc/apps/nwl_all_deploymentclient/local/deploymentclient.conf << EOF
+[deployment-client]
+phoneHomeIntervalInSecs = 60
+[target-broker:deploymentServer]
+targetUri = $SPLUNK_SERVER
+EOF
 
-    # Configure to monitor specific directories (example: /var/log)
-    $SPLUNK_INSTALL_DIR/bin/splunk add monitor /var/log
+    # Configure inputs (monitoring /var/log)
+    cat > $SPLUNK_INSTALL_DIR/etc/system/local/inputs.conf << EOF
+[monitor:///var/log]
+disabled = false
+index = os_logs
+sourcetype = syslog
+EOF
 
-    # Restart Splunk forwarder
-    $SPLUNK_INSTALL_DIR/bin/splunk restart
+    # Configure user-seed.conf (change as per your environment)
+    cat > $SPLUNK_INSTALL_DIR/etc/system/local/user-seed.conf << EOF
+[user_info]
+USERNAME = sysadmin
+PASSWORD = Changeme1!
+EOF
+
+    # Verify configuration
+    $SPLUNK_INSTALL_DIR/bin/splunk cmd btool deploymentclient list --debug
+
+    # Start Splunk forwarder
+    $SPLUNK_INSTALL_DIR/bin/splunk start --accept-license --answer-yes
+    $SPLUNK_INSTALL_DIR/bin/splunk enable boot-start -user root
 }
 
-# Detect OS type
-OS_TYPE=$(detect_os)
+# Function to install and configure Splunk forwarder
+install_and_configure_splunk() {
+    OS_TYPE=$(detect_os)
+    echo "Detected OS: $OS_TYPE"
 
-# Install dependencies based on OS type
-case $OS_TYPE in
-    debian|ubuntu)
-        install_debian_ubuntu_dependencies
-        ;;
-    centos|fedora)
-        install_centos_fedora_dependencies
-        ;;
-    ol)
-        install_oracle_linux_dependencies
-        ;;
-    *)
-        echo "Unsupported OS: $OS_TYPE"
-        exit 1
-        ;;
-esac
+    # Install dependencies
+    install_dependencies
 
-# Install and configure Splunk forwarder
-install_splunk_forwarder
-configure_splunk_forwarder
+    case $OS_TYPE in
+        debian|ubuntu)
+            install_splunk_deb
+            ;;
+        centos|fedora|rhel|ol)
+            install_splunk_yum
+            ;;
+        *)
+            echo "Unsupported OS: $OS_TYPE. Falling back to TAR installation."
+            install_splunk_tarball
+            ;;
+    esac
 
-echo "Splunk Universal Forwarder installation and configuration is complete!"
+    # Configure the Splunk forwarder to forward logs to Splunk server
+    configure_splunk_forwarder
+
+    echo "Splunk Universal Forwarder installation and configuration complete!"
+}
+
+# Main execution
+install_and_configure_splunk
