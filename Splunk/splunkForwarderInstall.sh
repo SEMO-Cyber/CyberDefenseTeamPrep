@@ -12,8 +12,20 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Detect the OS type
-OS_TYPE=$(lsb_release -si 2>/dev/null || cat /etc/*release | grep ^ID= | cut -d= -f2)
+# Function to detect the OS type more reliably
+detect_os() {
+    # Try using lsb_release, if available
+    if command -v lsb_release &>/dev/null; then
+        OS_TYPE=$(lsb_release -si)
+    # Fallback to /etc/os-release for other systems
+    elif [[ -f /etc/os-release ]]; then
+        OS_TYPE=$(grep -i ^ID= /etc/os-release | cut -d= -f2 | tr -d '"')
+    # Use uname as a last resort for more generic checks
+    else
+        OS_TYPE=$(uname -s)
+    fi
+    echo $OS_TYPE
+}
 
 # Function to install dependencies for Debian/Ubuntu-based systems
 install_debian_ubuntu_dependencies() {
@@ -69,6 +81,9 @@ configure_splunk_forwarder() {
     # Restart Splunk forwarder
     $SPLUNK_INSTALL_DIR/bin/splunk restart
 }
+
+# Detect OS type
+OS_TYPE=$(detect_os)
 
 # Install dependencies based on OS type
 case $OS_TYPE in
