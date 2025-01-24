@@ -21,6 +21,17 @@ else
   exit 1
 fi
 
+# Function to create the Splunk user and group
+create_splunk_user() {
+  if ! id -u splunk &>/dev/null; then
+    echo "Creating splunk user and group..."
+    sudo groupadd splunk
+    sudo useradd -r -g splunk -d $INSTALL_DIR splunk
+  else
+    echo "Splunk user already exists."
+  fi
+}
+
 # Function to install Splunk Forwarder
 install_splunk() {
   echo "Downloading Splunk Forwarder tarball..."
@@ -31,6 +42,7 @@ install_splunk() {
   rm -f $SPLUNK_PACKAGE_TGZ
 
   echo "Setting permissions..."
+  create_splunk_user
   sudo chown -R splunk:splunk $INSTALL_DIR
 }
 
