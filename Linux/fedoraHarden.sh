@@ -77,8 +77,8 @@ iptables -A OUTPUT -p tcp --dport 110 -j ACCEPT
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 
-# Allow incoming NTP traffic
-iptables -A INPUT -p udp --dport 123 -j ACCEPT
+# Allow outgoing NTP traffic
+iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 
 # Allow icmp
 iptables -A INPUT -p icmp -j ACCEPT
@@ -94,7 +94,7 @@ iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 
 # Log dropped packets
 iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-
+iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
 # Drop all other incoming traffic
 # Set default policies
