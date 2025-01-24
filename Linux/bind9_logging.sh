@@ -23,15 +23,6 @@ echo "Backup of $BIND_CONFIG_FILE created at $backup_file"
 
 echo "Making directory and files to store bind logs..."
 mkdir /var/log/dns; chmod 705 /var/log/dns; chown bind:bind /var/log/dns
-#touch /var/log/dns/default; chmod 744 /var/log/dns/default; chown bind:bind /var/log/dns/default
-#touch /var/log/dns/auth_servers; chmod 744 /var/log/dns/auth_servers; chown bind:bind /var/log/dns/auth_servers
-#touch /var/log/dns/dnssec; chmod 744 /var/log/dns/dnssec; chown bind:bind /var/log/dns/dnssec
-#touch /var/log/dns/zone_transfers; chmod 744 /var/log/dns/zone_transfers; chown bind:bind /var/log/dns/zone_transfers
-#touch /var/log/dns/ddns; chmod 744 /var/log/dns/ddns; chown bind:bind /var/log/dns/ddns
-#touch /var/log/dns/client_security; chmod 744 /var/log/dns/client_security; chown bind:bind /var/log/dns/client_security
-#touch /var/log/dns/rate_limiting; chmod 744 /var/log/dns/rate_limiting; chown bind:bind /var/log/dns/rate_limiting
-#ouch /var/log/dns/queries; chmod 744 /var/log/dns/queries; chown bind:bind /var/log/dns/queries
-#ouch /var/log/dns/query-errors; chmod 744 /var/log/dns/query-errors; chown bind:bind /var/log/dns/query-errors
 
 # Write the logging configuration to a temporary file
 cat << EOF > "$LOGGING_CONFIG_FILE"
@@ -141,6 +132,6 @@ if systemctl is-active --quiet bind9; then
     echo "BIND9 restarted successfully."
 else
     echo "Failed to restart BIND9. Check apparmor profile for bind. If changes were made to the apparmor profile then
-    RELOAD APPARMOR"
+    RELOAD APPARMOR. (/etc/apparmor.d/usr.sbin.named)"
     exit 1
 fi
