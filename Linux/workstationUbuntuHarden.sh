@@ -32,41 +32,44 @@ echo "Configuring firewall rules..."
 iptables -F
 iptables -X
 
-
-
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
 # Allow loopback traffic
 iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
 
-# Allow incoming traffic on Splunk ports
-iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
-
-
-# Allow outgoing traffic on Splunk ports
-iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
+# Allow traffic on Splunk ports
+iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
 
 # Allow web access
-iptables -A OUTPUT -p tcp --sport 80 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
-# Allow DNS traffic
-iptables -A OUTPUT -p udp --sport 53 -j ACCEPT
-iptables -A INPUT -p udp --dport 53 -m state --state ESTABLISHED -j ACCEPT
+# Allow outgoing DNS traffic
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 
-# Allow NTP traffic  
-iptables -A OUTPUT -p udp --sport 123 -j ACCEPT
-iptables -A INPUT -p udp --dport 123 -m state --state ESTABLISHED -j ACCEPT
+# Allow outgoing NTP traffic  
+iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 
+# Allow outgoing SSH traffic
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 
-# Set default policies
+# Allow ICMP
+iptables -A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT
+iptables -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+
+# Set default policies for ipv4 and ipv6
 iptables -P INPUT DROP
-iptables -P OUTPUT ACCEPT
+iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
+
+ip6tables -P INPUT DROP
+ip6tables -P OUTPUT DROP
+ip6tables -P FORWARD DROP
 
 # Save the rules
 iptables-save > /etc/iptables/rules.v4
@@ -77,8 +80,8 @@ iptables-save > /etc/iptables/rules.v4
 #
 
 # Uninstall SSH
-echo "Uninstalling SSH..."
-apt remove --purge openssh-server -y
+#echo "Uninstalling SSH..."
+#apt remove --purge openssh-server -y
 
 
 #harden cron
