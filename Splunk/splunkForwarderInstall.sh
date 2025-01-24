@@ -34,6 +34,32 @@ install_splunk() {
   sudo chown -R splunk:splunk $INSTALL_DIR
 }
 
+# Function to add basic monitors
+setup_monitors() {
+  echo "Setting up basic monitors for Splunk..."
+  MONITOR_CONFIG="$INSTALL_DIR/etc/system/local/inputs.conf"
+
+  sudo bash -c "cat > $MONITOR_CONFIG" <<EOL
+[monitor:///var/log]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/messages]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/secure]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/dmesg]
+index = main
+sourcetype = syslog
+EOL
+
+  echo "Monitors added to inputs.conf."
+}
+
 # Perform installation
 install_splunk
 
@@ -42,6 +68,12 @@ if [ -d "$INSTALL_DIR/bin" ]; then
   echo "Starting and enabling Splunk Universal Forwarder service..."
   sudo $INSTALL_DIR/bin/splunk start --accept-license --answer-yes --no-prompt
   sudo $INSTALL_DIR/bin/splunk enable boot-start
+
+  # Add basic monitors
+  setup_monitors
+
+  # Restart Splunk to apply monitor configuration
+  sudo $INSTALL_DIR/bin/splunk restart
 else
   echo "Installation directory not found. Something went wrong."
   exit 1
@@ -50,4 +82,4 @@ fi
 # Verify installation
 sudo $INSTALL_DIR/bin/splunk version
 
-echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete!"
+echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors!"
