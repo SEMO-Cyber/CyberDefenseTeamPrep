@@ -27,6 +27,12 @@ install_centos_fedora_dependencies() {
     yum install -y wget tar
 }
 
+# Function to install dependencies for Oracle Linux
+install_oracle_linux_dependencies() {
+    echo "Installing dependencies for Oracle Linux..."
+    yum install -y wget tar
+}
+
 # Function to download and install Splunk forwarder
 install_splunk_forwarder() {
     echo "Downloading and installing Splunk Universal Forwarder..."
@@ -49,6 +55,7 @@ install_splunk_forwarder() {
     # Enable Splunk to start on boot
     $SPLUNK_INSTALL_DIR/bin/splunk enable boot-start -user root
 }
+
 # Function to configure Splunk forwarder to forward logs to the specified server
 configure_splunk_forwarder() {
     echo "Configuring Splunk Universal Forwarder..."
@@ -70,6 +77,9 @@ case $OS_TYPE in
         ;;
     centos|fedora)
         install_centos_fedora_dependencies
+        ;;
+    oracle)
+        install_oracle_linux_dependencies
         ;;
     *)
         echo "Unsupported OS: $OS_TYPE"
