@@ -12,6 +12,8 @@ SPLUNK_BUILD="64e843ea36b1"
 SPLUNK_PACKAGE_TGZ="splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-Linux-x86_64.tgz"
 SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PACKAGE_TGZ}"
 INSTALL_DIR="/opt/splunkforwarder"
+INDEXER_IP="<INDEXER_IP>"  # Replace with the IP of your Splunk indexer
+RECEIVER_PORT="9997"       # Default port for Splunk receiving logs
 
 # Check the OS and install the necessary package
 if [ -f /etc/os-release ]; then
@@ -72,6 +74,13 @@ EOL
   echo "Monitors added to inputs.conf."
 }
 
+# Function to configure the forwarder to send logs to the Splunk indexer
+configure_forwarder() {
+  echo "Configuring Splunk Universal Forwarder to send logs to $INDEXER_IP:$RECEIVER_PORT..."
+  sudo $INSTALL_DIR/bin/splunk add forward-server $INDEXER_IP:$RECEIVER_PORT -auth admin:changeme
+  echo "Forward-server configuration complete."
+}
+
 # Perform installation
 install_splunk
 
@@ -84,7 +93,10 @@ if [ -d "$INSTALL_DIR/bin" ]; then
   # Add basic monitors
   setup_monitors
 
-  # Restart Splunk to apply monitor configuration
+  # Configure forwarder to send logs to the Splunk indexer
+  configure_forwarder
+
+  # Restart Splunk to apply configuration
   sudo $INSTALL_DIR/bin/splunk restart
 else
   echo "Installation directory not found. Something went wrong."
@@ -94,4 +106,4 @@ fi
 # Verify installation
 sudo $INSTALL_DIR/bin/splunk version
 
-echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors!"
+echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors and forwarder configuration!"
