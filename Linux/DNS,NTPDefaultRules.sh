@@ -40,7 +40,7 @@ ip6tables -P OUTPUT DROP
 ip6tables -P FORWARD DROP
 
 # Allow limited incomming ICMP traffic
-sudo iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 sudo iptables -A INPUT -p icmp -j DROP
 
