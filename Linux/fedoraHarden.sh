@@ -85,7 +85,8 @@ iptables -A INPUT -p icmp -j ACCEPT
 iptables -A OUTPUT -p icmp -j ACCEPT
 
 # Allow Splunk forwarder traffic
-iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
 
 # Allow outgoing DNS traffic
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
