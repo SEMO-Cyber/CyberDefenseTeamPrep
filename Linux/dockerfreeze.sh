@@ -8,9 +8,9 @@ pause_all_containers() {
     container_ids=$(docker ps --format "{{.ID}}")
 
     # Check if there are any running containers
-    if [ -z "$container_ids" ]; {
+    if [ -z "$container_ids" ]; then
         echo "No running Docker containers found."
-    } else
+     else
         # Iterate through each container ID and pause it
         for container_id in $container_ids; do
             echo "Pausing container: $container_id"
