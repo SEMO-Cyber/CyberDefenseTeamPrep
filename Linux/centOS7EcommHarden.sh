@@ -39,6 +39,16 @@ ip6tables -P INPUT DROP
 ip6tables -P OUTPUT DROP
 ip6tables -P FORWARD DROP
 
+# Allow limited incomming ICMP traffic and log packets that dont fit the rules
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -j LOG --log-prefix "Rate-limit exceeded: " --log-level 4
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length ! --length 0:192 -j LOG --log-prefix "Invalid size: " --log-level 4
+sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
+sudo iptables -A INPUT -p icmp -j DROP
+
+# Allow outgoing ICMP traffic
+sudo iptables -A OUTPUT -p icmp -j ACCEPT
+
 # Allow traffic from existing/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -63,10 +73,6 @@ iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 
 # Allow outgoing NTP traffic
 iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
-
-# Allow ICMP
-iptables -A INPUT -p icmp -m icmp --icmp-type 0 -j ACCEPT
-iptables -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
 
 # Allow Splunk forwarder traffic
 iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
