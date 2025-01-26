@@ -1,54 +1,48 @@
-# PowerShell script for installing Splunk Universal Forwarder v9.1.1 on Windows Server 2019
-# Ensure you run this script with Administrator privileges
+# PowerShell script to install Splunk Universal Forwarder on Windows Server 2019
 
-# Variables
-$SplunkVersion = "9.1.1"
-$SplunkBuild = "64e843ea36b1"
-$SplunkInstaller = "splunkforwarder-${SplunkVersion}-${SplunkBuild}-x64-release.msi"
-$SplunkDownloadURL = "https://download.splunk.com/products/universalforwarder/releases/$SplunkVersion/windows/$SplunkInstaller"
-$InstallerPath = "$env:TEMP\$SplunkInstaller"
-$SplunkInstallDir = "C:\Program Files\SplunkUniversalForwarder"
-$SplunkBin = "$SplunkInstallDir\bin\splunk.exe"
-$SplunkIndexerIP = "<INDEXER_IP>"  # Replace with the IP of your Splunk indexer
-$ReceiverPort = "9997"  # Default Splunk receiving port
-$SplunkUserSetup = "admin"
-$SplunkPasswordSetup = "changeme"  # Replace with a secure password
+# Define variables
+$SPLUNK_VERSION = "9.1.1"
+$SPLUNK_BUILD = "64e843ea36b1"
+$SPLUNK_MSI = "splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-x64-release.msi"
+$SPLUNK_DOWNLOAD_URL = "https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/windows/${SPLUNK_MSI}"
+$INSTALL_DIR = "C:\Program Files\SplunkUniversalForwarder"
+$INDEXER_IP = "172.20.241.20"
+$RECEIVER_PORT = "9997"
 
-# Download Splunk Universal Forwarder
-Write-Host "Downloading Splunk Universal Forwarder installer..."
-Invoke-WebRequest -Uri $SplunkDownloadURL -OutFile $InstallerPath -UseBasicParsing
+# Download Splunk Universal Forwarder MSI
+Write-Host "Downloading Splunk Universal Forwarder MSI..."
+Invoke-WebRequest -Uri $SPLUNK_DOWNLOAD_URL -OutFile $SPLUNK_MSI
 
 # Install Splunk Universal Forwarder
 Write-Host "Installing Splunk Universal Forwarder..."
-Start-Process -FilePath msiexec.exe -ArgumentList "/i `"$InstallerPath`" /quiet INSTALLDIR=`"$SplunkInstallDir`" AGREETOLICENSE=Yes" -Wait
+Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICENSE=Yes RECEIVING_INDEXER=$INDEXER_IP:$RECEIVER_PORT /quiet" -Wait
 
-# Verify installation path
-if (!(Test-Path -Path $SplunkBin)) {
-    Write-Host "Splunk Universal Forwarder installation failed. Exiting." -ForegroundColor Red
-    Exit 1
-}
+# Configure inputs.conf for monitoring
+$inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
+Write-Host "Configuring inputs.conf for monitoring..."
+@"
+[monitor://C:\Windows\System32\winevt\Logs\Application.evtx]
+disabled = false
+index = main
+sourcetype = WinEventLog:Application
 
-# Configure Splunk Forwarder
-Write-Host "Configuring Splunk Universal Forwarder..."
-Start-Process -FilePath $SplunkBin -ArgumentList @("add", "user", $SplunkUserSetup, "-password", $SplunkPasswordSetup, "-role", "admin") -NoNewWindow -Wait
-Start-Process -FilePath $SplunkBin -ArgumentList @("add", "forward-server", "$SplunkIndexerIP`:$ReceiverPort", "-auth", "$SplunkUserSetup`:$SplunkPasswordSetup") -NoNewWindow -Wait
+[monitor://C:\Windows\System32\winevt\Logs\Security.evtx]
+disabled = false
+index = main
+sourcetype = WinEventLog:Security
 
-# Add basic monitors
-Write-Host "Setting up basic monitors..."
-Start-Process -FilePath $SplunkBin -ArgumentList @("add", "monitor", "C:\\Windows\\System32\\LogFiles\\W3SVC1", "-sourcetype", "iis") -NoNewWindow -Wait
-Start-Process -FilePath $SplunkBin -ArgumentList @("add", "monitor", "C:\\Windows\\Logs", "-sourcetype", "windows_log") -NoNewWindow -Wait
-Start-Process -FilePath $SplunkBin -ArgumentList @("add", "monitor", "C:\\ProgramData\\SplunkForwarder\\var\\log\\splunk", "-sourcetype", "splunkd_log") -NoNewWindow -Wait
-
-# Enable Splunk service to start on boot
-Write-Host "Enabling Splunk service to start on boot..."
-Start-Process -FilePath $SplunkBin -ArgumentList @("enable", "boot-start") -NoNewWindow -Wait
+[monitor://C:\Windows\System32\winevt\Logs\System.evtx]
+disabled = false
+index = main
+sourcetype = WinEventLog:System
+"@ | Out-File -FilePath $inputsConfPath -Encoding ASCII
 
 # Start Splunk Universal Forwarder service
 Write-Host "Starting Splunk Universal Forwarder service..."
-Start-Service -Name SplunkForwarder -ErrorAction Stop
+Start-Process -FilePath "$INSTALL_DIR\bin\splunk.exe" -ArgumentList "start" -Wait
 
-# Clean up installer
-Write-Host "Cleaning up..."
-Remove-Item -Path $InstallerPath -Force
+# Set Splunk Universal Forwarder to start on boot
+Write-Host "Setting Splunk Universal Forwarder to start on boot..."
+Start-Process -FilePath "$INSTALL_DIR\bin\splunk.exe" -ArgumentList "enable boot-start" -Wait
 
-Write-Host "Splunk Universal Forwarder v$SplunkVersion installation and configuration complete!"
+Write-Host "Splunk Universal Forwarder installation and configuration complete!"
