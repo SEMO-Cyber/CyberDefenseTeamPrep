@@ -21,20 +21,29 @@ Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICEN
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
 Write-Host "Configuring inputs.conf for monitoring..."
 @"
-[monitor://C:\Windows\System32\winevt\Logs\Application.evtx]
-disabled = false
+[WinEventLog://Security]
+disabled = 0
 index = main
-sourcetype = WinEventLog:Application
 
-[monitor://C:\Windows\System32\winevt\Logs\Security.evtx]
-disabled = false
+[WinEventLog://Application]
+dsiabled = 0
 index = main
-sourcetype = WinEventLog:Security
 
-[monitor://C:\Windows\System32\winevt\Logs\System.evtx]
-disabled = false
+[WinEventLog://System]
+disabled = 0
 index = main
-sourcetype = WinEventLog:System
+
+[WinEventLog://DNS Server]
+disabled = 0
+index = main
+
+[WinEventLog://Directory Service]
+disabled = 0
+index = main
+
+[WinEventLog://Windows Powershell]
+disabled = 0
+index = main
 "@ | Out-File -FilePath $inputsConfPath -Encoding ASCII
 
 # Disable KVStore if necessary
