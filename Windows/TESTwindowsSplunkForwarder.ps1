@@ -37,6 +37,14 @@ index = main
 sourcetype = WinEventLog:System
 "@ | Out-File -FilePath $inputsConfPath -Encoding ASCII
 
+# Disable KVStore if necessary
+$serverConfPath = "$INSTALL_DIR\etc\system\local\server.conf"
+Write-Host "Disabling KVStore in server.conf..."
+@"
+[kvstore]
+disabled = true
+"@ | Out-File -FilePath $serverConfPath -Encoding ASCII
+
 # Start Splunk Universal Forwarder service
 Write-Host "Starting Splunk Universal Forwarder service..."
 Start-Process -FilePath "$INSTALL_DIR\bin\splunk.exe" -ArgumentList "start" -Wait
