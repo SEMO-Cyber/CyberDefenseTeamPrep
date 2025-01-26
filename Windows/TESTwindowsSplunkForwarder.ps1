@@ -1,4 +1,4 @@
-# PowerShell script to install Splunk Universal Forwarder on Windows Server 2019
+# PowerShell script to install and configure Splunk Universal Forwarder on Windows Server 2019
 
 # Define variables
 $SPLUNK_VERSION = "9.1.1"
@@ -15,7 +15,7 @@ Invoke-WebRequest -Uri $SPLUNK_DOWNLOAD_URL -OutFile $SPLUNK_MSI
 
 # Install Splunk Universal Forwarder
 Write-Host "Installing Splunk Universal Forwarder..."
-Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICENSE=Yes RECEIVING_INDEXER=$INDEXER_IP:$RECEIVER_PORT /quiet" -Wait
+Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICENSE=Yes RECEIVING_INDEXER=${INDEXER_IP}:${RECEIVER_PORT} /quiet" -Wait
 
 # Configure inputs.conf for monitoring
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
