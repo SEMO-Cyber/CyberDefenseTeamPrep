@@ -1,0 +1,30 @@
+---
+- name: Check service status
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Check Apache service status (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      service:
+        name: apache2 # or httpd, depending on your distro
+        state: started
+      register: apache_status
+      ignore_errors: true
+
+    - name: Display Apache service status (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      debug:
+        msg: "Apache service on {{ inventory_hostname }} is {{ apache_status.state }}"
+
+    - name: Check IIS service status (Windows)
+      when: ansible_os_family == "Windows"
+      win_service:
+        name: W3SVC
+        state: started
+      register: iis_status
+
+    - name: Display IIS service status (Windows)
+      when: ansible_os_family == "Windows"
+      debug:
+        msg: "IIS service on {{ inventory_hostname }} is {{ iis_status.state }}"

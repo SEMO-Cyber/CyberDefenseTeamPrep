@@ -1,0 +1,25 @@
+---
+- name: Get storage usage
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Get storage usage (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      shell: df -h | awk '$NF == "/" || $NF == "/home" {print $5}'
+      register: storage_usage_linux
+
+    - name: Display storage usage (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      debug:
+        msg: "Storage Usage on {{ inventory_hostname }}: {{ storage_usage_linux.stdout_lines }}"
+
+    - name: Get storage usage (Windows)
+      when: ansible_os_family == "Windows"
+      win_shell: Get-PSDrive -PSProvider FileSystem | Where-Object {$_.Root -eq "C:\"} | ForEach-Object {"Drive $($_.Name): $($_.Used/$_.Free)*100"}
+      register: storage_usage_windows
+
+    - name: Display storage usage (Windows)
+      when: ansible_os_family == "Windows"
+      debug:
+        msg: "Storage Usage on {{ inventory_hostname }}: {{ storage_usage_windows.stdout_lines }}"

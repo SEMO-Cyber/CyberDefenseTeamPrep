@@ -1,0 +1,2 @@
+vault_ansible_become_pass: your_sudo_password
+vault_ansible_password: your_remote_password

@@ -1,0 +1,45 @@
+---
+- name: Get CPU and memory usage
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Get CPU usage (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      shell: "top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"
+      register: cpu_usage_linux
+
+    - name: Display CPU usage (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      debug:
+        msg: "CPU Usage on {{ inventory_hostname }}: {{ cpu_usage_linux.stdout }}%"
+
+    - name: Get memory usage (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      shell: "free -m | awk '/Mem:/ {print $3/$2 * 100}'"
+      register: memory_usage_linux
+
+    - name: Display memory usage (Linux)
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      debug:
+        msg: "Memory Usage on {{ inventory_hostname }}: {{ memory_usage_linux.stdout }}%"
+
+    - name: Get CPU usage (Windows)
+      when: ansible_os_family == "Windows"
+      win_shell: 'Get-WmiObject win32_processor | Measure-Object -property LoadPercentage -Average | Select-Object -ExpandProperty Average'
+      register: cpu_usage_windows
+
+    - name: Display CPU usage (Windows)
+      when: ansible_os_family == "Windows"
+      debug:
+        msg: "CPU Usage on {{ inventory_hostname }}: {{ cpu_usage_windows.stdout }}%"
+
+    - name: Get memory usage (Windows)
+      when: ansible_os_family == "Windows"
+      win_shell: '$mem = Get-WmiObject win32_operatingsystem; [Math]::Round((($mem.TotalVisibleMemorySize - $mem.FreePhysicalMemory) / $mem.TotalVisibleMemorySize) * 100, 2)'
+      register: memory_usage_windows
+
+    - name: Display memory usage (Windows)
+      when: ansible_os_family == "Windows"
+      debug:
+        msg: "Memory Usage on {{ inventory_hostname }}: {{ memory_usage_windows.stdout }}%"

@@ -1,0 +1,27 @@
+---
+- name: Copy file to Ansible controller
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Create directory on Ansible controller for host files
+      file:
+        path: "/tmp/{{ inventory_hostname }}"
+        state: directory
+        mode: 0755
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fetch a file from Linux hosts
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      fetch:
+        src: /etc/passwd # Example file - change as needed
+        dest: "/tmp/{{ inventory_hostname }}/passwd"
+        flat: yes
+
+    - name: Fetch a file from Windows hosts
+      when: ansible_os_family == "Windows"
+      win_fetch:
+        src: 'C:\Windows\system.ini' # Example file - change as needed
+        dest: "/tmp/{{ inventory_hostname }}/system.ini"
+        flat: yes

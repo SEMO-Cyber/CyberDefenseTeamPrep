@@ -1,0 +1,54 @@
+---
+- name: Install updates
+  hosts: all
+  gather_facts: true
+  become: yes
+
+  tasks:
+    - name: Update package cache (Debian/Ubuntu)
+      when: ansible_os_family == "Debian"
+      apt:
+        update_cache: yes
+      register: apt_update_result
+
+    - name: Upgrade packages (Debian/Ubuntu)
+      when: ansible_os_family == "Debian"
+      apt:
+        upgrade: dist
+      when: apt_update_result is changed
+
+    - name: Update package cache (RedHat/CentOS)
+      when: ansible_os_family == "RedHat"
+      dnf:
+        update_cache: yes
+      register: dnf_update_result
+
+    - name: Upgrade packages (RedHat/CentOS)
+      when: ansible_os_family == "RedHat"
+      dnf:
+        name: '*'
+        state: latest
+      when: dnf_update_result is changed
+
+    - name: Install updates (Windows)
+      when: ansible_os_family == "Windows"
+      win_updates:
+        category_names:
+          - Application
+          - Connectors
+          - CriticalUpdates
+          - DefinitionUpdates
+          - DeveloperKits
+          - FeaturePacks
+          - Guidance
+          - SecurityUpdates
+          - ServicePacks
+          - Tools
+          - UpdateRollups
+          - Updates
+        state: installed
+      register: win_updates_result
+
+    - name: Reboot Windows host if required
+      when: ansible_os_family == "Windows" and win_updates_result.reboot_required
+      win_reboot:
