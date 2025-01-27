@@ -36,8 +36,8 @@ iptables -P FORWARD DROP
 
 #Allow limited incomming ICMP traffic and log packets that dont fit the rules
 sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -m limit --limit 1/s --limit-burst 5 -j ACCEPT
-sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -j LOG --log-prefix "Rate-limit exceeded: " --log-level 4
-sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length ! --length 0:192 -j LOG --log-prefix "Invalid size: " --log-level 4
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -j LOG --log-prefix "ICMP - Rate Limit Exceeded: " --log-level 4
+sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length ! --length 0:192 -j LOG --log-prefix "ICMP - Invalid Size: " --log-level 4
 sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 sudo iptables -A INPUT -p icmp -j DROP
 
@@ -55,8 +55,8 @@ iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 #Allow limited incomming DNS traffic to prevent DNS floods (change the limit as needed)
 iptables -A INPUT -p udp --dport 53 -m limit --limit 3/sec --limit-burst 10 -j ACCEPT
 iptables -A INPUT -p tcp --dport 53 -m limit --limit 3/sec --limit-burst 10 -j ACCEPT
-iptables -A INPUT -p udp --dport 53 -j LOG --log-prefix "UDP DNS Flood: " --log-level 4
-iptables -A INPUT -p tcp --dport 53 -j LOG --log-prefix "TCP DNS Flood: " --log-level 4
+iptables -A INPUT -p udp --dport 53 -j LOG --log-prefix "DNS - UDP Rate Limit Exceeded: " --log-level 4
+iptables -A INPUT -p tcp --dport 53 -j LOG --log-prefix "DNS - TCP Rate Limit Exceeded: " --log-level 4
 
 #Used to prevent double logging for dropeed DNS packets
 iptables -A INPUT -p udp --dport 53 -j DROP 
