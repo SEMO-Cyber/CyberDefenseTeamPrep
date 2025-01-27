@@ -19,14 +19,18 @@ Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICEN
 
 # Configure inputs.conf for monitoring
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
-Write-Host "Configuring inputs.conf for monitoring..."
+$hostname = (Get-WmiObject Win32_ComputerSystem).Name
+Write-Host "Configuring inputs.conf for monitoring with hostname $hostname..."
 @"
+[default]
+host = Windows-Docker
+
 [WinEventLog://Security]
 disabled = 0
 index = main
 
 [WinEventLog://Application]
-dsiabled = 0
+disabled = 0
 index = main
 
 [WinEventLog://System]
