@@ -5,7 +5,7 @@
 # IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the sane hostname in Splunk.
 #   For this script, the hostname is set to "Windows-AD" by default. To change this, go to Line 64.
 #
-#
+# Samuel Brucker 2024 - 2025
 
 # Define variables
 $SPLUNK_VERSION = "9.1.1"
