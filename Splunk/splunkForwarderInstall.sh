@@ -1,8 +1,14 @@
 #!/bin/bash
 
-# Script for installing Splunk Universal Forwarder v9.1.1 on supported Linux distributions
-# Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux
-# Ensure you have root/sudo privileges before running this script
+# Automates the installation of the Splunk Universal Forwarder. Currently set to v9.1.1, but that is easily changed.
+# Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux. You need to run this as sudo
+
+# This was put together as an amalgamation of code from my own work, other automatic installation scripts, and AI to tie everything together.
+# Lots time went into this script. Be nice to it plz <3
+#
+# Samuel Brucker 2024-2025
+#
+
 
 set -e
 
