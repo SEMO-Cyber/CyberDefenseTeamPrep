@@ -52,13 +52,13 @@ iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
-#Allow limited incomming DNS traffic to prevent DNS floods
+#Allow limited incomming DNS traffic to prevent DNS floods (change the limit as needed)
 iptables -A INPUT -p udp --dport 53 -m limit --limit 3/sec --limit-burst 10 -j ACCEPT
 iptables -A INPUT -p tcp --dport 53 -m limit --limit 3/sec --limit-burst 10 -j ACCEPT
 iptables -A INPUT -p udp --dport 53 -j LOG --log-prefix "UDP DNS Flood: " --log-level 4
-#iptables -A INPUT -p udp --dport 53 -j DROP
+iptables -A INPUT -p udp --dport 53 -j DROP
 iptables -A INPUT -p tcp --dport 53 -j LOG --log-prefix "TCP DNS Flood: " --log-level 4
-#iptables -A INPUT -p tcp --dport 53 -j DROP
+iptables -A INPUT -p tcp --dport 53 -j DROP
 
 #Allow outgoing DNS traffic
 iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
