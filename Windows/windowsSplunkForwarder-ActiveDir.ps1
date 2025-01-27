@@ -1,4 +1,11 @@
 # PowerShell script to install and configure Splunk Universal Forwarder on Windows Server 2019
+# This was originally written in Bash, then translated to Powershell. An AI was (obviously) used heavily in this process. I don't know a lick of Powershell, so 
+# this is 70% AI, 25% forums, and 5% me pushing buttons until it worked.
+#
+# IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the sane hostname in Splunk.
+#   For this script, the hostname is set to "Windows-AD" by default. To change this, go to Line 64.
+#
+#
 
 # Define variables
 $SPLUNK_VERSION = "9.1.1"
