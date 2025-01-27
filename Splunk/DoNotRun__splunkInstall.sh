@@ -1,6 +1,8 @@
 #!/bin/bash
 
-#super quick automatic script to install Splunk 9.3.2
+# This script is safe and legit. It's short, read and confirm that. The label "DoNotRun__" is so that my teammates don't accidentally perform a full Splunk installation
+# instead of the forwarder installation lol. Again, this is safe, just don't run it in comp because you'll have a bad time undoing this.
+# super quick automatic script to install Splunk 9.3.2
 # Mostly original with a little sprinkle of AI
 # Samuel Brucker 2024-2025
 
