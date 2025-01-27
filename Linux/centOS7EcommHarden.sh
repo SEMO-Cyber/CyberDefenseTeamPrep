@@ -56,7 +56,7 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
 
 # May not be needed if HTTPS is not scored
-#iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 
 # Allows outgoing HTTP/HTTPS traffic (for installing packages)
 iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
