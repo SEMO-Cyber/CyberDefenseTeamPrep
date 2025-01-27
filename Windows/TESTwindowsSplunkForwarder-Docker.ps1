@@ -23,7 +23,7 @@ $hostname = (Get-WmiObject Win32_ComputerSystem).Name
 Write-Host "Configuring inputs.conf for monitoring with hostname $hostname..."
 @"
 [default]
-host = Windows-Docker
+host = Windows-AD
 
 [WinEventLog://Security]
 disabled = 0
