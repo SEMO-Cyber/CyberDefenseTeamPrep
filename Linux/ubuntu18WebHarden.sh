@@ -49,7 +49,9 @@ iptables -A OUTPUT -o lo -j ACCEPT
 
 # Allow incoming HTTP traffic
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-# iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# May not be needed if HTTPS is not scored
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 
 # Allow outgoing DNS traffic
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
