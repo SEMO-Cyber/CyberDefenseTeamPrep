@@ -44,11 +44,6 @@ sudo iptables -A INPUT -p icmp -j DROP
 #Allow outgoing ICMP traffic
 sudo iptables -A OUTPUT -p icmp -j ACCEPT
 
-#Drop and log incomming possible DNS flood traffic
-iptables -A INPUT -p udp --dport 53 -m recent --set
-iptables -A INPUT -p udp --dport 53 -m recent --update --seconds 1 --hitcount 2 -j DROP
-iptables -A INPUT -p udp --dport 53 -m recent --update --seconds 1 --hitcount 2 -j LOG --log-prefix "Possible DNS Flood Block: "
-
 #Allow traffic from exisiting/established connections
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -57,10 +52,16 @@ iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
-#Allow DNS Traffic
-iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+#Allow limited incomming DNS traffic to prevent DNS floods
+iptables -A INPUT -p udp --dport 53 -m limit --limit 3/sec --limit-burst 10 -j ACCEPT
+iptables -A INPUT -p tcp --dport 53 -m limit --limit 3/sec --limit-burst 10 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -j LOG --log-prefix "UDP DNS Flood: " --log-level 4
+#iptables -A INPUT -p udp --dport 53 -j DROP
+iptables -A INPUT -p tcp --dport 53 -j LOG --log-prefix "TCP DNS Flood: " --log-level 4
+#iptables -A INPUT -p tcp --dport 53 -j DROP
+
+#Allow outgoing DNS traffic
 iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
-iptables -A INPUT -p udp --dport 53 -j ACCEPT
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
 
 #Allow NTP traffic
