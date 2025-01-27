@@ -19,18 +19,14 @@ Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICEN
 
 # Configure inputs.conf for monitoring
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
-$hostname = (Get-WmiObject Win32_ComputerSystem).Name
-Write-Host "Configuring inputs.conf for monitoring with hostname $hostname..."
+Write-Host "Configuring inputs.conf for monitoring..."
 @"
-[default]
-host = $hostname
-
 [WinEventLog://Security]
 disabled = 0
 index = main
 
 [WinEventLog://Application]
-disabled = 0
+dsiabled = 0
 index = main
 
 [WinEventLog://System]
@@ -56,6 +52,9 @@ Write-Host "Disabling KVStore in server.conf..."
 @"
 [kvstore]
 disabled = true
+
+[general]
+serverName = Windows-AD
 "@ | Out-File -FilePath $serverConfPath -Encoding ASCII
 
 # Start Splunk Universal Forwarder service
