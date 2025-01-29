@@ -95,6 +95,10 @@ sourcetype = syslog
 [monitor:///var/log/dmesg]
 index = main
 sourcetype = syslog
+
+[monitor:///tmp/test.log]
+index = main
+sourcetype = test_log
 EOL
 
   sudo chown splunk:splunk $MONITOR_CONFIG
@@ -149,6 +153,10 @@ if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
     echo "Removed AmbientCapabilities line from $SERVICE_FILE"
   fi
 
+  echo "Creating test log."
+  echo "Test log entry" > /tmp/test.log
+  sudo setfacl -m u:splunk:r /tmp/test.log
+  
   # Reload systemd daemon
   echo "Reloading systemctl daemons"
   sudo systemctl daemon-reload
