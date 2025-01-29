@@ -93,6 +93,8 @@ install_splunk
 if [ -d "$INSTALL_DIR/bin" ]; then
   echo "Starting and enabling Splunk Universal Forwarder service..."
   sudo $INSTALL_DIR/bin/splunk start --accept-license --answer-yes --no-prompt
+  #CentOS doesn't like the boot-start command
+  sleep 6
   sudo $INSTALL_DIR/bin/splunk enable boot-start
 
   # Add basic monitors
