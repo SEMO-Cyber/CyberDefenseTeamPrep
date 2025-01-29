@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Automates the installation of the Splunk Universal Forwarder. Currently set to v9.1.1, but that is easily changed.
 # Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux. You need to run this as sudo
 
@@ -8,7 +7,6 @@
 #
 # Samuel Brucker 2024-2025
 #
-#!/bin/bash
 
 set -e
 
@@ -28,18 +26,6 @@ else
   echo "Unable to detect the operating system. Aborting."
   exit 1
 fi
-
-# CentOS-specific fixes
-if [ "$ID" == "centos" ]; then
-  echo "Applying CentOS-specific fixes..."
-
-  # Example: Check SELinux status and provide instructions
-  if command -v getenforce &>/dev/null; then
-    SELINUX_STATUS=$(getenforce)
-    if [ "$SELINUX_STATUS" != "Disabled" ]; then
-      echo "SELinux is $SELINUX_STATUS. Consider setting it to permissive mode for troubleshooting."
-      echo "Use 'setenforce 0' to set SELinux to permissive mode temporarily."
-    fi
 
 # Function to create the Splunk user and group
 create_splunk_user() {
@@ -126,9 +112,21 @@ sudo $INSTALL_DIR/bin/splunk version
 
 echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors and forwarder configuration!"
 
+# CentOS-specific fixes
+# Wow I love CentOS 7 sooooo much
+if [ "$ID" == "centos" ]; then
+  echo "Applying CentOS-specific fixes..."
 
+  # Remove AmbientCapabilities line from the systemd service file
+  SERVICE_FILE="/usr/lib/systemd/system/SplunkForwarder.service"
+  if [ -f "$SERVICE_FILE" ]; then
+    sudo sed -i '/AmbientCapabilities/d' "$SERVICE_FILE"
+    echo "Removed AmbientCapabilities line from $SERVICE_FILE"
   fi
 
   # Reload systemd daemon
   sudo systemctl daemon-reload
+
+  # Run Splunk again
+  sudo systemctl start SplunkForwarder
 fi
