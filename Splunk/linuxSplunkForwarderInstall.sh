@@ -27,6 +27,9 @@ else
   exit 1
 fi
 
+# Debugging output to verify OS detection
+echo "Detected OS ID: $ID"
+
 # Function to create the Splunk user and group
 create_splunk_user() {
   if ! id -u splunk &>/dev/null; then
@@ -113,12 +116,10 @@ sudo $INSTALL_DIR/bin/splunk version
 echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors and forwarder configuration!"
 
 # CentOS-specific fixes
-# Wow I love CentOS 7 sooooo much
-if [ "$ID" == "centos" ]; then
+if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
   echo "Applying CentOS-specific fixes..."
 
   # Remove AmbientCapabilities line from the systemd service file
-  # Splunk does not work on CentOS 7 if you do not fix this. It's some weird permissions error with what Splunk is allowed to access/use on the system.
   SERVICE_FILE="/usr/lib/systemd/system/SplunkForwarder.service"
   if [ -f "$SERVICE_FILE" ]; then
     sudo sed -i '/AmbientCapabilities/d' "$SERVICE_FILE"
@@ -134,4 +135,3 @@ if [ "$ID" == "centos" ]; then
 else
   echo "Operating system not recognized as CentOS. Skipping CentOS fix."
 fi
-
