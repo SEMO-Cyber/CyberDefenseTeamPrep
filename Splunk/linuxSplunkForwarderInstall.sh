@@ -126,7 +126,7 @@ if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
   echo "Applying CentOS-specific fixes..."
 
   # Remove AmbientCapabilities line from the systemd service file
-  SERVICE_FILE="/usr/lib/systemd/system/SplunkForwarder.service"
+  SERVICE_FILE="/etc/systemd/system/SplunkForwarder.service"
   if [ -f "$SERVICE_FILE" ]; then
     sudo sed -i '/AmbientCapabilities/d' "$SERVICE_FILE"
     echo "Removed AmbientCapabilities line from $SERVICE_FILE"
