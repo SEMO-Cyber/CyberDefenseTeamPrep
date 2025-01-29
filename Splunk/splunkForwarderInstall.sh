@@ -9,7 +9,6 @@
 # Samuel Brucker 2024-2025
 #
 
-
 set -e
 
 # Define Splunk Forwarder variables
@@ -18,8 +17,8 @@ SPLUNK_BUILD="64e843ea36b1"
 SPLUNK_PACKAGE_TGZ="splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-Linux-x86_64.tgz"
 SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PACKAGE_TGZ}"
 INSTALL_DIR="/opt/splunkforwarder"
-INDEXER_IP="172.20.241.20" 
-RECEIVER_PORT="9997"       # Default port for Splunk receiving logs
+INDEXER_IP="172.20.241.20"
+RECEIVER_PORT="9997"
 
 # Check the OS and install the necessary package
 if [ -f /etc/os-release ]; then
@@ -113,3 +112,12 @@ fi
 sudo $INSTALL_DIR/bin/splunk version
 
 echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors and forwarder configuration!"
+
+# Check SELinux status and provide instructions
+if command -v getenforce &>/dev/null; then
+  SELINUX_STATUS=$(getenforce)
+  if [ "$SELINUX_STATUS" != "Disabled" ]; then
+    echo "SELinux is $SELINUX_STATUS. Consider setting it to permissive mode for troubleshooting."
+    echo "Use 'setenforce 0' to set SELinux to permissive mode temporarily."
+  fi
+fi
