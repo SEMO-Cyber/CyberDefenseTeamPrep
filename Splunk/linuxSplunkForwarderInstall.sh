@@ -14,7 +14,19 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+# Check the OS and install the necessary package
+if [ -f /etc/os-release ]; then
+  . /etc/os-release
+else
+  echo "Unable to detect the operating system. Aborting."
+  exit 1
+fi
+
+# Set the script to continue running even if there is an error (Important for running this on CentOS 7)
 set +e
+
+# Output detected OS
+echo "Detected OS ID: $ID"
 
 # Define Splunk Forwarder variables
 SPLUNK_VERSION="9.1.1"
@@ -24,17 +36,6 @@ SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/rel
 INSTALL_DIR="/opt/splunkforwarder"
 INDEXER_IP="172.20.241.20"
 RECEIVER_PORT="9997"
-
-# Check the OS and install the necessary package
-if [ -f /etc/os-release ]; then
-  . /etc/os-release
-else
-  echo "Unable to detect the operating system. Aborting."
-  exit 1
-fi
-
-# Debugging output to verify OS detection
-echo "Detected OS ID: $ID"
 
 # Function to create the Splunk user and group
 create_splunk_user() {
