@@ -130,4 +130,8 @@ if [ "$ID" == "centos" ]; then
 
   # Run Splunk again
   sudo systemctl restart SplunkForwarder
+
+else
+  echo "Operating system not recognized as CentOS. Skipping CentOS fix."
 fi
+
