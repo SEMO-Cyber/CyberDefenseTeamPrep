@@ -118,6 +118,7 @@ if [ "$ID" == "centos" ]; then
   echo "Applying CentOS-specific fixes..."
 
   # Remove AmbientCapabilities line from the systemd service file
+  # Splunk does not work on CentOS 7 if you do not fix this. It's some weird permissions error with what Splunk is allowed to access/use on the system.
   SERVICE_FILE="/usr/lib/systemd/system/SplunkForwarder.service"
   if [ -f "$SERVICE_FILE" ]; then
     sudo sed -i '/AmbientCapabilities/d' "$SERVICE_FILE"
@@ -128,5 +129,5 @@ if [ "$ID" == "centos" ]; then
   sudo systemctl daemon-reload
 
   # Run Splunk again
-  sudo systemctl start SplunkForwarder
+  sudo systemctl restart SplunkForwarder
 fi
