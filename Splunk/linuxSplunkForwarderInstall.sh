@@ -22,9 +22,6 @@ else
   exit 1
 fi
 
-# Set the script to continue running even if there is an error (Important for running this on CentOS 7)
-#set +e
-
 # Output detected OS
 echo "Detected OS ID: $ID"
 
@@ -36,6 +33,8 @@ SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/rel
 INSTALL_DIR="/opt/splunkforwarder"
 INDEXER_IP="172.20.241.20"
 RECEIVER_PORT="9997"
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="your_secure_password"  # Replace with your desired password
 
 # Function to create the Splunk user and group
 create_splunk_user() {
@@ -62,6 +61,19 @@ install_splunk() {
   sudo chown -R splunk:splunk $INSTALL_DIR
 }
 
+# Function to set admin credentials
+set_admin_credentials() {
+  echo "Setting admin credentials..."
+  USER_SEED_FILE="$INSTALL_DIR/etc/system/local/user-seed.conf"
+  sudo bash -c "cat > $USER_SEED_FILE" <<EOL
+[user_info]
+USERNAME = $ADMIN_USERNAME
+PASSWORD = $ADMIN_PASSWORD
+EOL
+  sudo chown splunk:splunk $USER_SEED_FILE
+  echo "Admin credentials set."
+}
+
 # Function to add basic monitors
 setup_monitors() {
   echo "Setting up basic monitors for Splunk..."
@@ -85,18 +97,22 @@ index = main
 sourcetype = syslog
 EOL
 
+  sudo chown splunk:splunk $MONITOR_CONFIG
   echo "Monitors added to inputs.conf."
 }
 
 # Function to configure the forwarder to send logs to the Splunk indexer
 configure_forwarder() {
   echo "Configuring Splunk Universal Forwarder to send logs to $INDEXER_IP:$RECEIVER_PORT..."
-  sudo $INSTALL_DIR/bin/splunk add forward-server $INDEXER_IP:$RECEIVER_PORT -auth admin:changeme
+  sudo $INSTALL_DIR/bin/splunk add forward-server $INDEXER_IP:$RECEIVER_PORT -auth $ADMIN_USERNAME:$ADMIN_PASSWORD
   echo "Forward-server configuration complete."
 }
 
 # Perform installation
 install_splunk
+
+# Set admin credentials before starting the service
+set_admin_credentials
 
 # Enable Splunk service and accept license agreement
 if [ -d "$INSTALL_DIR/bin" ]; then
