@@ -23,7 +23,7 @@ else
 fi
 
 # Set the script to continue running even if there is an error (Important for running this on CentOS 7)
-set +e
+#set +e
 
 # Output detected OS
 echo "Detected OS ID: $ID"
@@ -134,11 +134,15 @@ if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
   fi
 
   # Reload systemd daemon
+  echo "Reloading systemctl daemons"
   sudo systemctl daemon-reload
 
   # Run Splunk again
+  echo "Restarting the Splunk Forwarder"
   sudo systemctl restart SplunkForwarder
 
+  echo "Restart complete, forwarder installation on CentOS complete" 
+  
 else
   echo "Operating system not recognized as CentOS. Skipping CentOS fix."
 fi
