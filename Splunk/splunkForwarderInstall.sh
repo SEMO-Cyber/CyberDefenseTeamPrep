@@ -8,6 +8,7 @@
 #
 # Samuel Brucker 2024-2025
 #
+#!/bin/bash
 
 set -e
 
@@ -27,6 +28,18 @@ else
   echo "Unable to detect the operating system. Aborting."
   exit 1
 fi
+
+# CentOS-specific fixes
+if [ "$ID" == "centos" ]; then
+  echo "Applying CentOS-specific fixes..."
+
+  # Example: Check SELinux status and provide instructions
+  if command -v getenforce &>/dev/null; then
+    SELINUX_STATUS=$(getenforce)
+    if [ "$SELINUX_STATUS" != "Disabled" ]; then
+      echo "SELinux is $SELINUX_STATUS. Consider setting it to permissive mode for troubleshooting."
+      echo "Use 'setenforce 0' to set SELinux to permissive mode temporarily."
+    fi
 
 # Function to create the Splunk user and group
 create_splunk_user() {
@@ -93,8 +106,6 @@ install_splunk
 if [ -d "$INSTALL_DIR/bin" ]; then
   echo "Starting and enabling Splunk Universal Forwarder service..."
   sudo $INSTALL_DIR/bin/splunk start --accept-license --answer-yes --no-prompt
-  #CentOS doesn't like the boot-start command
-  sleep 6
   sudo $INSTALL_DIR/bin/splunk enable boot-start
 
   # Add basic monitors
@@ -115,11 +126,9 @@ sudo $INSTALL_DIR/bin/splunk version
 
 echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors and forwarder configuration!"
 
-# Check SELinux status and provide instructions
-if command -v getenforce &>/dev/null; then
-  SELINUX_STATUS=$(getenforce)
-  if [ "$SELINUX_STATUS" != "Disabled" ]; then
-    echo "SELinux is $SELINUX_STATUS. Consider setting it to permissive mode for troubleshooting."
-    echo "Use 'setenforce 0' to set SELinux to permissive mode temporarily."
+
   fi
+
+  # Reload systemd daemon
+  sudo systemctl daemon-reload
 fi
