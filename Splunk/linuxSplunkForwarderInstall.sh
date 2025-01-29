@@ -8,7 +8,13 @@
 # Samuel Brucker 2024-2025
 #
 
-set -e
+# Make sure this is being ran as root or sudo
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root or with sudo."
+    exit 1
+fi
+
+set +e
 
 # Define Splunk Forwarder variables
 SPLUNK_VERSION="9.1.1"
