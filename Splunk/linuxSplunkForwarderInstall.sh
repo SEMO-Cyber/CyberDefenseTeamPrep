@@ -34,7 +34,7 @@ INSTALL_DIR="/opt/splunkforwarder"
 INDEXER_IP="172.20.241.20"
 RECEIVER_PORT="9997"
 ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="your_secure_password"  # Replace with your desired password
+ADMIN_PASSWORD="Changeme1!"  # Replace with a secure password
 
 # Function to create the Splunk user and group
 create_splunk_user() {
