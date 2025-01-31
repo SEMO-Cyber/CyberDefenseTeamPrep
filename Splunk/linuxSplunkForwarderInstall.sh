@@ -14,7 +14,7 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# Check the OS and install the necessary package
+# Check the OS and install the necessary packageå
 if [ -f /etc/os-release ]; then
   . /etc/os-release
 else
@@ -145,27 +145,61 @@ echo "Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with bas
 # CentOS-specific fixes
 if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
   echo "Applying CentOS-specific fixes..."
-
+  
   # Remove AmbientCapabilities line from the systemd service file
+  # This needs to be performed on every reboot, because CentOS. This section makes sure it's applied at install, so it can run immediately.
   SERVICE_FILE="/etc/systemd/system/SplunkForwarder.service"
   if [ -f "$SERVICE_FILE" ]; then
     sudo sed -i '/AmbientCapabilities/d' "$SERVICE_FILE"
     echo "Removed AmbientCapabilities line from $SERVICE_FILE"
   fi
 
-  echo "Creating test log."
-  echo "Test log entry" > /tmp/test.log
-  sudo setfacl -m u:splunk:r /tmp/test.log
+# This makes turns the fix into a systemd service, which should hopefully catch the error on startup and eliminate any need to constantly implement the fix manually.
+# Note that there is another Splunk error that I have not fixed. At least for my CentOS machines, if you turn off the Splunk service it will not turn back on without a reboot.
+# Thus, for now, rebooting is the best way to fix the Splunk forwarder.
+
+# Create a systemd service to handle the fix
+FIX_SERVICE_FILE="/etc/systemd/system/splunk-fix.service"
   
-  # Reload systemd daemon
-  echo "Reloading systemctl daemons"
-  sudo systemctl daemon-reload
+# Create the service file
+cat > "$FIX_SERVICE_FILE" << 'EOT'
+[Unit]
+Description=Splunk Fix Service
+Before=network-online.target
+Before=multi-user.target
 
-  # Run Splunk again
-  echo "Restarting the Splunk Forwarder"
-  sudo systemctl restart SplunkForwarder
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c "/usr/bin/sed -i \'/AmbientCapabilities/d\' /etc/systemd/system/SplunkForwarder.service"
+RemainAfterExit=yes
 
-  echo "Restart complete, forwarder installation on CentOS complete" 
+[Install]
+WantedBy=multi-user.target
+EOT
+
+# Enable and start the fix service
+echo "Enabling and starting the fix service"
+sudo systemctl daemon-reload
+sudo systemctl enable splunk-fix.service
+sudo systemctl start splunk-fix.service
+
+# Verify the fix service status
+echo "Verifying fix service status:"
+sudo systemctl status splunk-fix.service
+
+echo "Creating test log."
+echo "Test log entry" > /tmp/test.log
+sudo setfacl -m u:splunk:r /tmp/test.log
+  
+# Reload systemd daemon
+echo "Reloading systemctl daemons"
+sudo systemctl daemon-reload
+
+# Run Splunk again  
+echo "Restarting the Splunk Forwarder"
+sudo systemctl restart SplunkForwarder
+
+echo "Restart complete, forwarder installation on CentOS complete" 
   
 else
   echo "Operating system not recognized as CentOS. Skipping CentOS fix."
