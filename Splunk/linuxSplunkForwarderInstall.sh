@@ -216,10 +216,11 @@ EOL
 # I've looked for logs, tried starting it manually, etc. I couldn't figure it out and am running out of time. Therefore, this beautiful addition.
 # This will reboot the machine after a 10 second timer. 
 if [[ "$ID" == "fedora" ]]; then
-    echo "${RED}Fedora system detected, a reboot is required.${NC}"
+    echo "${RED}Fedora system detected, a reboot is required. System will reboot in 10 seconds.${NC}"
+    sleep 10;
     
     # Reboot with 10 second delay
-    if ! sudo shutdown -r +0 "${GREEN}System will reboot in 10 seconds for Splunk configuration${NC}" & sleep 10; then
+    if ! sudo shutdown -r +0 "${GREEN}First reboot attempt failed. System will reattempt in 5 seconds${NC}" & sleep 5; then
         echo "${RED}Warning: Graceful reboot failed, attempting forced reboot${NC}"
         if ! sudo reboot -f; then
             echo "${RED}Error: Unable to initiate reboot. Manual reboot required.${NC}"
