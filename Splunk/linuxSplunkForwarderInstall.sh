@@ -8,6 +8,17 @@
 # Samuel Brucker 2024-2025
 #
 
+# Define Splunk Forwarder variables
+SPLUNK_VERSION="9.1.1"
+SPLUNK_BUILD="64e843ea36b1"
+SPLUNK_PACKAGE_TGZ="splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-Linux-x86_64.tgz"
+SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PACKAGE_TGZ}"
+INSTALL_DIR="/opt/splunkforwarder"
+INDEXER_IP="172.20.241.20"
+RECEIVER_PORT="9997"
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="Changeme1!"  # Replace with a secure password
+
 # Make sure this is being ran as root or sudo
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run as root or with sudo."
@@ -24,17 +35,6 @@ fi
 
 # Output detected OS
 echo "Detected OS ID: $ID"
-
-# Define Splunk Forwarder variables
-SPLUNK_VERSION="9.1.1"
-SPLUNK_BUILD="64e843ea36b1"
-SPLUNK_PACKAGE_TGZ="splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-Linux-x86_64.tgz"
-SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PACKAGE_TGZ}"
-INSTALL_DIR="/opt/splunkforwarder"
-INDEXER_IP="172.20.241.20"
-RECEIVER_PORT="9997"
-ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="Changeme1!"  # Replace with a secure password
 
 # Function to create the Splunk user and group
 create_splunk_user() {
@@ -158,11 +158,11 @@ if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
 # Note that there is another Splunk error that I have not fixed. At least for my CentOS machines, if you turn off the Splunk service it will not turn back on without a reboot.
 # Thus, for now, rebooting is the best way to fix the Splunk forwarder.
 
-# Create a systemd service to handle the fix
-FIX_SERVICE_FILE="/etc/systemd/system/splunk-fix.service"
+    # Create a systemd service to handle the fix
+    FIX_SERVICE_FILE="/etc/systemd/system/splunk-fix.service"
   
 # Create the service file
-cat > "$FIX_SERVICE_FILE" << 'EOT'
+cat > "$FIX_SERVICE_FILE" <<EOL
 [Unit]
 Description=Splunk Fix Service
 Before=network-online.target
@@ -175,32 +175,49 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
-EOT
+EOL
 
-# Enable and start the fix service
-echo "Enabling and starting the fix service"
-sudo systemctl daemon-reload
-sudo systemctl enable splunk-fix.service
-sudo systemctl start splunk-fix.service
+    # Enable and start the fix service
+    echo "Enabling and starting the fix service"
+    sudo systemctl daemon-reload
+    sudo systemctl enable splunk-fix.service
+    sudo systemctl start splunk-fix.service
+    
+    # Verify the fix service status
+    echo "Verifying fix service status:"
+    sudo systemctl status splunk-fix.service
+    
+    echo "Creating test log."
+    echo "Test log entry" > /tmp/test.log
+    sudo setfacl -m u:splunk:r /tmp/test.log
+      
+    # Reload systemd daemon
+    echo "Reloading systemctl daemons"
+    sudo systemctl daemon-reload
+    
+    # Run Splunk again  
+    echo "Restarting the Splunk Forwarder"
+    sudo systemctl restart SplunkForwarder
+    
+    echo "Restart complete, forwarder installation on CentOS complete" 
+      
+  else
+      echo "Operating system not recognized as CentOS. Skipping CentOS fix."
+  fi
 
-# Verify the fix service status
-echo "Verifying fix service status:"
-sudo systemctl status splunk-fix.service
-
-echo "Creating test log."
-echo "Test log entry" > /tmp/test.log
-sudo setfacl -m u:splunk:r /tmp/test.log
-  
-# Reload systemd daemon
-echo "Reloading systemctl daemons"
-sudo systemctl daemon-reload
-
-# Run Splunk again  
-echo "Restarting the Splunk Forwarder"
-sudo systemctl restart SplunkForwarder
-
-echo "Restart complete, forwarder installation on CentOS complete" 
-  
-else
-  echo "Operating system not recognized as CentOS. Skipping CentOS fix."
+# Fedora specific fix. The forwarder doesn't like to work when you install it. For some reason, rebooting just solves this so nicely
+# I've looked for logs, tried starting it manually, etc. I couldn't figure it out and am running out of time. Therefore, this beautiful addition.
+# This will reboot the machine after a 10 second timer. 
+if [[ "$ID" == "fedora" ]]; then
+    echo "Fedora system detected, initiating reboot in 10 seconds..."
+    
+    # Reboot with 10 second delay
+    if ! sudo shutdown -r +0 "System will reboot in 10 seconds for Splunk configuration" & sleep 10; then
+        echo "Warning: Graceful reboot failed, attempting forced reboot"
+        if ! sudo reboot -f; then
+            echo "Error: Unable to initiate reboot. Manual reboot required."
+            exit 1
+        fi
+    fi
+    exit 0
 fi
