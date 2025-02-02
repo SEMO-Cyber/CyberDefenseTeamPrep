@@ -2,7 +2,7 @@
 # This was originally written in Bash, then translated to Powershell. An AI was (obviously) used heavily in this process. I don't know a lick of Powershell, so 
 # this is 55% AI (Bash to Powershell conversion), 25% forums, and 20% me pushing buttons until it worked.
 #
-# IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the sane hostname in Splunk.
+# IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the same hostname in Splunk.
 #   For this script, the hostname is set to "Windows-AD" by default. To change this, go to Line 64.
 #
 # Samuel Brucker 2024 - 2025
@@ -72,9 +72,9 @@ Write-Host "Configuring outputs.conf for hostname override..."
 defaultGroup = default-autolb-group
 
 [tcpout:default-autolb-group]
-server = $INDEXER_IP:$RECEIVER_PORT
+server = ${INDEXER_IP}:${RECEIVER_PORT}
 
-[tcpout-server://$INDEXER_IP:$RECEIVER_PORT]
+[tcpout-server://${INDEXER_IP}${RECEIVER_PORT}]
 hostname = Windows-AD
 "@ | Out-File -FilePath $outputsConfPath -Encoding ASCII
 
