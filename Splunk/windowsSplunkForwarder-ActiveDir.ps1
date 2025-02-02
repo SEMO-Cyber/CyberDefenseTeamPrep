@@ -29,6 +29,9 @@ Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICEN
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
 Write-Host "Configuring inputs.conf for monitoring..."
 @"
+[default]
+host = ActiveDirectory
+
 [WinEventLog://Security]
 disabled = 0
 index = main
@@ -59,7 +62,8 @@ $serverConfPath = "$INSTALL_DIR\etc\system\local\server.conf"
 Write-Host "Setting custom hostname for the logs..."
 @"
 [general]
-serverName = Windows-AD
+serverName = ActiveDirectory
+hostnameOption = shortname
 "@ | Out-File -FilePath $serverConfPath -Encoding ASCII
 
 # Start Splunk Universal Forwarder service
