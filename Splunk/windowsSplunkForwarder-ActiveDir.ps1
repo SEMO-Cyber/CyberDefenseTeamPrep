@@ -1,8 +1,9 @@
 # PowerShell script to install and configure Splunk Universal Forwarder on Windows Server 2019
 # This was originally written in Bash, then translated to Powershell. An AI was (obviously) used heavily in this process. I don't know a lick of Powershell, so 
+# this is 70% AI, 25% forums, and 5% me pushing buttons until it worked.
 # this is 55% AI (Bash to Powershell conversion), 25% forums, and 20% me pushing buttons until it worked.
 #
-# IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the same hostname in Splunk.
+# IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the sane hostname in Splunk.
 #   For this script, the hostname is set to "Windows-AD" by default. To change this, go to Line 64.
 #
 # Samuel Brucker 2024 - 2025
@@ -28,15 +29,12 @@ Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICEN
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
 Write-Host "Configuring inputs.conf for monitoring..."
 @"
-[default]
-host = Windows-AD
-
 [WinEventLog://Security]
 disabled = 0
 index = main
 
 [WinEventLog://Application]
-disabled = 0
+dsiabled = 0
 index = main
 
 [WinEventLog://System]
@@ -56,30 +54,13 @@ disabled = 0
 index = main
 "@ | Out-File -FilePath $inputsConfPath -Encoding ASCII
 
-# Configure server.conf with custom hostname
+# Disable KVStore if necessary
 $serverConfPath = "$INSTALL_DIR\etc\system\local\server.conf"
-Write-Host "Configuring server.conf..."
+Write-Host "Setting custom hostname for the logs..."
 @"
 [general]
 serverName = Windows-AD
-
-[kvstore]
-disabled = true
 "@ | Out-File -FilePath $serverConfPath -Encoding ASCII
-
-# Configure outputs.conf for hostname override
-$outputsConfPath = "$INSTALL_DIR\etc\system\local\outputs.conf"
-Write-Host "Configuring outputs.conf for hostname override..."
-@"
-[tcpout]
-defaultGroup = default-autolb-group
-
-[tcpout:default-autolb-group]
-server = ${INDEXER_IP}:${RECEIVER_PORT}
-
-[tcpout-server://${INDEXER_IP}${RECEIVER_PORT}]
-hostname = Windows-AD
-"@ | Out-File -FilePath $outputsConfPath -Encoding ASCII
 
 # Start Splunk Universal Forwarder service
 Write-Host "Starting Splunk Universal Forwarder service..."
