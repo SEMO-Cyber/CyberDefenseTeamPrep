@@ -1,0 +1,18 @@
+Before running the scripts, run sudo dos2unix <name of file>, before using ./<name of file> in case script doesn't work. I think some of the formatting was altered when uploading into the github
+Install dos2Unix using: sudo apt install dos2unix
+
+FIM.sh / Works, run it as ./FIM.sh <file path for directory> and it will work. You can suspend it with Ctrl + C, or pkill FIM.sh (If you run it as ./FIM.sh <path to directory> &)
+
+firewall_config.sh / Works, run it as sudo and follow the prompts it gives you.
+
+firewall_config_dynamic.sh / TESTING, this new script should detect firewalld for CentOS 7 machines
+
+TFTP_install.sh / Works, hit enter for all input fields, unless you want to change network configs. I changed the calling functions to remove the brackets at the end "()"
+
+Honeypot.sh/ Works, user credentials are witin the file so check that before running it. Also, install Ansible before running the script.
+If you try to run the script and something goes wrong, make sure to remove /opt/tpot directory, or else re-running the script will be difficult 
+
+configure_ipv6.sh / Works, run it as sudo ./configure_ipv6.sh and when prompted, select which network adapter you wanna use and select ULA (u) to automatically select ipv6 prefix
+
+IDS.sh / Works, run it as ./IDS.sh and follow the on-screen prompts. It will ask you for network adapter to use and IP address of machine in CIDR notation
+
