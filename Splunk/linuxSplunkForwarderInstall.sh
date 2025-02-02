@@ -81,13 +81,13 @@ EOL
   echo "${GREEN}Admin credentials set.${NC}"
 }
 
-# Function to add basic monitors
+# Function to set up OS-specific monitors
 setup_monitors() {
-  echo "${BLUE}Setting up basic monitors for Splunk...${NC}"
+  echo "${BLUE}Setting up monitors for $ID...${NC}"
   MONITOR_CONFIG="$INSTALL_DIR/etc/system/local/inputs.conf"
 
-  sudo bash -c "cat > $MONITOR_CONFIG" <<EOL
-[monitor:///var/log]
+  # Common monitors for all systems
+  COMMON_MONITORS="[monitor:///var/log]
 index = main
 sourcetype = syslog
 
@@ -95,21 +95,94 @@ sourcetype = syslog
 index = main
 sourcetype = syslog
 
+[monitor:///var/log/auth.log]
+index = main
+sourcetype = auth
+
+[monitor:///var/log/syslog]
+index = main
+sourcetype = syslog"
+
+  # OS-specific monitor configurations
+  case $ID in
+    centos)
+      OS_MONITORS="
 [monitor:///var/log/secure]
 index = main
-sourcetype = syslog
+sourcetype = auth
 
-[monitor:///var/log/dmesg]
+[monitor:///var/log/yum.log]
 index = main
-sourcetype = syslog
+sourcetype = package_manager
 
-[monitor:///tmp/test.log]
+[monitor:///var/log/httpd]
+index = web
+sourcetype = apache
+recursive = true
+
+[monitor:///var/log/mariadb]
+index = database
+sourcetype = mysql
+recursive = true"
+      ;;
+    fedora)
+      OS_MONITORS="
+[monitor:///var/log/maillog]
+index = mail
+sourcetype = postfix
+
+[monitor:///var/log/dovecot.log]
+index = mail
+sourcetype = dovecot
+
+[monitor:///var/log/mariadb]
+index = database
+sourcetype = mysql
+recursive = true
+
+[monitor:///var/log/httpd]
+index = web
+sourcetype = apache
+recursive = true"
+      ;;
+    ubuntu)
+      OS_MONITORS="
+[monitor:///var/log/apache2]
+index = web
+sourcetype = apache
+recursive = true
+
+[monitor:///var/log/apt]
 index = main
-sourcetype = test_log
+sourcetype = package_manager
+recursive = true"
+      ;;
+    debian)
+      OS_MONITORS="
+[monitor:///var/log/named]
+index = dns
+sourcetype = bind
+recursive = true
+
+[monitor:///var/log/ntp]
+index = ntp
+sourcetype = ntp
+recursive = true"
+      ;;
+    *)
+      OS_MONITORS=""
+      ;;
+  esac
+
+  # Write the combined configuration
+  sudo bash -c "cat > $MONITOR_CONFIG" <<EOL
+$COMMON_MONITORS
+
+$OS_MONITORS
 EOL
 
   sudo chown splunk:splunk $MONITOR_CONFIG
-  echo "${GREEN}Monitors added to inputs.conf.${NC}"
+  echo "${GREEN}Monitors configured for $ID.${NC}"
 }
 
 # Function to configure the forwarder to send logs to the Splunk indexer
@@ -131,7 +204,7 @@ if [ -d "$INSTALL_DIR/bin" ]; then
   sudo $INSTALL_DIR/bin/splunk start --accept-license --answer-yes --no-prompt
   sudo $INSTALL_DIR/bin/splunk enable boot-start
 
-  # Add basic monitors
+  # Add monitors
   setup_monitors
 
   # Configure forwarder to send logs to the Splunk indexer
@@ -147,12 +220,12 @@ fi
 # Verify installation
 sudo $INSTALL_DIR/bin/splunk version
 
-echo "${YELLOW}Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with basic monitors and forwarder configuration!${NC}"
+echo "${YELLOW}Splunk Universal Forwarder v$SPLUNK_VERSION installation complete with monitors and forwarder configuration!${NC}"
 
 # CentOS-specific fixes
 if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
   echo "${RED}Applying CentOS-specific fixes...${NC}"
-  
+
   # Remove AmbientCapabilities line from the systemd service file
   # This needs to be performed on every reboot, because CentOS. This section makes sure it's applied at install, so it can run immediately.
   SERVICE_FILE="/etc/systemd/system/SplunkForwarder.service"
@@ -161,15 +234,11 @@ if [[ "$ID" == "centos" || "$ID_LIKE" == *"centos"* ]]; then
     echo "${GREEN}Removed AmbientCapabilities line from $SERVICE_FILE ${NC}"
   fi
 
-# This makes turns the fix into a systemd service, which should hopefully catch the error on startup and eliminate any need to constantly implement the fix manually.
-# Note that there is another Splunk error that I have not fixed. At least for my CentOS machines, if you turn off the Splunk service it will not turn back on without a reboot.
-# Thus, for now, rebooting is the best way to fix the Splunk forwarder.
+  # Create a systemd service to handle the fix
+  FIX_SERVICE_FILE="/etc/systemd/system/splunk-fix.service"
 
-    # Create a systemd service to handle the fix
-    FIX_SERVICE_FILE="/etc/systemd/system/splunk-fix.service"
-  
-# Create the service file
-cat > "$FIX_SERVICE_FILE" <<EOL
+  # Create the service file
+  cat > "$FIX_SERVICE_FILE" <<EOL
 [Unit]
 Description=Splunk Fix Service
 Before=network-online.target
@@ -177,56 +246,54 @@ Before=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c "/usr/bin/sed -i \'/AmbientCapabilities/d\' /etc/systemd/system/SplunkForwarder.service"
+ExecStart=/bin/bash -c "/usr/bin/sed -i '/AmbientCapabilities/d' /etc/systemd/system/SplunkForwarder.service"
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 EOL
 
-    # Enable and start the fix service
-    echo "${BLUE}Enabling and starting the fix service${NC}"
-    sudo systemctl daemon-reload
-    sudo systemctl enable splunk-fix.service
-    sudo systemctl start splunk-fix.service
-    
-    # Verify the fix service status
-    echo "${BLUE}Verifying fix service status: ${NC}"
-    sudo systemctl status splunk-fix.service
-    
-    echo "${BLUE}Creating test log. ${NC}"
-    echo "Test log entry" > /tmp/test.log
-    sudo setfacl -m u:splunk:r /tmp/test.log
-      
-    # Reload systemd daemon
-    echo "${BLUE}Reloading systemctl daemons${NC}"
-    sudo systemctl daemon-reload
-    
-    # Run Splunk again  
-    echo "${BLUE}Restarting the Splunk Forwarder${NC}"
-    sudo systemctl restart SplunkForwarder
-    
-    echo "${YELLOW}Restart complete, forwarder installation on CentOS complete${NC}" 
-      
-  else
-      echo "${GREEN}Operating system not recognized as CentOS. Skipping CentOS fix.${NC}"
-  fi
+  # Enable and start the fix service
+  echo "${BLUE}Enabling and starting the fix service${NC}"
+  sudo systemctl daemon-reload
+  sudo systemctl enable splunk-fix.service
+  sudo systemctl start splunk-fix.service
+
+  # Verify the fix service status
+  echo "${BLUE}Verifying fix service status: ${NC}"
+  sudo systemctl status splunk-fix.service
+
+  echo "${BLUE}Creating test log. ${NC}"
+  echo "Test log entry" > /tmp/test.log
+  sudo setfacl -m u:splunk:r /tmp/test.log
+
+  # Reload systemd daemon
+  echo "${BLUE}Reloading systemctl daemons${NC}"
+  sudo systemctl daemon-reload
+
+  # Run Splunk again
+  echo "${BLUE}Restarting the Splunk Forwarder${NC}"
+  sudo systemctl restart SplunkForwarder
+
+  echo "${YELLOW}Restart complete, forwarder installation on CentOS complete${NC}}"
+else
+  echo "${GREEN}Operating system not recognized as CentOS. Skipping CentOS fix.${NC}"
+fi
 
 # Fedora specific fix. The forwarder doesn't like to work when you install it. For some reason, rebooting just solves this so nicely
 # I've looked for logs, tried starting it manually, etc. I couldn't figure it out and am running out of time. Therefore, this beautiful addition.
-# This will reboot the machine after a 10 second timer. 
+# This will reboot the machine after a 10 second timer.
 if [[ "$ID" == "fedora" ]]; then
-    echo "${RED}Fedora system detected, a reboot is required. System will reboot in 10 seconds.${NC}"
-    sleep 10;
-    
-    # Reboot with 10 second delay
-    if ! sudo shutdown -r +0 "${GREEN}First reboot attempt failed. System will reattempt in 5 seconds${NC}" & sleep 5; then
-        echo "${RED}Warning: Graceful reboot failed, attempting forced reboot${NC}"
-        if ! sudo reboot -f; then
-            echo "${RED}Error: Unable to initiate reboot. Manual reboot required.${NC}"
-            exit 1
-        fi
-    fi
-    exit 0
-fi
+  echo "${RED}Fedora system detected, a reboot is required. System will reboot in 10 seconds.${NC}"
+  sleep 10;
 
+  # Reboot with 10 second delay
+  if ! sudo shutdown -r +0 "${GREEN}First reboot attempt failed. System will reattempt in 5 seconds${NC}" & sleep 5; then
+    echo "${RED}Warning: Graceful reboot failed, attempting forced reboot${NC}"
+    if ! sudo reboot -f; then
+      echo "${RED}Error: Unable to initiate reboot. Manual reboot required.${NC}"
+      exit 1
+    fi
+  fi
+  exit 0
+fi
