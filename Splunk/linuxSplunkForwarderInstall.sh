@@ -192,6 +192,42 @@ configure_forwarder() {
   echo "${GREEN}Forward-server configuration complete.${NC}"
 }
 
+# Function to restart Splunk with timeout and retry handling
+restart_splunk() {
+  local max_attempts=3
+  local attempt=1
+  local timeout=30  # 30 seconds per attempt
+
+  echo "${BLUE}Attempting to restart Splunk Forwarder...${NC}"
+
+  while [ $attempt -le $max_attempts ]; do
+    # Start Splunk in background and capture PID
+    sudo $INSTALL_DIR/bin/splunk restart &>/dev/null &
+    local splunk_pid=$!
+
+    # Wait for timeout or process completion
+    wait $splunk_pid &>/dev/null &
+    local wait_pid=$!
+    sleep $timeout
+    kill $wait_pid &>/dev/null
+
+    # Check if Splunk is running
+    if sudo $INSTALL_DIR/bin/splunk status | grep -q "running"; then
+      echo "${GREEN}Splunk Forwarder successfully restarted.${NC}"
+      return 0
+    fi
+
+    # If we reach here, restart failed
+    echo "${YELLOW}Attempt $attempt failed. Trying again...${NC}"
+    attempt=$((attempt + 1))
+    sleep 5  # Brief pause before retry
+  done
+
+  # If we reach here, all attempts failed
+  echo "${RED}Failed to restart Splunk after $max_attempts attempts. Please check logs for errors.${NC}"
+  return 1
+}
+
 # Perform installation
 install_splunk
 
@@ -210,8 +246,11 @@ if [ -d "$INSTALL_DIR/bin" ]; then
   # Configure forwarder to send logs to the Splunk indexer
   configure_forwarder
 
-  # Restart Splunk to apply configuration
-  sudo $INSTALL_DIR/bin/splunk restart
+  # Restart Splunk using our new function
+  if ! restart_splunk; then
+    echo "${RED}Splunk Forwarder restart failed. Installation incomplete.${NC}"
+    exit 1
+  fi
 else
   echo "${RED}Installation directory not found. Something went wrong.${NC}"
   exit 1
