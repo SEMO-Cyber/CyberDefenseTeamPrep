@@ -136,22 +136,16 @@ echo "Setting new passwords..."
 # Set root password
 echo "Enter new root password: "
 stty -echo
-read rPass
+read rootPass
 stty echo
-echo "root:$rPass" | chpasswd
+echo "root:$rootPass" | chpasswd
 
 # Set sysadmin password
 echo "Enter new sysadmin password: "
 stty -echo
-read sPass
+read sysadminPass
 stty echo
-echo "sysadmin:$sPass" | chpasswd
-
-# Set splunk admin password
-echo "Enter new splunk admin password: "
-stty -echo
-read password
-stty echo
+echo "sysadmin:$sysadminPass" | chpasswd
 
 # Uninstall SSH
 echo "Uninstalling SSH..."
