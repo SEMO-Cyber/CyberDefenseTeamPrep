@@ -28,6 +28,9 @@ Start-Process -FilePath "msiexec.exe" -ArgumentList "/i $SPLUNK_MSI AGREETOLICEN
 $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
 Write-Host "Configuring inputs.conf for monitoring..."
 @"
+[default]
+host = Windows-AD
+
 [WinEventLog://Security]
 disabled = 0
 index = main
