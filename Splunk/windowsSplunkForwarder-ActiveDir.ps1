@@ -33,7 +33,7 @@ disabled = 0
 index = main
 
 [WinEventLog://Application]
-dsiabled = 0
+disabled = 0
 index = main
 
 [WinEventLog://System]
@@ -53,16 +53,30 @@ disabled = 0
 index = main
 "@ | Out-File -FilePath $inputsConfPath -Encoding ASCII
 
-# Disable KVStore if necessary
+# Configure server.conf with custom hostname
 $serverConfPath = "$INSTALL_DIR\etc\system\local\server.conf"
-Write-Host "Disabling KVStore in server.conf..."
+Write-Host "Configuring server.conf..."
 @"
-[kvstore]
-disabled = true
-
 [general]
 serverName = Windows-AD
+
+[kvstore]
+disabled = true
 "@ | Out-File -FilePath $serverConfPath -Encoding ASCII
+
+# Configure outputs.conf for hostname override
+$outputsConfPath = "$INSTALL_DIR\etc\system\local\outputs.conf"
+Write-Host "Configuring outputs.conf for hostname override..."
+@"
+[tcpout]
+defaultGroup = default-autolb-group
+
+[tcpout:default-autolb-group]
+server = $INDEXER_IP:$RECEIVER_PORT
+
+[tcpout-server://$INDEXER_IP:$RECEIVER_PORT]
+hostname = Windows-AD
+"@ | Out-File -FilePath $outputsConfPath -Encoding ASCII
 
 # Start Splunk Universal Forwarder service
 Write-Host "Starting Splunk Universal Forwarder service..."
