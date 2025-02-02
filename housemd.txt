@@ -1,0 +1,362 @@
+set address priv-docker ip-netmask 172.20.240.10
+set address priv-debian10 ip-netmask 172.20.240.20
+set address priv-ubuntu-server ip-netmask 172.20.242.10
+set address priv-windows-server ip-netmask 172.20.242.200
+set address priv-ubuntu-wkst ip-netmask 172.20.242.102
+set address priv-splunk ip-netmask 172.20.241.20
+set address priv-centos ip-netmask 172.20.241.30
+set address priv-fedora ip-netmask 172.20.241.40
+set address google-dns ip-netmask 8.8.8.8
+set address cloudflare-dns ip-netmask 1.1.1.1
+set address priv-10 ip-netmask 10.0.0.0/8
+set address priv-172 ip-netmask 172.16.0.0/12
+set address priv-192 ip-netmask 192.168.0.0/16
+
+set deviceconfig system dns-setting servers primary 8.8.8.8
+set deviceconfig system dns-setting servers secondary 1.1.1.1
+
+set profile-group ccdc virus default
+set profile-group ccdc spyware strict
+set profile-group ccdc vulnerability strict
+set profile-group ccdc wildfire-analysis default
+set profile-group ccdc url-filtering default
+
+set deviceconfig system service disable-telnet yes
+set deviceconfig system service disable-https no
+set deviceconfig system service disable-snmp yes
+set deviceconfig system login-banner "Warning: Only authorized users are permitted to login. All network activity is being monitored and logged, and may be used to investigate and prosecute any instance of unauthorized access."
+set deviceconfig system ack-login-banner yes
+
+set network profiles zone-protection-profile Default discard-overlapping-tcp-segment-mismatch yes
+set network profiles zone-protection-profile Default discard-unknown-option yes
+set network profiles zone-protection-profile Default tcp-reject-non-syn yes
+set network profiles zone-protection-profile Default flood tcp-syn enable yes
+set network profiles zone-protection-profile Default flood tcp-syn syn-cookies maximal-rate 40000 activate-rate 10000 alarm-rate 10000
+set network profiles zone-protection-profile Default flood icmp enable yes
+set network profiles zone-protection-profile Default flood icmp red activate-rate 10000 alarm-rate 10000 maximal-rate 40000
+set network profiles zone-protection-profile Default flood udp enable yes
+set network profiles zone-protection-profile Default flood udp red activate-rate 10000 alarm-rate 10000 maximal-rate 40000
+set network profiles zone-protection-profile Default flood other-ip enable yes
+set network profiles zone-protection-profile Default flood other-ip red activate-rate 10000 alarm-rate 10000 maximal-rate 40000
+set network profiles zone-protection-profile Default flood icmpv6 enable yes
+set network profiles zone-protection-profile Default flood icmpv6 red activate-rate 10000 alarm-rate 10000 maximal-rate 40000
+
+set shared log-settings syslog Splunk server "Splunk" transport TCP
+set shared log-settings syslog Splunk server "Splunk" port 514
+set shared log-settings syslog Splunk server "Splunk" format BSD
+set shared log-settings syslog Splunk server "Splunk" server 172.20.241.20
+set shared log-settings syslog Splunk server "Splunk" facility LOG_USER
+set shared log-settings profiles defaultlogs match-list traffic send-syslog Splunk
+set shared log-settings profiles defaultlogs match-list traffic log-type traffic
+set shared log-settings profiles defaultlogs match-list traffic filter "(action eq allow)"
+set shared log-settings profiles defaultlogs match-list traffic send-to-panorama no
+set shared log-settings profiles defaultlogs match-list traffic quarantine no
+set shared log-settings profiles defaultlogs match-list auth send-syslog Splunk
+set shared log-settings profiles defaultlogs match-list auth log-type auth
+set shared log-settings profiles defaultlogs match-list auth filter "All Logs"
+set shared log-settings profiles defaultlogs match-list auth send-to-panorama no
+set shared log-settings profiles defaultlogs match-list auth quarantine no
+set shared log-settings profiles defaultlogs match-list threat send-syslog Splunk
+set shared log-settings profiles defaultlogs match-list threat log-type threat
+set shared log-settings profiles defaultlogs match-list threat filter "All Logs"
+set shared log-settings profiles defaultlogs match-list threat send-to-panorama no
+set shared log-settings profiles defaultlogs match-list threat quarantine no
+
+set service http protocol tcp port 80
+set service http protocol tcp override no 
+set service splunk-mgmt protocol tcp port 8000
+set service splunk-mgmt protocol tcp override no 
+set service splunk-logs protocol tcp port 9997
+set service splunk-logs protocol tcp override no
+set service dnst protocol tcp port 53
+set service dnst protocol tcp override no
+set service dnsu protocol udp port 53
+set service dnsu protocol udp override no
+set service ldap protocol tcp port 89,389
+set service ldap protocol tcp override no
+set service web protocol tcp port 80,443
+set service web protocol tcp override no
+set service webapps protocol tcp port 80,8080
+set service webapps protocol tcp override no
+set service smtp protocol tcp port 25,517
+set service smtp protocol tcp override no
+set service pop3 protocol tcp port 110
+set service pop3 protocol tcp override no
+
+set rulebase security rules EXTERNAL2SELF_DROP profile-setting group ccdc
+set rulebase security rules EXTERNAL2SELF_DROP application any
+set rulebase security rules EXTERNAL2SELF_DROP service application-default
+set rulebase security rules EXTERNAL2SELF_DROP to External
+set rulebase security rules EXTERNAL2SELF_DROP from External
+set rulebase security rules EXTERNAL2SELF_DROP source any
+set rulebase security rules EXTERNAL2SELF_DROP destination [ this-fw this-fw2 ]
+set rulebase security rules EXTERNAL2SELF_DROP action drop
+set rulebase security rules EXTERNAL2SELF_DROP log-start no
+set rulebase security rules EXTERNAL2SELF_DROP log-end yes
+set rulebase security rules EXTERNAL2SELF_DROP log-setting defaultlogs
+
+set rulebase security rules BlockExternalPrivate profile-setting group ccdc
+set rulebase security rules BlockExternalPrivate application any
+set rulebase security rules BlockExternalPrivate service application-default
+set rulebase security rules BlockExternalPrivate to any
+set rulebase security rules BlockExternalPrivate from any
+set rulebase security rules BlockExternalPrivate source [ priv-10 priv-172 priv-192 ]
+set rulebase security rules BlockExternalPrivate destination any
+set rulebase security rules BlockExternalPrivate action drop
+set rulebase security rules BlockExternalPrivate negate-source yes
+set rulebase security rules BlockExternalPrivate log-start no
+set rulebase security rules BlockExternalPrivate log-end yes
+set rulebase security rules BlockExternalPrivate log-setting defaultlogs
+
+set rulebase security rules AllowWebmailScore profile-setting group ccdc
+set rulebase security rules AllowWebmailScore application [ pop3 smtp ]
+set rulebase security rules AllowWebmailScore service application-default
+set rulebase security rules AllowWebmailScore to Public
+set rulebase security rules AllowWebmailScore from External
+set rulebase security rules AllowWebmailScore source any
+set rulebase security rules AllowWebmailScore destination public-fedora
+set rulebase security rules AllowWebmailScore action allow
+set rulebase security rules AllowWebmailScore log-start no
+set rulebase security rules AllowWebmailScore log-end yes
+set rulebase security rules AllowWebmailScore log-setting defaultlogs
+
+set rulebase security rules AllowSplunkScore profile-setting group ccdc
+set rulebase security rules AllowSplunkScore application any
+set rulebase security rules AllowSplunkScore service splunk-mgmt
+set rulebase security rules AllowSplunkScore to Public
+set rulebase security rules AllowSplunkScore from External
+set rulebase security rules AllowSplunkScore source any
+set rulebase security rules AllowSplunkScore destination public-splunk
+set rulebase security rules AllowSplunkScore action allow
+set rulebase security rules AllowSplunkScore log-start no
+set rulebase security rules AllowSplunkScore log-end yes
+set rulebase security rules AllowSplunkScore log-setting defaultlogs
+
+set rulebase security rules AllowWebappScore profile-setting group ccdc
+set rulebase security rules AllowWebappScore application any
+set rulebase security rules AllowWebappScore service http
+set rulebase security rules AllowWebappScore to Public
+set rulebase security rules AllowWebappScore from External
+set rulebase security rules AllowWebappScore source any
+set rulebase security rules AllowWebappScore destination public-centos
+set rulebase security rules AllowWebappScore action allow
+set rulebase security rules AllowWebappScore log-start no
+set rulebase security rules AllowWebappScore log-end yes
+set rulebase security rules AllowWebappScore log-setting defaultlogs
+
+set rulebase security rules AllowInternalDNSScore profile-setting group ccdc
+set rulebase security rules AllowInternalDNSScore application dns
+set rulebase security rules AllowInternalDNSScore service application-default
+set rulebase security rules AllowInternalDNSScore to Internal
+set rulebase security rules AllowInternalDNSScore from External
+set rulebase security rules AllowInternalDNSScore source any
+set rulebase security rules AllowInternalDNSScore destination public-debian
+set rulebase security rules AllowInternalDNSScore action allow
+set rulebase security rules AllowInternalDNSScore log-start no
+set rulebase security rules AllowInternalDNSScore log-end yes
+set rulebase security rules AllowInternalDNSScore log-setting defaultlogs
+
+set rulebase security rules AllowUserDNSScore profile-setting group ccdc
+set rulebase security rules AllowUserDNSScore application dns
+set rulebase security rules AllowUserDNSScore service application-default
+set rulebase security rules AllowUserDNSScore to User
+set rulebase security rules AllowUserDNSScore from External
+set rulebase security rules AllowUserDNSScore source any
+set rulebase security rules AllowUserDNSScore destination public-windows-server
+set rulebase security rules AllowUserDNSScore action allow
+set rulebase security rules AllowUserDNSScore log-start no
+set rulebase security rules AllowUserDNSScore log-end yes
+set rulebase security rules AllowUserDNSScore log-setting defaultlogs
+
+set rulebase security rules WIN102SPLUNK_splunk profile-setting group ccdc
+set rulebase security rules WIN102SPLUNK_splunk application splunk
+set rulebase security rules WIN102SPLUNK_splunk service splunk-mgmt
+set rulebase security rules WIN102SPLUNK_splunk to Public
+set rulebase security rules WIN102SPLUNK_splunk from External
+set rulebase security rules WIN102SPLUNK_splunk source public-win10
+set rulebase security rules WIN102SPLUNK_splunk destination public-splunk
+set rulebase security rules WIN102SPLUNK_splunk action allow
+set rulebase security rules WIN102SPLUNK_splunk disabled yes
+set rulebase security rules WIN102SPLUNK_splunk log-start no
+set rulebase security rules WIN102SPLUNK_splunk log-end yes
+set rulebase security rules WIN102SPLUNK_splunk log-setting defaultlogs
+
+set rulebase security rules KillInsideToExternalPrivate profile-setting group ccdc
+set rulebase security rules KillInsideToExternalPrivate application any
+set rulebase security rules KillInsideToExternalPrivate service application-default
+set rulebase security rules KillInsideToExternalPrivate to External
+set rulebase security rules KillInsideToExternalPrivate from [ External Internal Public User ]
+set rulebase security rules KillInsideToExternalPrivate source any
+set rulebase security rules KillInsideToExternalPrivate destination [ priv-10 priv-172 priv-192 ]
+set rulebase security rules KillInsideToExternalPrivate action deny
+set rulebase security rules KillInsideToExternalPrivate log-start no
+set rulebase security rules KillInsideToExternalPrivate log-end yes
+set rulebase security rules KillInsideToExternalPrivate log-setting defaultlogs
+
+set rulebase security rules QuickRestoreWeb profile-setting group ccdc
+set rulebase security rules QuickRestoreWeb application any
+set rulebase security rules QuickRestoreWeb service [ http service-https ]
+set rulebase security rules QuickRestoreWeb to External
+set rulebase security rules QuickRestoreWeb from [ Internal Public User ]
+set rulebase security rules QuickRestoreWeb source any
+set rulebase security rules QuickRestoreWeb destination any
+set rulebase security rules QuickRestoreWeb action allow
+set rulebase security rules QuickRestoreWeb disabled yes
+set rulebase security rules QuickRestoreWeb log-start no
+set rulebase security rules QuickRestoreWeb log-end yes
+set rulebase security rules QuickRestoreWeb log-setting defaultlogs
+
+set rulebase security rules RestoreDNS profile-setting group ccdc
+set rulebase security rules RestoreDNS application dns
+set rulebase security rules RestoreDNS service [ dnsu dnst ]
+set rulebase security rules RestoreDNS to External
+set rulebase security rules RestoreDNS from [ Internal Public User ]
+set rulebase security rules RestoreDNS source any
+set rulebase security rules RestoreDNS destination [ cloudflare-dns google-dns ]
+set rulebase security rules RestoreDNS action allow
+set rulebase security rules RestoreDNS log-start no
+set rulebase security rules RestoreDNS log-end yes
+set rulebase security rules RestoreDNS log-setting defaultlogs
+
+set rulebase security rules KillApps profile-setting group ccdc
+set rulebase security rules KillApps application [ dns icmp ping ssl web-browsing ntp-base ]
+set rulebase security rules KillApps service application-default
+set rulebase security rules KillApps to External
+set rulebase security rules KillApps from [ Internal Public User ]
+set rulebase security rules KillApps source any
+set rulebase security rules KillApps destination any
+set rulebase security rules KillApps action drop
+set rulebase security rules KillApps disabled yes
+set rulebase security rules KillApps log-start no
+set rulebase security rules KillApps log-end yes
+set rulebase security rules KillApps log-setting defaultlogs
+
+set rulebase security rules KillWeb profile-setting group ccdc
+set rulebase security rules KillWeb application any
+set rulebase security rules KillWeb service [ service-http service-https ]
+set rulebase security rules KillWeb to External
+set rulebase security rules KillWeb from [ Internal Public User ]
+set rulebase security rules KillWeb source any
+set rulebase security rules KillWeb destination any
+set rulebase security rules KillWeb action drop
+set rulebase security rules KillWeb disabled yes
+set rulebase security rules KillWeb log-start no
+set rulebase security rules KillWeb log-end yes
+set rulebase security rules KillWeb log-setting defaultlogs
+
+set rulebase security rules INSIDE2EVERYWHERE_http_https profile-setting group ccdc
+set rulebase security rules INSIDE2EVERYWHERE_http_https application any
+set rulebase security rules INSIDE2EVERYWHERE_http_https service [ service-http service-https ]
+set rulebase security rules INSIDE2EVERYWHERE_http_https to [ External Internal Public User ]
+set rulebase security rules INSIDE2EVERYWHERE_http_https from [ Internal Public User ]
+set rulebase security rules INSIDE2EVERYWHERE_http_https source any
+set rulebase security rules INSIDE2EVERYWHERE_http_https destination any
+set rulebase security rules INSIDE2EVERYWHERE_http_https action allow
+set rulebase security rules INSIDE2EVERYWHERE_http_https log-start no
+set rulebase security rules INSIDE2EVERYWHERE_http_https log-end yes
+set rulebase security rules INSIDE2EVERYWHERE_http_https log-setting defaultlogs
+
+set rulebase security rules INSIDE2EXTERNAL profile-setting group ccdc
+set rulebase security rules INSIDE2EXTERNAL application [ icmp ping ssl web-browsing ntp-base ]
+set rulebase security rules INSIDE2EXTERNAL service application-default
+set rulebase security rules INSIDE2EXTERNAL to External
+set rulebase security rules INSIDE2EXTERNAL from [ Internal Public User ]
+set rulebase security rules INSIDE2EXTERNAL source any
+set rulebase security rules INSIDE2EXTERNAL destination any
+set rulebase security rules INSIDE2EXTERNAL action allow
+set rulebase security rules INSIDE2EXTERNAL log-start no
+set rulebase security rules INSIDE2EXTERNAL log-end yes
+set rulebase security rules INSIDE2EXTERNAL log-setting defaultlogs
+
+set rulebase security rules INSIDE2INSIDE profile-setting group ccdc
+set rulebase security rules INSIDE2INSIDE application [ dns splunk-logs syslog ntp ping snmp ]
+set rulebase security rules INSIDE2INSIDE service application-default
+set rulebase security rules INSIDE2INSIDE to [ Internal Public User ]
+set rulebase security rules INSIDE2INSIDE from [ Internal Public User ]
+set rulebase security rules INSIDE2INSIDE source any
+set rulebase security rules INSIDE2INSIDE destination any
+set rulebase security rules INSIDE2INSIDE action allow
+set rulebase security rules INSIDE2INSIDE log-start no
+set rulebase security rules INSIDE2INSIDE log-end yes
+set rulebase security rules INSIDE2INSIDE log-setting defaultlogs
+
+set rulebase security rules INSIDE2SPLUNK profile-setting group ccdc
+set rulebase security rules INSIDE2SPLUNK application any
+set rulebase security rules INSIDE2SPLUNK service splunk-logs
+set rulebase security rules INSIDE2SPLUNK to Public 
+set rulebase security rules INSIDE2SPLUNK from [ User Public Internal ]
+set rulebase security rules INSIDE2SPLUNK source any
+set rulebase security rules INSIDE2SPLUNK destination any
+set rulebase security rules INSIDE2SPLUNK action allow
+set rulebase security rules INSIDE2SPLUNK log-start no
+set rulebase security rules INSIDE2SPLUNK log-end yes
+set rulebase security rules INSIDE2SPLUNK log-setting defaultlogs
+
+
+set rulebase nat rules splunk-to-wkst to External
+set rulebase nat rules splunk-to-wkst from External
+set rulebase nat rules splunk-to-wkst source any
+set rulebase nat rules splunk-to-wkst destination public-splunk
+set rulebase nat rules splunk-to-wkst service splunk-mgmt
+set rulebase nat rules splunk-to-wkst destination-translation translated-address priv-ubuntu-wkst
+set rulebase nat rules splunk-to-wkst destination-translation translated-port 8000
+set rulebase nat rules splunk-to-wkst disabled yes
+set rulebase nat rules splunk-to-wkst source-translation dynamic-ip-and-port interface-address interface ethernet1/3
+move rulebase nat rules splunk-to-wkst top
+
+set rulebase nat rules ecomm-to-wkst to External
+set rulebase nat rules ecomm-to-wkst from External
+set rulebase nat rules ecomm-to-wkst source any
+set rulebase nat rules ecomm-to-wkst destination public-ecomm
+set rulebase nat rules ecomm-to-wkst service http-service
+set rulebase nat rules ecomm-to-wkst destination-translation translated-address priv-ubuntu-wkst
+set rulebase nat rules ecomm-to-wkst destination-translation translated-port 80
+set rulebase nat rules ecomm-to-wkst disabled yes
+set rulebase nat rules ecomm-to-wkst source-translation dynamic-ip-and-port interface-address interface ethernet1/3
+move rulebase nat rules ecomm-to-wkst top
+
+set rulebase nat rules dns-to-wkst to External
+set rulebase nat rules dns-to-wkst from External
+set rulebase nat rules dns-to-wkst source any
+set rulebase nat rules dns-to-wkst destination [ public-debian public-windows-server ]
+set rulebase nat rules dns-to-wkst service [ dnsu dnst ]
+set rulebase nat rules dns-to-wkst destination-translation translated-address priv-ubuntu-wkst
+set rulebase nat rules dns-to-wkst destination-translation translated-port 53
+set rulebase nat rules dns-to-wkst disabled yes
+set rulebase nat rules dns-to-wkst source-translation dynamic-ip-and-port interface-address interface ethernet1/3
+move rulebase nat rules dns-to-wkst top
+
+set rulebase nat rules smtp-to-wkst to External
+set rulebase nat rules smtp-to-wkst from External
+set rulebase nat rules smtp-to-wkst source any
+set rulebase nat rules smtp-to-wkst destination public-fedora
+set rulebase nat rules smtp-to-wkst service smtp
+set rulebase nat rules smtp-to-wkst destination-translation translated-address priv-ubuntu-wkst
+set rulebase nat rules smtp-to-wkst destination-translation translated-port 25
+set rulebase nat rules smtp-to-wkst disabled yes
+set rulebase nat rules smtp-to-wkst source-translation dynamic-ip-and-port interface-address interface ethernet1/3
+move rulebase nat rules smtp-to-wkst top
+
+set rulebase nat rules pop3-to-wkst to External
+set rulebase nat rules pop3-to-wkst from External
+set rulebase nat rules pop3-to-wkst source any
+set rulebase nat rules pop3-to-wkst destination public-fedora
+set rulebase nat rules pop3-to-wkst service pop3
+set rulebase nat rules pop3-to-wkst destination-translation translated-address priv-ubuntu-wkst
+set rulebase nat rules pop3-to-wkst destination-translation translated-port 110
+set rulebase nat rules pop3-to-wkst disabled yes
+set rulebase nat rules pop3-to-wkst source-translation dynamic-ip-and-port interface-address interface ethernet1/3
+move rulebase nat rules pop3-to-wkst top
+
+set rulebase security rules any2any application any
+set rulebase security rules any2any service application-default
+set rulebase security rules any2any to any
+set rulebase security rules any2any from any
+set rulebase security rules any2any source any
+set rulebase security rules any2any destination any
+set rulebase security rules any2any action allow
+move rulebase security rules any2any bottom
+
+set rulebase application-override
+set rulebase default-security-rules rules interzone-default action deny
+set rulebase default-security-rules rules interzone-default log-end yes
