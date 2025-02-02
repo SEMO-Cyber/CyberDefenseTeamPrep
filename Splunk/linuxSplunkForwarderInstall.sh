@@ -127,21 +127,25 @@ recursive = true"
       ;;
     fedora)
       OS_MONITORS="
+[monitor:///var/log/roundcube]
+index = main
+sourcetype = roundcube
+
 [monitor:///var/log/maillog]
-index = mail
+index = main
 sourcetype = postfix
 
 [monitor:///var/log/dovecot.log]
-index = mail
+index = main
 sourcetype = dovecot
 
 [monitor:///var/log/mariadb]
-index = database
+index = main
 sourcetype = mysql
 recursive = true
 
 [monitor:///var/log/httpd]
-index = web
+index = main
 sourcetype = apache
 recursive = true"
       ;;
