@@ -9,6 +9,9 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+#Start the basic box hardening
+echo "Starting the basic hardening."
+
 # Determine package manager
 if command -v yum &> /dev/null; then
     PKG_MANAGER="yum"
@@ -162,8 +165,118 @@ chmod 600 /etc/at.allow
 awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 
 # Final steps
-echo "Final steps..."
+echo "Final steps for the basic box hardening..."
 $PKG_MANAGER autoremove -y
+
+
+
+#
+#   Splunk Security Hardening
+#
+#
+
+echo "Hardening the Splunk configuration..."
+
+
+echo "Changing Splunk admin password..."
+echo "Enter new password for Splunk admin user: "
+stty -echo
+read splunkPass
+stty echo
+echo "Confirm new password: "
+stty -echo
+read confirmPass
+stty echo
+
+if [ "$splunkPass" != "$confirmPass" ]; then
+    echo "Passwords do not match. Please try again."
+    exit 1
+fi
+
+/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:changeme
+
+
+# Remove all users except admin
+echo "Removing all users except admin..."
+/opt/splunk/bin/splunk user list | grep -v "admin" | while read -r user; do
+    /opt/splunk/bin/splunk remove user $user
+done
+
+# Remove all receivers and listeners
+echo "Removing current receivers and listeners..."
+/opt/splunk/bin/splunk disable listen
+/opt/splunk/bin/splunk remove listen
+/opt/splunk/bin/splunk disable receive
+/opt/splunk/bin/splunk remove receive
+
+# Remove all forwarders
+echo "Removing forwarders..."
+/opt/splunk/bin/splunk disable forwarder
+/opt/splunk/bin/splunk remove forward-server
+
+# Remove all authentication tokens
+echo "Removing authentication tokens..."
+/opt/splunk/bin/splunk tokens all -delete
+
+# Configure strict authentication settings
+echo "Configuring authentication settings..."
+/opt/splunk/bin/splunk edit cluster-config -auth splunk-system-user -secret splunk-system-user-secret
+/opt/splunk/bin/splunk edit authentication general-settings -requireClientCert true
+/opt/splunk/bin/splunk edit authentication general-settings -allowSso false
+/opt/splunk/bin/splunk edit authentication general-settings -allowBasicAuth false
+
+# Disable unnecessary Splunk features
+echo "Disabling unnecessary features..."
+/opt/splunk/bin/splunk disable kvstore
+/opt/splunk/bin/splunk disable distsearch
+
+# Set strict security settings
+echo "Setting strict security settings..."
+/opt/splunk/bin/splunk set min-ssl-version tls1.2
+/opt/splunk/bin/splunk set cipher-suite-group modern
+/opt/splunk/bin/splunk set requireClientCert true
+/opt/splunk/bin/splunk set enableSplunkWebSSL true
+
+
+# Configure local data inputs for Splunk logs
+echo "Setting up local data inputs..."
+/opt/splunk/bin/splunk add monitor /opt/splunk/var/log/splunk -index _internal
+/opt/splunk/bin/splunk add monitor /var/log -index main
+/opt/splunk/bin/splunk add monitor /var/log/secure -index main
+/opt/splunk/bin/splunk add monitor /var/log/auth -index main
+
+# Configure receiver on port 9997
+echo "Setting up receiver..."
+/opt/splunk/bin/splunk enable listen 9997 -auth admin:$splunkPass
+/opt/splunk/bin/splunk restart
+
+# Create indexes
+echo "Creating indexes..."
+/opt/splunk/bin/splunk add index web -auth admin:$splunkPass
+/opt/splunk/bin/splunk add index windows -auth admin:$splunkPass
+/opt/splunk/bin/splunk add index network -auth admin:$splunkPass
+/opt/splunk/bin/splunk add index dns -auth admin:$splunkPass
+
+# Install Palo Alto apps
+echo "Installing Palo Alto apps..."
+/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth admin:$splunkPass
+/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth admin:$splunkPass
+
+# Configure UDP input for Palo Alto logs
+echo "Configuring UDP input..."
+cat > /opt/splunk/etc/system/local/inputs.conf << EOL
+[udp://514]
+sourcetype = pan:firewall
+no_appending_timestamp = true
+index = pan_logs
+EOL
+
+
+# Restart Splunk to apply changes
+echo "Restarting Splunk to apply changes..."
+/opt/splunk/bin/splunk restart
+
+
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc. Once done, run sudo yum update -y and then restart the machine. Have fun!"
