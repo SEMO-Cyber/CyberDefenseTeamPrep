@@ -186,8 +186,8 @@ echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
 echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
 
 if [ "$splunkPass" != "$confirmPass" ]; then
-#    echo "Passwords do not match. Please try again."
-#    exit 1
+    echo "Passwords do not match. Please try again."
+    exit 1
 fi
 
 #/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:$splunkPass
