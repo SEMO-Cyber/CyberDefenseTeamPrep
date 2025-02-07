@@ -180,28 +180,36 @@ read confirmPass
 stty echo
 
 
-# Disable distributed search
-echo "Disabling distruted search"
-echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
-echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
+
 
 if [ "$splunkPass" != "$confirmPass" ]; then
     echo "Passwords do not match. Please try again."
     exit 1
 fi
 
-/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:$splunkPass
+
+# Set consistent authentication variables
+SPLUNK_USERNAME="admin"
+SPLUNK_PASSWORD="$splunkPass"
+
+# Change admin password with proper error handling
+if ! /opt/splunk/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
+    echo "Error: Failed to change admin password"
+    exit 1
+fi
+
+
+
+/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 #Remove all users except admin user. This is a little wordy in the output.
-USERS=$(/opt/splunk/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
+USERS=$(/opt/splunk/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "admin" | awk '{print $2}')
 
 for USER in $USERS; do
     /opt/splunk/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
 done
 
-
 #Lock down who is able to log in
-
 #make sure files exist
 touch "$SPLUNK_HOME/etc/system/local/authentication.conf"
 touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
@@ -244,27 +252,28 @@ rtSrchMaxTime = 30
 srchMaxTotalDiskQuota = 500000
 EOF
 
-
 # Install Palo Alto apps
 echo "Installing Palo Alto apps..."
-/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth admin:$splunkPass
-/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth admin:$splunkPass
-
+$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 # Configure UDP input for Palo Alto logs
 echo "Configuring UDP input..."
-cat > /opt/splunk/etc/system/local/inputs.conf << EOL
+cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
 [udp://514]
 sourcetype = pan:firewall
 no_appending_timestamp = true
 index = pan_logs
 EOL
 
+# Disable distributed search
+echo "Disabling distributed search"
+echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
+echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
 
 # Restart Splunk to apply changes
 echo "Restarting Splunk to apply changes..."
-/opt/splunk/bin/splunk restart
-
+$SPLUNK_HOME/bin/splunk restart
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!"
