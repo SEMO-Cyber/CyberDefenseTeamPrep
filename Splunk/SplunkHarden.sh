@@ -247,8 +247,8 @@ EOF
 
 # Install Palo Alto apps
 echo "Installing Palo Alto apps..."
-/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth admin:$splunkPass
-/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth admin:$splunkPass
+/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth sysadmin:$splunkPass
+/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth sysadmin:$splunkPass
 
 
 # Configure UDP input for Palo Alto logs
