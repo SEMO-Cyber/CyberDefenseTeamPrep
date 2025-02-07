@@ -1,0 +1,10 @@
+#!/bin/bash
+export SPLUNK_USERNAME="sysadmin"
+export SPLUNK_PASSWORD="Changeme1!"
+
+USERS=$(./splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
+
+for USER in $USERS; do
+    echo "Removing user: $USER"
+    ./splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
+done
