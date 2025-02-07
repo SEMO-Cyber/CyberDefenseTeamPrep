@@ -166,29 +166,79 @@ $PKG_MANAGER autoremove -y
 
 echo "Hardening the Splunk configuration..."
 
-echo "Changing Splunk admin password..."
-echo "Enter new password for Splunk admin user: "
-stty -echo
-read splunkPass
-stty echo
-echo "Confirm new password: "
-stty -echo
-read confirmPass
-stty echo
-
-if [ "$splunkPass" != "$confirmPass" ]; then
-    echo "Passwords do not match. Please try again."
-    exit 1
-fi
-
-/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:changeme
+#echo "Changing Splunk admin password..."
+#echo "Enter new password for Splunk admin user: "
+#stty -echo
+#read splunkPass
+#stty echo
+#echo "Confirm new password: "
+#stty -echo
+#read confirmPass
+#stty echo
 
 
-# Remove all users except admin
-echo "Removing all users except admin..."
-/opt/splunk/bin/splunk user list | grep -v "admin" | while read -r user; do
-    /opt/splunk/bin/splunk remove user $user
-done
+# Disable distributed search
+#echo "Disabling distruted search"
+#echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
+#echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
+
+#if [ "$splunkPass" != "$confirmPass" ]; then
+#    echo "Passwords do not match. Please try again."
+#    exit 1
+#fi
+
+#/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:$splunkPass
+
+#Remove all users except admin user. This is a little wordy in the output.
+#USERS=$(/opt/splunk/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
+
+#for USER in $USERS; do
+#    /opt/splunk/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
+#done
+
+
+#Lock down who is able to log in
+
+# Edit authentication.conf
+cat > $SPLUNK_HOME/etc/system/local/authentication.conf << EOF
+[authentication]
+authType = Splunk
+authSettings = Splunk
+
+[roleMap_Splunk]
+admin = admin
+
+[authenticationResponse]
+attributemap = Splunk:role -> role
+EOF
+
+# Edit authorize.conf
+cat > $SPLUNK_HOME/etc/system/local/authorize.conf << EOF
+[role_admin]
+importRoles = admin
+srchJobsQuota = 50
+rtSrchJobsQuota = 50
+srchDiskQuota = 10000
+srchFilter = *
+srchIndexesAllowed = *
+srchIndexesDefault = main
+srchMaxTime = 8640000
+rtSrchMaxTime = 30
+srchMaxTotalDiskQuota = 500000
+importRoles = user
+srchJobsQuota = 50
+rtSrchJobsQuota = 50
+srchDiskQuota = 10000
+srchFilter = *
+srchIndexesAllowed = *
+srchIndexesDefault = main
+srchMaxTime = 8640000
+rtSrchMaxTime = 30
+srchMaxTotalDiskQuota = 500000
+EOF
+
+
+/opt/splunk/bin/splunk restart 
 
 
 echo "MAKE SURE YOU ENUMERATE!!!"
