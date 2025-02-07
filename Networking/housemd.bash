@@ -33,7 +33,7 @@ mv palolog.txt housemd.txt
 echo "commit" >> housemd.txt
 
 
-ssh -T admin@172.20.242.150 < ./housemd.txt
+ssh -T -o HostKeyAlgorithms=+ssh-rsa -o PubKeyAuthentication=no -o PasswordAuthentication=yes admin@172.20.242.150 < ./housemd.txt
 
 cp ./housemd.txt ./ran.txt
 mv ./backup-housemd.txt ./housemd.txt
