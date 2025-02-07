@@ -170,14 +170,14 @@ export SPLUNK_HOME=/opt/splunk
 echo "Hardening the Splunk configuration..."
 
 #echo "Changing Splunk admin password..."
-#echo "Enter new password for Splunk admin user: "
-#stty -echo
-#read splunkPass
-#stty echo
-#echo "Confirm new password: "
-#stty -echo
-#read confirmPass
-#stty echo
+echo "Enter new password for Splunk admin user: "
+stty -echo
+read splunkPass
+stty echo
+echo "Confirm new password: "
+stty -echo
+read confirmPass
+stty echo
 
 
 # Disable distributed search
@@ -185,10 +185,10 @@ echo "Disabling distruted search"
 echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
 echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
 
-#if [ "$splunkPass" != "$confirmPass" ]; then
+if [ "$splunkPass" != "$confirmPass" ]; then
 #    echo "Passwords do not match. Please try again."
 #    exit 1
-#fi
+fi
 
 #/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:$splunkPass
 
