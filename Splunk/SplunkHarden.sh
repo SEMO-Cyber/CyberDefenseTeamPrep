@@ -163,50 +163,56 @@
 #   Splunk Security Hardening
 #
 #
-
 #Set the base directory for Splunk
 export SPLUNK_HOME=/opt/splunk
 
 echo "Hardening the Splunk configuration..."
+
+
+cat > $SPLUNK_HOME/etc/system/local/server.conf << EOF
+[sslConfig]
+cliVerifyServerName = true
+serverCert = $SPLUNK_HOME/etc/auth/server.pem
+sslPassword = password
+EOF
+
+$SPLUNK_HOME/bin/splunk restart
+
+
 
 #echo "Changing Splunk admin password..."
 echo "Enter new password for Splunk admin user: "
 stty -echo
 read splunkPass
 stty echo
+
 echo "Confirm new password: "
 stty -echo
 read confirmPass
 stty echo
-
-
-
 
 if [ "$splunkPass" != "$confirmPass" ]; then
     echo "Passwords do not match. Please try again."
     exit 1
 fi
 
-
 # Set consistent authentication variables
 SPLUNK_USERNAME="admin"
 SPLUNK_PASSWORD="$splunkPass"
 
 # Change admin password with proper error handling
-if ! /opt/splunk/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
+if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
     echo "Error: Failed to change admin password"
     exit 1
 fi
 
-
-
-/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+$SPLUNK_HOME/bin/splunk edit user admin -password $splunkPass -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 #Remove all users except admin user. This is a little wordy in the output.
-USERS=$(/opt/splunk/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "admin" | awk '{print $2}')
+USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "admin" | awk '{print $2}')
 
 for USER in $USERS; do
-    /opt/splunk/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
+    $SPLUNK_HOME/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
 done
 
 #Lock down who is able to log in
