@@ -24,7 +24,7 @@
 
 # Check if nmap is already installed
 #if command -v nmap &> /dev/null; then
-    echo "nmap is already installed"
+#    echo "nmap is already installed"
 #fi
 
 # Install necessary tools and dependencies
@@ -190,14 +190,14 @@ if [ "$splunkPass" != "$confirmPass" ]; then
     exit 1
 fi
 
-#/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:$splunkPass
+/opt/splunk/bin/splunk edit user admin -password $splunkPass -auth admin:$splunkPass
 
 #Remove all users except admin user. This is a little wordy in the output.
-#USERS=$(/opt/splunk/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
+USERS=$(/opt/splunk/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
 
-#for USER in $USERS; do
-#    /opt/splunk/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
-#done
+for USER in $USERS; do
+    /opt/splunk/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
+done
 
 
 #Lock down who is able to log in
@@ -247,8 +247,8 @@ EOF
 
 # Install Palo Alto apps
 echo "Installing Palo Alto apps..."
-/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth sysadmin:$splunkPass
-/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth sysadmin:$splunkPass
+/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth admin:$splunkPass
+/opt/splunk/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth admin:$splunkPass
 
 
 # Configure UDP input for Palo Alto logs
