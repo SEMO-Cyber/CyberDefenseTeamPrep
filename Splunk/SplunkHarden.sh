@@ -164,6 +164,9 @@ $PKG_MANAGER autoremove -y
 #
 #
 
+#Set the base directory for Splunk
+export SPLUNK_HOME=/opt/splunk
+
 echo "Hardening the Splunk configuration..."
 
 #echo "Changing Splunk admin password..."
@@ -178,9 +181,9 @@ echo "Hardening the Splunk configuration..."
 
 
 # Disable distributed search
-#echo "Disabling distruted search"
-#echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
-#echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
+echo "Disabling distruted search"
+echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
+echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
 
 #if [ "$splunkPass" != "$confirmPass" ]; then
 #    echo "Passwords do not match. Please try again."
@@ -198,6 +201,10 @@ echo "Hardening the Splunk configuration..."
 
 
 #Lock down who is able to log in
+
+#make sure files exist
+touch "$SPLUNK_HOME/etc/system/local/authentication.conf"
+touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
 
 # Edit authentication.conf
 cat > $SPLUNK_HOME/etc/system/local/authentication.conf << EOF
