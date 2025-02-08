@@ -1,6 +1,7 @@
 #!/bin/bash
 export SPLUNK_USERNAME="sysadmin"
 export SPLUNK_PASSWORD="Changeme1!"
+export SPLUNK_HOME="/opt/splunk"
 
 # Install Palo Alto apps
 echo "Installing Palo Alto apps..."
