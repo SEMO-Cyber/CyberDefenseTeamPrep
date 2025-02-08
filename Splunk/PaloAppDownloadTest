@@ -1,0 +1,13 @@
+#!/bin/bash
+export SPLUNK_USERNAME="sysadmin"
+export SPLUNK_PASSWORD="Changeme1!"
+
+# Install Palo Alto apps
+echo "Installing Palo Alto apps..."
+$SPLUNK_HOME/bin/splunk install app \
+    -url https://splunkbase.splunk.com/app/1622/release/7.0.1/download/SplunkApp.spl \
+    -auth admin:"$SPLUNK_PASSWORD"
+
+$SPLUNK_HOME/bin/splunk install app \
+    -url https://splunkbase.splunk.com/app/491/download/SplunkApp.spl \
+    -auth admin:"$SPLUNK_PASSWORD"
