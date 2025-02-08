@@ -5,10 +5,5 @@ export SPLUNK_HOME="/opt/splunk"
 
 # Install Palo Alto apps
 echo "Installing Palo Alto apps..."
-$SPLUNK_HOME/bin/splunk install app \
-    -url https://splunkbase.splunk.com/app/1622/release/7.0.1/download/SplunkApp.spl \
-    -auth admin:"$SPLUNK_PASSWORD"
-
-$SPLUNK_HOME/bin/splunk install app \
-    -url https://splunkbase.splunk.com/app/491/download/SplunkApp.spl \
-    -auth admin:"$SPLUNK_PASSWORD"
+$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
