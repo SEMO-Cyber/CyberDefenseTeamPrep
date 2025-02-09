@@ -10,11 +10,6 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 
-# Update and upgrade the system
-echo "Updating and upgrading the system..."
-apt update && apt upgrade -y
-
-
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
 apt install -y curl wget iptables-persistent nmap cron
@@ -103,4 +98,4 @@ apt autoremove -y
 
 
 echo "MAKE SURE YOU ENUMERATE!!!"
-echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNEL!!!!!!"
+echo "Check for cronjobs, services on timers, etc, then update and upgrade the machine. THEN RESTART. It will update the kernel!!"
