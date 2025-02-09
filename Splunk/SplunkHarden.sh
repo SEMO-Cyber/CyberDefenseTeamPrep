@@ -396,18 +396,18 @@ EOF
 #  ------------   NOT WORKING  ------------
 #
 # Install Palo Alto apps
-#echo "Installing Palo Alto apps..."
-#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
-#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+echo "Installing Palo Alto apps..."
+$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 # Configure UDP input for Palo Alto logs
-#echo "Configuring UDP input..."
-#cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
-#[udp://514]
-#sourcetype = pan:firewall
-#no_appending_timestamp = true
-#index = pan_logs
-#EOL
+echo "Configuring UDP input..."
+cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
+[udp://514]
+sourcetype = pan:firewall
+no_appending_timestamp = true
+index = pan_logs
+EOL
 
 # Disable distributed search
 echo "Disabling distributed search"
