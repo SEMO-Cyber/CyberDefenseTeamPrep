@@ -106,13 +106,13 @@ iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -m limit --limit
 iptables -A OUTPUT -p tcp --dport 443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
 # Allow Splunk-specific traffic
-iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT  #Splunk Forwarders
-iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate ESTABLISHED -j ACCEPT
-iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT   #Logs from Palo
+iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW,ESTABLISHED  ACCEPT  #Splunk Forwarders
+#iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW -j ACCEPT   #Logs from Palo
 iptables -A OUTPUT -p tcp --sport 514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 #sudo iptables -A INPUT -p tcp --dport 8089 -j ACCEPT   #NOT NEEDED
 #sudo iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT  #NOT NEEDED
-iptables -A INPUT -p tcp --dport 8000 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT  #Splunk webGUI
+iptables -A INPUT -p tcp --dport 8000 -m conntrack --ctstate NEW -j ACCEPT  #Splunk webGUI
 iptables -A OUTPUT -p tcp --sport 8000 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Log dropped packets
