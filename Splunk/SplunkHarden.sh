@@ -10,8 +10,8 @@
 # Samuel Brucker 2024-2025
 
 #For debugging. This is an easy way to see where a fatal error happens in this script. 
-set -euo pipefail
-trap 'echo "Error occurred at line $LINENO"' ERR
+#set -euo pipefail
+#trap 'echo "Error occurred at line $LINENO"' ERR
 
 # Add at the beginning of the script
 LOG_FILE="/var/log/splunk_harden_$(date +%Y%m%d_%H%M%S).log"
