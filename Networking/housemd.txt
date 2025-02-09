@@ -2,7 +2,7 @@ set address priv-docker ip-netmask 172.20.240.10
 set address priv-debian10 ip-netmask 172.20.240.20
 set address priv-ubuntu-server ip-netmask 172.20.242.10
 set address priv-windows-server ip-netmask 172.20.242.200
-set address priv-ubuntu-wkst ip-netmask 172.20.242.102
+set address priv-ubuntu-wkst ip-netmask 172.20.242.111
 set address priv-splunk ip-netmask 172.20.241.20
 set address priv-centos ip-netmask 172.20.241.30
 set address priv-fedora ip-netmask 172.20.241.40
@@ -269,7 +269,7 @@ set rulebase security rules INSIDE2EXTERNAL log-end yes
 set rulebase security rules INSIDE2EXTERNAL log-setting defaultlogs
 
 set rulebase security rules INSIDE2INSIDE profile-setting group ccdc
-set rulebase security rules INSIDE2INSIDE application [ dns splunk-logs syslog ntp ping snmp ]
+set rulebase security rules INSIDE2INSIDE application [ dns splunk syslog ntp-base ping snmp ]
 set rulebase security rules INSIDE2INSIDE service application-default
 set rulebase security rules INSIDE2INSIDE to [ Internal Public User ]
 set rulebase security rules INSIDE2INSIDE from [ Internal Public User ]
@@ -308,7 +308,7 @@ set rulebase nat rules ecomm-to-wkst to External
 set rulebase nat rules ecomm-to-wkst from External
 set rulebase nat rules ecomm-to-wkst source any
 set rulebase nat rules ecomm-to-wkst destination public-centos
-set rulebase nat rules ecomm-to-wkst service http-service
+set rulebase nat rules ecomm-to-wkst service service-http
 set rulebase nat rules ecomm-to-wkst destination-translation translated-address priv-ubuntu-wkst
 set rulebase nat rules ecomm-to-wkst destination-translation translated-port 80
 set rulebase nat rules ecomm-to-wkst disabled yes
@@ -319,7 +319,7 @@ set rulebase nat rules dns-to-wkst to External
 set rulebase nat rules dns-to-wkst from External
 set rulebase nat rules dns-to-wkst source any
 set rulebase nat rules dns-to-wkst destination [ public-debian public-windows-server ]
-set rulebase nat rules dns-to-wkst service [ dnsu dnst ]
+set rulebase nat rules dns-to-wkst service dnst
 set rulebase nat rules dns-to-wkst destination-translation translated-address priv-ubuntu-wkst
 set rulebase nat rules dns-to-wkst destination-translation translated-port 53
 set rulebase nat rules dns-to-wkst disabled yes
