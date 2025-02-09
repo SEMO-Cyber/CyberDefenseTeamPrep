@@ -288,13 +288,23 @@ touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
 
 # Configure receivers
 cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
-# TCP input for Splunk forwarders (port 9997)
-[tcp://9997]
-index = main
-sourcetype = tcp:9997
-connection_host = dns
-disabled = false
+#TCP input for Splunk forwarders (port 9997)
+#Commented out as I prefer being able to see this listener in the webgui, so I use Splunk CLI to add this automatically
+#[tcp://9997]
+#index = main
+#sourcetype = tcp:9997
+#connection_host = dns
+#disabled = false
+
+[udp://514]
+sourcetype = pan:firewall
+no_appending_timestamp = true
+index = pan_logs
 EOF
+
+#Add the 9997 listener using splunk CLI
+$SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+
 
 #  ------------   NOT WORKING  ------------
 #
@@ -303,14 +313,6 @@ EOF
 #$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 #$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
-# Configure UDP input for Palo Alto logs
-#echo "Configuring UDP input..."
-#cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
-#[udp://514]
-#sourcetype = pan:firewall
-#no_appending_timestamp = true
-#index = pan_logs
-#EOL
 
 # Disable distributed search
 echo "Disabling distributed search"
