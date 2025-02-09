@@ -9,6 +9,13 @@
 #
 # Samuel Brucker 2024-2025
 
+set -euo pipefail
+trap 'echo "Error occurred at line $LINENO"' ERR
+
+# Add at the beginning of the script
+LOG_FILE="/var/log/splunk_harden_$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
 SPLUNK_HOME="/opt/splunk"
 
 # Check if running as root
@@ -209,6 +216,14 @@ $PKG_MANAGER autoremove -y
 #
 echo "Hardening the Splunk configuration..."
 
+
+# Add to Splunk configuration section
+echo "Setting secure local file permissions..."
+chmod -R 700 "$SPLUNK_HOME/etc/system/local"
+chmod -R 700 "$SPLUNK_HOME/etc/system/default"
+chown -R splunk:splunk "$SPLUNK_HOME/etc"
+
+
 #echo "Changing Splunk admin password..."
 while true; do
     echo "Enter new password for Splunk admin user: "
@@ -279,6 +294,9 @@ $SPLUNK_HOME/bin/splunk restart
 echo "Backing up latest Splunk configurations..."
 mkdir -p "$BACKUP_DIR/splunk"
 cp -R "$SPLUNK_HOME" "$BACKUP_DIR/splunk"
+echo "Verifying backup integrity..."
+find "$BACKUP_DIR/splunk" -type f -size +0 -print0 | xargs -0 md5sum > "$BACKUP_DIR/splunk/md5sums.txt"
+find "$BACKUP_DIR/splunk" -type f -size 0 -delete
 
 
 ############################
@@ -335,7 +353,17 @@ cp -R "$SPLUNK_HOME" "$BACKUP_DIR/splunk"
 #$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 #$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
+echo "\n\nMAKE SURE YOU ENUMERATE!!!"
+echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!\n\n"
 
 
-echo "MAKE SURE YOU ENUMERATE!!!"
-echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!"
+# Add a final output to help quickly search for rogue system accounts. This isn't exactly a sophisticated sweep, just something to help find some minor plants quicker.
+echo "Looking for system accounts with permissions under 500. Double check these, but still make sure you check the /etc/shadow file for more accounts." 
+echo "Permissions under or above 500 don't instantly mean an account is legit/malicious."
+awk -F: '$3 >= 500 && $1 != "sysadmin" && $1 != "splunk" {print $1}' /etc/passwd | while read user; do
+    echo "Found system account: $user"
+    echo "To lock this account manually, run:"
+    echo "  sudo usermod -L $user    # Lock the account"
+    echo "  sudo usermod -s /sbin/nologin $user    # Prevent shell login"
+    echo "---"
+done
