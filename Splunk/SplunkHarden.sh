@@ -84,9 +84,9 @@ iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Allow HTTP/HTTPS traffic
 iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -m limit --limit 100/min --limit-burst 200 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 80 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -m limit --limit 100/min --limit-burst 200 -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 443 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
 # Allow Splunk-specific traffic
 iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT  #Splunk Forwarders
