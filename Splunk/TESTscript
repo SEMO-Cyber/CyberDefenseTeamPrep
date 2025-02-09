@@ -3,16 +3,95 @@ export SPLUNK_USERNAME="admin"
 export SPLUNK_PASSWORD="Changeme1!"
 export SPLUNK_HOME="/opt/splunk"
 
-SERVER_CONF="${SPLUNK_HOME}/etc/system/local/server.conf"
+# System logs (main index)
+[monitor:///var/log/messages]
+index = main
+sourcetype = linux_messages
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
 
-cat >> "${SERVER_CONF}" << EOF
-[sslConfig]
-cliVerifyServerName = false
+[monitor:///var/log/secure]
+index = _audit
+sourcetype = linux_secure
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///var/log/audit/audit.log]
+index = _audit
+sourcetype = linux_audit
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# System performance monitoring (main index)
+[monitor:///var/log/sysstat/sa*]
+index = main
+sourcetype = linux_sysstat
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# Critical system logs (main index)
+[monitor:///var/log/cron]
+index = main
+sourcetype = linux_cron
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///var/log/maillog]
+index = main
+sourcetype = linux_maillog
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# Internal Splunk monitoring (_internal index)
+[monitor:///opt/splunk/var/log/splunk/splunkd.log]
+index = _internal
+sourcetype = splunkd
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///opt/splunk/var/log/splunk/splunkd_stderr.log]
+index = _internal
+sourcetype = splunkd_stderr
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///opt/splunk/var/log/splunk/metrics.log]
+index = _internal
+sourcetype = splunkd_metrics
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# TCP input for Splunk forwarders (port 9997)
+[tcp://9997]
+index = main
+sourcetype = tcp:9997
+connection_host = dns
+disabled = false
 EOF
-
-# Verify configuration
-grep -q "\[sslConfig\]" "${SERVER_CONF}" && echo "Configuration updated successfully"
-grep -q "cliVerifyServerName = false" "${SERVER_CONF}" || echo "Warning: Configuration not found!"
-
-# Restart Splunk
-$SPLUNK_HOME/bin/splunk restart
