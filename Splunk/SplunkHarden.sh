@@ -9,6 +9,7 @@
 #
 # Samuel Brucker 2024-2025
 
+#For debugging. This is an easy way to see where a fatal error happens in this script. 
 set -euo pipefail
 trap 'echo "Error occurred at line $LINENO"' ERR
 
