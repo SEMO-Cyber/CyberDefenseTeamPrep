@@ -8,10 +8,6 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-# Update and upgrade the system
-echo "Updating and upgrading the system..."
-yum update -y
-
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
 yum install -y curl wget nmap fail2ban iptables-services cron auditd
