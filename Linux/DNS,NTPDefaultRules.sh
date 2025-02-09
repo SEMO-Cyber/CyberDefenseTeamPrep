@@ -13,6 +13,12 @@ echo "Installing necessary tools and dependencies..."
 apt install -y curl wget nmap iptables-persistent auditd
 
 
+echo "Setting device banner"
+cat > /etc/issue << EOF
+LEGAL DISCLAIMER: This computer system is the property of Team [team number] LLC. By using this system, all users acknowledge notice of, and agree to comply with, the Acceptable User of Information Technology Resources Polity (AUP). 
+By using this system, you consent to these terms and conditions. Use is also consent to monitoring, logging, and use of logging to prosecute abuse. 
+If you do NOT wish to comply with these terms and conditions, you must LOG OFF IMMEDIATELY.
+EOF
 
 #
 #   IPTables Rules
