@@ -96,3 +96,5 @@ sourcetype = tcp:9997
 connection_host = dns
 disabled = false
 EOF
+
+$SPLUNK_HOME/bin/splunk restart
