@@ -20,10 +20,6 @@ else
     exit 1
 fi
 
-# Update and upgrade the system
-echo "Updating and upgrading the system..."
-$PKG_MANAGER update -y
-
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
 $PKG_MANAGER install -y curl wget nmap iptables-services cronie auditd
@@ -190,4 +186,4 @@ echo "Final steps..."
 $PKG_MANAGER autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
-echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNEL!!!!!!"
+echo "Check for cronjobs, services on timers, etc, then update and upgrade the machine. THEN RESTART. It will update the kernel!!"
