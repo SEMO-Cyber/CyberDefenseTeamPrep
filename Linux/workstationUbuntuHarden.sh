@@ -80,6 +80,45 @@ iptables-save > /etc/iptables/rules.v4
 #echo "Uninstalling SSH..."
 #apt remove --purge openssh-server -y
 
+# Set root password
+while true; do
+    echo "Enter new root password: "
+    stty -echo
+    read rootPass
+    stty echo
+    echo "Confirm root password: "
+    stty -echo
+    read confirmRootPass
+    stty echo
+
+    if [ "$rootPass" = "$confirmRootPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
+
+echo "root:$rootPass" | chpasswd
+
+# Set sysadmin password
+while true; do
+    echo "Enter new sysadmin password: "
+    stty -echo
+    read sysadminPass
+    stty echo
+    echo "Confirm sysadmin password: "
+    stty -echo
+    read confirmSysadminPass
+    stty echo
+
+    if [ "$sysadminPass" = "$confirmSysadminPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
+
+echo "sysadmin:$sysadminPass" | chpasswd
 
 #harden cron
 echo "Locking down Cron and AT permissions..."
