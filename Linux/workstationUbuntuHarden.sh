@@ -66,7 +66,7 @@ iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
 iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 
 # Allow outgoing SSH traffic
-iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
 
 # Set default policies for ipv4 and ipv6
 iptables -P INPUT DROP
