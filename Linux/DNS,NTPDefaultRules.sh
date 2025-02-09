@@ -168,8 +168,9 @@ apt remove --purge openssh-server -y
 
 echo "restricting user creation to root only"
 chmod 700 /usr/sbin/useradd
-chmod 700 /usr/sbin/groupadd#harden cron
+chmod 700 /usr/sbin/groupadd
 
+#harden cron
 echo "Locking down Cron and AT permissions..."
 touch /etc/cron.allow
 chmod 600 /etc/cron.allow
