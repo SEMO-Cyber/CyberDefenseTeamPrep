@@ -307,7 +307,7 @@ move rulebase nat rules splunk-to-wkst top
 set rulebase nat rules ecomm-to-wkst to External
 set rulebase nat rules ecomm-to-wkst from External
 set rulebase nat rules ecomm-to-wkst source any
-set rulebase nat rules ecomm-to-wkst destination public-ecomm
+set rulebase nat rules ecomm-to-wkst destination public-centos
 set rulebase nat rules ecomm-to-wkst service http-service
 set rulebase nat rules ecomm-to-wkst destination-translation translated-address priv-ubuntu-wkst
 set rulebase nat rules ecomm-to-wkst destination-translation translated-port 80
