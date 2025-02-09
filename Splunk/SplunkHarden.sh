@@ -218,66 +218,16 @@ SPLUNK_PASSWORD="$splunkPass"
 SPLUNK_HOME="/opt/splunk"
 CONF_FILE="/opt/splunk/etc/system/local/server.conf"
 
+#Remove old conf file
+rm -f $CONF_FILE
 
+cat > $CONF_FILE << EOF
+[general]
+serverName = Splunk
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-#Change the server.conf file to let me change everything via script.
-#
-#   WARNING: THIS IS BAD PRACTICE FOR AN ACTUAL PRODUCTION ENVIRONMENT. IT'S WORTH IT IN THIS COMP SO I CAN SCRIPT MUCH OF MY WORK
-#            BUT DON'T ACTUALLY TREAT THIS LIKE IT'S HOW YOU SHOULD DO IT. AGAIN: DO NOT DO THIS OUTSIDE THE COMP!!!!!!
-
-# Backup the config file
-cp "$CONF_FILE" "${CONF_FILE}.bak"
-echo "Created backup: ${CONF_FILE}.bak"
-
-# Remove any lines containing sslPassword
-sed -i '/^sslPassword/d' "$CONF_FILE"
-
-# Remove the existing sslConfig section
-sed -i '/^\[sslConfig\]/,/^\[/d' "$CONF_FILE"
-
-# Find the position where sslConfig should be inserted
-# (after [general] section, before other sections)
-general_section=$(grep -n '\[general\]' "$CONF_FILE" | cut -d: -f1)
-if [ -n "$general_section" ]; then
-    # Insert new sslConfig section after [general]
-    sed -i "${general_section}a\[sslConfig]\ncliVerifyServerName = false" "$CONF_FILE"
-else
-    # If [general] section not found, add at end
-    echo -e "\n[sslConfig]\ncliVerifyServerName = false" >> "$CONF_FILE"
-fi
-
-# Verify the configuration
-grep -q "\[sslConfig\]" "$CONF_FILE" && echo "Configuration updated successfully"
-grep -q "cliVerifyServerName = false" "$CONF_FILE" || echo "Warning: Configuration not found!"
-grep -q "^sslPassword" "$CONF_FILE" && echo "Warning: sslPassword lines still exist!" || echo "All sslPassword lines removed successfully"
-
-# Verify auto-generated pools are preserved
-echo "Checking for auto-generated pools..."
-grep -q "lmpool:" "$CONF_FILE" && echo "Auto-generated pools found" || echo "Warning: Auto-generated pools not found!"
-
-#Restart splunk so that the change takes affect
-$SPLUNK_HOME/bin/splunk restart
-
-
-
-
-
-
-
-
+[sslConfig]
+cliVerifyServerName = false
+EOF
 
 
 
