@@ -69,7 +69,6 @@ sudo iptables -A OUTPUT -o lo -j ACCEPT
 sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-
 # Allow limited incoming ICMP traffic and log packets that don't fit the rules
 #sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 #sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -j LOG --log-prefix "Rate-limit exceeded: " --log-level 4
@@ -122,7 +121,6 @@ cp -R /etc/sysconfig/network-scripts/* "$BACKUP_DIR"    # Network interface conf
 cp /etc/sysconfig/network "$BACKUP_DIR"                 # Network configuration
 cp /etc/resolv.conf "$BACKUP_DIR"                       # DNS configuration
 cp /etc/iptables/rules.v4 "$BACKUP_DIR"                 # A redundant backup for the iptable rules
-
 
 
 #
@@ -178,15 +176,6 @@ $PKG_MANAGER autoremove -y
 export SPLUNK_HOME=/opt/splunk
 
 echo "Hardening the Splunk configuration..."
-
-cat > $SPLUNK_HOME/etc/system/local/server.conf << EOF
-[sslConfig]
-cliVerifyServerName = true
-serverCert = $SPLUNK_HOME/etc/auth/server.pem
-sslPassword = password
-EOF
-
-$SPLUNK_HOME/bin/splunk restart
 
 #echo "Changing Splunk admin password..."
 echo "Enter new password for Splunk admin user: "
