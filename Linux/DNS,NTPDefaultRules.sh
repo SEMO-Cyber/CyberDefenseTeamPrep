@@ -76,6 +76,7 @@ iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
 #Allow traffic on Splunk ports
 iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 9997 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 8000 -j ACCEPT
 
 #Allow loopback traffic
 iptables -A INPUT -i lo -j ACCEPT
