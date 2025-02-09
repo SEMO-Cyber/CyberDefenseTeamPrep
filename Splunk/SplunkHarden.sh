@@ -219,6 +219,20 @@ SPLUNK_HOME="/opt/splunk"
 CONF_FILE="/opt/splunk/etc/system/local/server.conf"
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #Change the server.conf file to let me change everything via script.
 #
 #   WARNING: THIS IS BAD PRACTICE FOR AN ACTUAL PRODUCTION ENVIRONMENT. IT'S WORTH IT IN THIS COMP SO I CAN SCRIPT MUCH OF MY WORK
@@ -234,19 +248,38 @@ sed -i '/^sslPassword/d' "$CONF_FILE"
 # Remove the existing sslConfig section
 sed -i '/^\[sslConfig\]/,/^\[/d' "$CONF_FILE"
 
-# Add the new sslConfig section
-cat >> "$CONF_FILE" << EOF
-[sslConfig]
-cliVerifyServerName = false
-EOF
+# Find the position where sslConfig should be inserted
+# (after [general] section, before other sections)
+general_section=$(grep -n '\[general\]' "$CONF_FILE" | cut -d: -f1)
+if [ -n "$general_section" ]; then
+    # Insert new sslConfig section after [general]
+    sed -i "${general_section}a\[sslConfig]\ncliVerifyServerName = false" "$CONF_FILE"
+else
+    # If [general] section not found, add at end
+    echo -e "\n[sslConfig]\ncliVerifyServerName = false" >> "$CONF_FILE"
+fi
 
 # Verify the configuration
 grep -q "\[sslConfig\]" "$CONF_FILE" && echo "Configuration updated successfully"
 grep -q "cliVerifyServerName = false" "$CONF_FILE" || echo "Warning: Configuration not found!"
-grep -q "^sslPassword" "$CONF_FILE" && echo "Warning: sslPassword line still exists!" || echo "sslPassword line removed successfully"
+grep -q "^sslPassword" "$CONF_FILE" && echo "Warning: sslPassword lines still exist!" || echo "All sslPassword lines removed successfully"
+
+# Verify auto-generated pools are preserved
+echo "Checking for auto-generated pools..."
+grep -q "lmpool:" "$CONF_FILE" && echo "Auto-generated pools found" || echo "Warning: Auto-generated pools not found!"
 
 #Restart splunk so that the change takes affect
 $SPLUNK_HOME/bin/splunk restart
+
+
+
+
+
+
+
+
+
+
 
 # Change admin password with proper error handling
 if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
