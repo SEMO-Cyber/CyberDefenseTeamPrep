@@ -136,36 +136,43 @@ echo "" > /etc/crontab
 echo "Setting new passwords..."
 
 # Set root password
-echo "Enter new root password: "
-stty -echo
-read rootPass
-stty echo
-echo "Confirm root password: "
-stty -echo
-read confirmRootPass
-stty echo
+# Set root password
+while true; do
+    echo "Enter new root password: "
+    stty -echo
+    read rootPass
+    stty echo
+    echo "Confirm root password: "
+    stty -echo
+    read confirmRootPass
+    stty echo
 
-if [ "$rootPass" != "$confirmRootPass" ]; then
-    echo "Passwords do not match. Please try again."
-    exit 1
-fi
+    if [ "$rootPass" = "$confirmRootPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
 
 echo "root:$rootPass" | chpasswd
 
 # Set sysadmin password
-echo "Enter new sysadmin password: "
-stty -echo
-read sysadminPass
-stty echo
-echo "Confirm sysadmin password: "
-stty -echo
-read confirmSysadminPass
-stty echo
+while true; do
+    echo "Enter new sysadmin password: "
+    stty -echo
+    read sysadminPass
+    stty echo
+    echo "Confirm sysadmin password: "
+    stty -echo
+    read confirmSysadminPass
+    stty echo
 
-if [ "$sysadminPass" != "$confirmSysadminPass" ]; then
-    echo "Passwords do not match. Please try again."
-    exit 1
-fi
+    if [ "$sysadminPass" = "$confirmSysadminPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
 
 echo "sysadmin:$sysadminPass" | chpasswd
 
@@ -197,42 +204,47 @@ $PKG_MANAGER autoremove -y
 echo "Hardening the Splunk configuration..."
 
 #echo "Changing Splunk admin password..."
-echo "Enter new password for Splunk admin user: "
-stty -echo
-read splunkPass
-stty echo
+while true; do
+    echo "Enter new password for Splunk admin user: "
+    stty -echo
+    read splunkPass
+    stty echo
 
-echo "Confirm new password: "
-stty -echo
-read confirmPass
-stty echo
+    echo "Confirm new password: "
+    stty -echo
+    read confirmPass
+    stty echo
 
-if [ "$splunkPass" != "$confirmPass" ]; then
-    echo "Passwords do not match. Please try again."
-    exit 1
-fi
+    if [ "$splunkPass" = "$confirmPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
 
 # Set consistent authentication variables
-SPLUNK_USERNAME="admin"
+SPLUNK_USERNAME="sysadmin"
 SPLUNK_PASSWORD="$splunkPass"
 SPLUNK_HOME="/opt/splunk"
 CONF_FILE="/opt/splunk/etc/system/local/server.conf"
 
+
+
 #Remove old conf file
-rm -f $CONF_FILE
+#rm -f $CONF_FILE
 
-cat > $CONF_FILE << EOF
-[general]
-serverName = Splunk
+#cat > $CONF_FILE << EOF
+#[general]
+#serverName = Splunk
 
-[sslConfig]
-cliVerifyServerName = false
-EOF
+#[sslConfig]
+#cliVerifyServerName = false
+#EOF
 
 
 
 # Change admin password with proper error handling
-if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
+if ! $SPLUNK_HOME/bin/splunk edit user sysadmin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
     echo "Error: Failed to change admin password"
     exit 1
 fi
@@ -240,7 +252,7 @@ fi
 $SPLUNK_HOME/bin/splunk edit user admin -password $splunkPass -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 #Remove all users except admin user. This is a little wordy in the output.
-USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "admin" | awk '{print $2}')
+USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
 
 for USER in $USERS; do
     $SPLUNK_HOME/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
@@ -258,7 +270,7 @@ authType = Splunk
 authSettings = Splunk
 
 [roleMap_Splunk]
-admin = admin
+sysadmin = admin
 
 [authenticationResponse]
 attributemap = Splunk:role -> role
@@ -396,9 +408,9 @@ EOF
 #  ------------   NOT WORKING  ------------
 #
 # Install Palo Alto apps
-echo "Installing Palo Alto apps..."
-$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
-$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+#echo "Installing Palo Alto apps..."
+#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 # Configure UDP input for Palo Alto logs
 echo "Configuring UDP input..."
