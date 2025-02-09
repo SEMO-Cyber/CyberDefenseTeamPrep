@@ -90,6 +90,7 @@ setup_monitors() {
   COMMON_MONITORS="[monitor:///var/log]
 index = main
 sourcetype = syslog
+recursive = true
 
 [monitor:///var/log/messages]
 index = main
@@ -116,12 +117,12 @@ index = main
 sourcetype = package_manager
 
 [monitor:///var/log/httpd]
-index = web
+index = main
 sourcetype = apache
 recursive = true
 
 [monitor:///var/log/mariadb]
-index = database
+index = main
 sourcetype = mysql
 recursive = true"
       ;;
@@ -130,6 +131,7 @@ recursive = true"
 [monitor:///var/log/roundcube]
 index = main
 sourcetype = roundcube
+recursive = true
 
 [monitor:///var/log/maillog]
 index = main
@@ -148,11 +150,12 @@ recursive = true
 index = main
 sourcetype = apache
 recursive = true"
+
       ;;
     ubuntu)
       OS_MONITORS="
 [monitor:///var/log/apache2]
-index = web
+index = main
 sourcetype = apache
 recursive = true
 
@@ -163,13 +166,18 @@ recursive = true"
       ;;
     debian)
       OS_MONITORS="
+[monitor:///var/log/dns]
+index = main
+sourcetype = bind0
+recursive = true
+
 [monitor:///var/log/named]
-index = dns
-sourcetype = bind
+index = main
+sourcetype = bind9
 recursive = true
 
 [monitor:///var/log/ntp]
-index = ntp
+index = main
 sourcetype = ntp
 recursive = true"
       ;;
