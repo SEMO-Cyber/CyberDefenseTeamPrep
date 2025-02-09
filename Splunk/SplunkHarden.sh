@@ -171,7 +171,7 @@ echo "sysadmin:$sysadminPass" | chpasswd
 
 # Uninstall SSH
 echo "Uninstalling SSH..."
-$PKG_MANAGER remove --purge openssh-server -y
+$PKG_MANAGER remove openssh-server -y
 
 # Harden cron
 echo "Locking down Cron and AT permissions..."
@@ -243,7 +243,10 @@ EOF
 # Verify the configuration
 grep -q "\[sslConfig\]" "$CONF_FILE" && echo "Configuration updated successfully"
 grep -q "cliVerifyServerName = false" "$CONF_FILE" || echo "Warning: Configuration not found!"
-grep -q "^sslPassword" "$CONF_FILE" && echo "Warning: sslPassword lines still exist!" || echo "All sslPassword lines removed successfully"
+grep -q "^sslPassword" "$CONF_FILE" && echo "Warning: sslPassword line still exists!" || echo "sslPassword line removed successfully"
+
+#Restart splunk so that the change takes affect
+$SPLUNK_HOME/bin/splunk restart
 
 # Change admin password with proper error handling
 if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
