@@ -9,6 +9,8 @@
 #
 # Samuel Brucker 2024-2025
 
+SPLUNK_HOME="/opt/splunk"
+
 # Check if running as root
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
@@ -122,6 +124,9 @@ cp /etc/sysconfig/network "$BACKUP_DIR"                 # Network configuration
 cp /etc/resolv.conf "$BACKUP_DIR"                       # DNS configuration
 cp /etc/iptables/rules.v4 "$BACKUP_DIR"                 # A redundant backup for the iptable rules
 
+echo "Backing up original Splunk configurations..."
+mkdir -p "$BACKUP_DIR/splunkORIGINAL"
+cp -R "$SPLUNK_HOME" "$BACKUP_DIR/splunkORIGINAL"
 
 #
 #   System Hardening
@@ -135,7 +140,6 @@ echo "" > /etc/crontab
 # Password Management
 echo "Setting new passwords..."
 
-# Set root password
 # Set root password
 while true; do
     echo "Enter new root password: "
@@ -199,8 +203,6 @@ $PKG_MANAGER autoremove -y
 #   Splunk Security Hardening
 #
 #
-#Set the base directory for Splunk
-
 echo "Hardening the Splunk configuration..."
 
 #echo "Changing Splunk admin password..."
@@ -225,8 +227,6 @@ done
 # Set consistent authentication variables
 SPLUNK_USERNAME="sysadmin"
 SPLUNK_PASSWORD="$splunkPass"
-SPLUNK_HOME="/opt/splunk"
-CONF_FILE="/opt/splunk/etc/system/local/server.conf"
 
 # Change admin password with proper error handling
 if ! $SPLUNK_HOME/bin/splunk edit user sysadmin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
@@ -243,10 +243,48 @@ for USER in $USERS; do
     $SPLUNK_HOME/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
 done
 
+# Configure receivers
+cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
+#TCP input for Splunk forwarders (port 9997)
+#Commented out as I prefer being able to see this listener in the webgui, so I use Splunk CLI to add this automatically
+#[tcp://9997]
+#index = main
+#sourcetype = tcp:9997
+#connection_host = dns
+#disabled = false
+
+[udp://514]
+sourcetype = pan:firewall
+no_appending_timestamp = true
+index = pan_logs
+EOF
+
+#Add the 9997 listener using splunk CLI
+$SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+
+# Disable distributed search
+echo "Disabling distributed search"
+echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
+echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
+
+# Restart Splunk to apply changes
+echo "Restarting Splunk to apply changes..."
+$SPLUNK_HOME/bin/splunk restart
+
+#Backup Splunk again now that changes have been made
+echo "Backing up latest Splunk configurations..."
+mkdir -p "$BACKUP_DIR/splunk"
+cp -R "$SPLUNK_HOME" "$BACKUP_DIR/splunk"
+
+
+############################
+# WIP, not functioning yet #
+############################
+
 #Lock down who is able to log in
 #make sure files exist
-touch "$SPLUNK_HOME/etc/system/local/authentication.conf"
-touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
+#touch "$SPLUNK_HOME/etc/system/local/authentication.conf"
+#touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
 
 # Edit authentication.conf
 #cat > $SPLUNK_HOME/etc/system/local/authentication.conf << EOF
@@ -286,26 +324,6 @@ touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
 #srchMaxTotalDiskQuota = 500000
 #EOF
 
-# Configure receivers
-cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
-#TCP input for Splunk forwarders (port 9997)
-#Commented out as I prefer being able to see this listener in the webgui, so I use Splunk CLI to add this automatically
-#[tcp://9997]
-#index = main
-#sourcetype = tcp:9997
-#connection_host = dns
-#disabled = false
-
-[udp://514]
-sourcetype = pan:firewall
-no_appending_timestamp = true
-index = pan_logs
-EOF
-
-#Add the 9997 listener using splunk CLI
-$SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
-
-
 #  ------------   NOT WORKING  ------------
 #
 # Install Palo Alto apps
@@ -314,14 +332,6 @@ $SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSW
 #$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 
-# Disable distributed search
-echo "Disabling distributed search"
-echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
-echo "disabled = true" >> $SPLUNK_HOME/etc/system/local/distsearch.conf
-
-# Restart Splunk to apply changes
-echo "Restarting Splunk to apply changes..."
-$SPLUNK_HOME/bin/splunk restart
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!"
