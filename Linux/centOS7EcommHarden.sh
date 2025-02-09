@@ -147,4 +147,4 @@ echo "Final steps..."
 yum autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
-echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNEL!!!!!!"
+echo "Check for cronjobs, services on timers, etc, then update and upgrade the machine. THEN RESTART. It will update the kernel!!"
