@@ -228,21 +228,6 @@ SPLUNK_PASSWORD="$splunkPass"
 SPLUNK_HOME="/opt/splunk"
 CONF_FILE="/opt/splunk/etc/system/local/server.conf"
 
-
-
-#Remove old conf file
-#rm -f $CONF_FILE
-
-#cat > $CONF_FILE << EOF
-#[general]
-#serverName = Splunk
-
-#[sslConfig]
-#cliVerifyServerName = false
-#EOF
-
-
-
 # Change admin password with proper error handling
 if ! $SPLUNK_HOME/bin/splunk edit user sysadmin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
     echo "Error: Failed to change admin password"
@@ -301,94 +286,6 @@ rtSrchMaxTime = 30
 srchMaxTotalDiskQuota = 500000
 EOF
 
-cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
-# System logs (main index)
-[monitor:///var/log/messages]
-index = main
-sourcetype = linux_messages
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-[monitor:///var/log/secure]
-index = _audit
-sourcetype = linux_secure
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-[monitor:///var/log/audit/audit.log]
-index = _audit
-sourcetype = linux_audit
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-# System performance monitoring (main index)
-[monitor:///var/log/sysstat/sa*]
-index = main
-sourcetype = linux_sysstat
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-# Critical system logs (main index)
-[monitor:///var/log/cron]
-index = main
-sourcetype = linux_cron
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-[monitor:///var/log/maillog]
-index = main
-sourcetype = linux_maillog
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-# Internal Splunk monitoring (_internal index)
-[monitor:///opt/splunk/var/log/splunk/splunkd.log]
-index = _internal
-sourcetype = splunkd
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-[monitor:///opt/splunk/var/log/splunk/splunkd_stderr.log]
-index = _internal
-sourcetype = splunkd_stderr
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-
-[monitor:///opt/splunk/var/log/splunk/metrics.log]
-index = _internal
-sourcetype = splunkd_metrics
-disabled = false
-crcSalt = <SOURCE>
-ignoreOlderThan = 7d
-followTail = 0
-queue = parsingQueue
-EOF
-
-
 # Configure receivers
 cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
 # TCP input for Splunk forwarders (port 9997)
@@ -397,12 +294,6 @@ index = main
 sourcetype = tcp:9997
 connection_host = dns
 disabled = false
-
-# UDP input for syslog (port 514) - This is configured for Palo Alto. Use with the Palo Alto Add-on and App (installed onto Splunk)
-[udp://514]
-sourcetype = pan:firewall
-no_appending_timestamp = true
-index = pan_logs
 EOF
 
 #  ------------   NOT WORKING  ------------
@@ -413,13 +304,13 @@ EOF
 #$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 # Configure UDP input for Palo Alto logs
-echo "Configuring UDP input..."
-cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
-[udp://514]
-sourcetype = pan:firewall
-no_appending_timestamp = true
-index = pan_logs
-EOL
+#echo "Configuring UDP input..."
+#cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
+#[udp://514]
+#sourcetype = pan:firewall
+#no_appending_timestamp = true
+#index = pan_logs
+#EOL
 
 # Disable distributed search
 echo "Disabling distributed search"
