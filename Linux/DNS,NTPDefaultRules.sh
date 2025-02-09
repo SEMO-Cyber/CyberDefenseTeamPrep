@@ -188,3 +188,14 @@ apt autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc, then update and upgrade the machine. THEN RESTART. It will update the kernel!!"
+
+# Add a final output to help quickly search for rogue system accounts. This isn't exactly a sophisticated sweep, just something to help find some minor plants quicker.
+echo "Looking for system accounts with permissions under 500. Double check these, but still make sure you check the /etc/shadow file for more accounts." 
+echo "Permissions under or above 500 don't instantly mean an account is legit/malicious."
+awk -F: '$3 >= 500 && $1 != "sysadmin" {print $1}' /etc/passwd | while read user; do
+    echo "Found system account: $user"
+    echo "To lock this account manually, run:"
+    echo "  sudo usermod -L $user    # Lock the account"
+    echo "  sudo usermod -s /sbin/nologin $user    # Prevent shell login"
+    echo "---"
+done
