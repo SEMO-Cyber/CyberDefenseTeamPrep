@@ -1,41 +1,47 @@
 #!/bin/bash
 #Hardening script for Splunk. Assumes some version of Oracle Linux 9.2
 #CCDC has taught me that a RedHat OS is just a hint at how it makes me want to decorate my walls.
+# UPDATE: It is now two or three months after that "joke" and I am installing a Fedora-based distro on my laptop. It's immutable, so I don't think it really counts, but worth a mention.
+# I still, mostly, stand by my words.
+#
+# This is based off a mixture of my work (and many, many, many hours of testing), online guides, forums, splunk documentation, and ofc, AI to smooth the process over. 
+# It's WIP, there are minor bugs here and there, but it should work about 90-95% of the way. Certainly better than nothing!
+#
 # Samuel Brucker 2024-2025
 
 # Check if running as root
-#if [ "$(id -u)" != "0" ]; then
-#   echo "This script must be run as root" 1>&2
-#   exit 1
-#fi
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
 
 #Start the basic box hardening
-#echo "Starting the basic hardening."
+echo "Starting the basic hardening."
 
 # Determine package manager
-#if command -v yum &> /dev/null; then
-#    PKG_MANAGER="yum"
-#elif command -v dnf &> /dev/null; then
-#    PKG_MANAGER="dnf"
-#else
- #   echo "Neither dnf nor yum found. Exiting."
- #   exit 1
-#fi
+if command -v yum &> /dev/null; then
+    PKG_MANAGER="yum"
+elif command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
+else
+   echo "Neither dnf nor yum found. Exiting."
+   exit 1
+fi
 
 # Check if nmap is already installed
-#if command -v nmap &> /dev/null; then
-#    echo "nmap is already installed"
-#fi
+if command -v nmap &> /dev/null; then
+    echo "nmap is already installed"
+fi
 
 # Install necessary tools and dependencies
-#echo "Installing necessary tools and dependencies..."
-#$PKG_MANAGER install -y curl wget nmap iptables-services cronie
+echo "Installing necessary tools and dependencies..."
+$PKG_MANAGER install -y curl wget nmap iptables-services cronie
 
 # Verify iptables-save is installed
-#if ! command -v iptables-save &> /dev/null; then
-#    echo "iptables-save not found. Installing..."
-#    $PKG_MANAGER install -y iptables
-#fi
+if ! command -v iptables-save &> /dev/null; then
+    echo "iptables-save not found. Installing..."
+    $PKG_MANAGER install -y iptables
+fi
 
 #
 #   IPTables Rules
@@ -43,76 +49,81 @@
 #
 
 # Configure firewall rules using iptables
-#echo "Configuring firewall rules..."
+echo "Configuring firewall rules..."
 
 # Flush existing rules
-#iptables -F
-#iptables -X
+iptables -F
+iptables -X
+iptables -Z
 
-# Allow limited incoming ICMP traffic and log packets that dont fit the rules
+# Set default policies
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+# Allow loopback traffic
+sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A OUTPUT -o lo -j ACCEPT
+
+# Allow established connections
+sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+
+# Allow limited incoming ICMP traffic and log packets that don't fit the rules
 #sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 #sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length --length 0:192 -j LOG --log-prefix "Rate-limit exceeded: " --log-level 4
 #sudo iptables -A INPUT -p icmp --icmp-type echo-request -m length ! --length 0:192 -j LOG --log-prefix "Invalid size: " --log-level 4
 #sudo iptables -A INPUT -p icmp --icmp-type echo-reply -m limit --limit 1/s --limit-burst 5 -j ACCEPT
 #sudo iptables -A INPUT -p icmp -j DROP
 
-# Allow outgoing ICMP traffic
-#sudo iptables -A OUTPUT -p icmp -j ACCEPT
-
-# Allow established connections
-#sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-#sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-# Allow loopback traffic
-#sudo iptables -A INPUT -i lo -j ACCEPT
-#sudo iptables -A OUTPUT -o lo -j ACCEPT
-
 # Allow DNS traffic
-#sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-#sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
-#sudo iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
-#sudo iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -m limit --limit 20/min --limit-burst 50 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -m limit --limit 20/min --limit-burst 50 -j ACCEPT
+iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
+iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Allow HTTP/HTTPS traffic
-#sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-#sudo iptables -A OUTPUT -p tcp --sport 80 -j ACCEPT
-#sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-#sudo iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
+iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -m limit --limit 100/min --limit-burst 200 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -m limit --limit 100/min --limit-burst 200 -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 443 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Allow Splunk-specific traffic
-#sudo iptables -A INPUT -p tcp --dport 9997 -j ACCEPT
-#sudo iptables -A OUTPUT -p tcp --sport 9997 -j ACCEPT
-#sudo iptables -A INPUT -p tcp --dport 8089 -j ACCEPT  
-#sudo iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT  
-#sudo iptables -A INPUT -p tcp --dport 8000 -j ACCEPT
-#sudo iptables -A OUTPUT -p tcp --sport 8000 -j ACCEPT
+iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT  #Splunk Forwarders
+iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT   #Logs from Palo
+iptables -A OUTPUT -p tcp --sport 514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
+#sudo iptables -A INPUT -p tcp --dport 8089 -j ACCEPT   #NOT NEEDED
+#sudo iptables -A OUTPUT -p tcp --sport 8089 -j ACCEPT  #NOT NEEDED
+iptables -A INPUT -p tcp --dport 8000 -m conntrack --ctstate NEW -m limit --limit 20/min --limit-burst 40 -j ACCEPT  #Splunk webGUI
+iptables -A OUTPUT -p tcp --sport 8000 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Log dropped packets
-#sudo iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-#sudo iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
-
-# Set default policies
-#iptables -P INPUT DROP
-#iptables -P OUTPUT DROP
-#iptables -P FORWARD DROP
+iptables -A INPUT -j LOG --log-prefix "DROP-IN:" --log-level 4 --log-ip-options --log-tcp-options --log-tcp-sequence
+iptables -A OUTPUT -j LOG --log-prefix "DROP-OUT:" --log-level 4 --log-ip-options --log-tcp-options --log-tcp-sequence
 
 # Save the rules
-#iptables-save > /etc/iptables/rules.v4
+iptables-save > /etc/iptables/rules.v4
+
 
 #
-#   Backup Configuration
+#   Backup Configurations
 #
 #
 
 # Create backup directory if it doesn't exist
-#BACKUP_DIR="/etc/BacService/"
-#mkdir -p "$BACKUP_DIR"
+BACKUP_DIR="/etc/BacService/"
+mkdir -p "$BACKUP_DIR"
 
 # Backup network interface configurations (critical for security)
-#echo "Backing up network interface configurations..."
-#cp -R /etc/sysconfig/network-scripts/* "$BACKUP_DIR"    # Network interface configs
-#cp /etc/sysconfig/network "$BACKUP_DIR"                 # Network configuration
-#cp /etc/resolv.conf "$BACKUP_DIR"                       # DNS configuration
+echo "Backing up network interface configurations..."
+cp -R /etc/sysconfig/network-scripts/* "$BACKUP_DIR"    # Network interface configs
+cp /etc/sysconfig/network "$BACKUP_DIR"                 # Network configuration
+cp /etc/resolv.conf "$BACKUP_DIR"                       # DNS configuration
+cp /etc/iptables/rules.v4 "$BACKUP_DIR"                 # A redundant backup for the iptable rules
+
+
 
 #
 #   System Hardening
@@ -120,43 +131,43 @@
 #
 
 # Clear crontab
-#echo "Clearing crontab..."
-#echo "" > /etc/crontab
+echo "Clearing crontab..."
+echo "" > /etc/crontab
 
 # Password Management
-#echo "Setting new passwords..."
+echo "Setting new passwords..."
 
 # Set root password
-#echo "Enter new root password: "
-#stty -echo
-#read rootPass
-#stty echo
-#echo "root:$rootPass" | chpasswd
+echo "Enter new root password: "
+stty -echo
+read rootPass
+stty echo
+echo "root:$rootPass" | chpasswd
 
 # Set sysadmin password
-#echo "Enter new sysadmin password: "
-#stty -echo
-#read sysadminPass
-#stty echo
-#echo "sysadmin:$sysadminPass" | chpasswd
+echo "Enter new sysadmin password: "
+stty -echo
+read sysadminPass
+stty echo
+echo "sysadmin:$sysadminPass" | chpasswd
 
 # Uninstall SSH
-#echo "Uninstalling SSH..."
-#$PKG_MANAGER remove --purge openssh-server -y
+echo "Uninstalling SSH..."
+$PKG_MANAGER remove --purge openssh-server -y
 
 # Harden cron
-#echo "Locking down Cron and AT permissions..."
-#touch /etc/cron.allow
-#chmod 600 /etc/cron.allow
-#awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
+echo "Locking down Cron and AT permissions..."
+touch /etc/cron.allow
+chmod 600 /etc/cron.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
 
-#touch /etc/at.allow
-#chmod 600 /etc/at.allow
-#awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
+touch /etc/at.allow
+chmod 600 /etc/at.allow
+awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 
 # Final steps
-#echo "Final steps for the basic box hardening..."
-#$PKG_MANAGER autoremove -y
+echo "Final steps for the basic box hardening..."
+$PKG_MANAGER autoremove -y
 
 
 #
@@ -168,7 +179,6 @@ export SPLUNK_HOME=/opt/splunk
 
 echo "Hardening the Splunk configuration..."
 
-
 cat > $SPLUNK_HOME/etc/system/local/server.conf << EOF
 [sslConfig]
 cliVerifyServerName = true
@@ -177,8 +187,6 @@ sslPassword = password
 EOF
 
 $SPLUNK_HOME/bin/splunk restart
-
-
 
 #echo "Changing Splunk admin password..."
 echo "Enter new password for Splunk admin user: "
@@ -258,19 +266,125 @@ rtSrchMaxTime = 30
 srchMaxTotalDiskQuota = 500000
 EOF
 
-# Install Palo Alto apps
-echo "Installing Palo Alto apps..."
-$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
-$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
+# System logs (main index)
+[monitor:///var/log/messages]
+index = main
+sourcetype = linux_messages
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
 
-# Configure UDP input for Palo Alto logs
-echo "Configuring UDP input..."
-cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
+[monitor:///var/log/secure]
+index = _audit
+sourcetype = linux_secure
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///var/log/audit/audit.log]
+index = _audit
+sourcetype = linux_audit
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# System performance monitoring (main index)
+[monitor:///var/log/sysstat/sa*]
+index = main
+sourcetype = linux_sysstat
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# Critical system logs (main index)
+[monitor:///var/log/cron]
+index = main
+sourcetype = linux_cron
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///var/log/maillog]
+index = main
+sourcetype = linux_maillog
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+# Internal Splunk monitoring (_internal index)
+[monitor:///opt/splunk/var/log/splunk/splunkd.log]
+index = _internal
+sourcetype = splunkd
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///opt/splunk/var/log/splunk/splunkd_stderr.log]
+index = _internal
+sourcetype = splunkd_stderr
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+
+[monitor:///opt/splunk/var/log/splunk/metrics.log]
+index = _internal
+sourcetype = splunkd_metrics
+disabled = false
+crcSalt = <SOURCE>
+ignoreOlderThan = 7d
+followTail = 0
+queue = parsingQueue
+EOF
+
+
+# Configure receivers
+cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
+# TCP input for Splunk forwarders (port 9997)
+[tcp://9997]
+index = main
+sourcetype = tcp:9997
+connection_host = dns
+disabled = false
+
+# UDP input for syslog (port 514) - This is configured for Palo Alto. Use with the Palo Alto Add-on and App (installed onto Splunk)
 [udp://514]
 sourcetype = pan:firewall
 no_appending_timestamp = true
 index = pan_logs
-EOL
+EOF
+
+#  ------------   NOT WORKING  ------------
+#
+# Install Palo Alto apps
+#echo "Installing Palo Alto apps..."
+#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/1622/release/7.0.1/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/491/download -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+
+# Configure UDP input for Palo Alto logs
+#echo "Configuring UDP input..."
+#cat > $SPLUNK_HOME/etc/system/local/inputs.conf << EOL
+#[udp://514]
+#sourcetype = pan:firewall
+#no_appending_timestamp = true
+#index = pan_logs
+#EOL
 
 # Disable distributed search
 echo "Disabling distributed search"
