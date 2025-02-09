@@ -10,11 +10,9 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 # Backup Splunk configurations with timestamp
 echo "Backing up latest Splunk configuration."
 
+#Set and make the Splunk backup directory
 BACKUP_PATH="$BACKUP_DIR/splunk_${TIMESTAMP}"
 mkdir -p "$BACKUP_PATH"
 
+#copy the splunk config to the backup location
 cp -R "$SPLUNK_HOME" "$BACKUP_PATH"
-
-echo "Verifying backup integrity..."
-find "$BACKUP_PATH" -type f -size +0 -print0 | xargs -0 md5sum > "$BACKUP_PATH/md5sums.txt"
-find "$BACKUP_PATH" -type f -size 0 -delete
