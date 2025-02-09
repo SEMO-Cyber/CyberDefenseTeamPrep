@@ -15,4 +15,4 @@ grep -q "\[sslConfig\]" "${SERVER_CONF}" && echo "Configuration updated successf
 grep -q "cliVerifyServerName = false" "${SERVER_CONF}" || echo "Warning: Configuration not found!"
 
 # Restart Splunk
-sudo systemctl restart splunk
+$SPLUNK_HOME/bin/splunk restart
