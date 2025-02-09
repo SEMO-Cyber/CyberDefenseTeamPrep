@@ -91,7 +91,6 @@ setup_monitors() {
 [monitor:///var/log]
 index = main
 sourcetype = syslog
-recursive = true
 
 [monitor:///var/log/messages]
 index = main
