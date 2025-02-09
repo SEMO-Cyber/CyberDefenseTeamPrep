@@ -1,0 +1,18 @@
+#!/bin/bash
+export SPLUNK_USERNAME="admin"
+export SPLUNK_PASSWORD="Changeme1!"
+export SPLUNK_HOME="/opt/splunk"
+
+SERVER_CONF="${SPLUNK_HOME}/etc/system/local/server.conf"
+
+cat >> "${SERVER_CONF}" << EOF
+[sslConfig]
+cliVerifyServerName = false
+EOF
+
+# Verify configuration
+grep -q "\[sslConfig\]" "${SERVER_CONF}" && echo "Configuration updated successfully"
+grep -q "cliVerifyServerName = false" "${SERVER_CONF}" || echo "Warning: Configuration not found!"
+
+# Restart Splunk
+sudo systemctl restart splunk
