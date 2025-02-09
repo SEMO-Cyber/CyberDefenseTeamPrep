@@ -5,7 +5,7 @@
 # I still, mostly, stand by my words.
 #
 # This is based off a mixture of my work (and many, many, many hours of testing), online guides, forums, splunk documentation, and ofc, AI to smooth the process over. 
-# It's WIP, there are minor bugs here and there, but it should work about 90-95% of the way. Certainly better than nothing!
+# It's WIP, there are minor bugs here and there and a few sections could use a rewrite, but it should work about 90-95% of the way. Certainly better than nothing!
 #
 # Samuel Brucker 2024-2025
 
@@ -140,6 +140,16 @@ echo "Enter new root password: "
 stty -echo
 read rootPass
 stty echo
+echo "Confirm root password: "
+stty -echo
+read confirmRootPass
+stty echo
+
+if [ "$rootPass" != "$confirmRootPass" ]; then
+    echo "Passwords do not match. Please try again."
+    exit 1
+fi
+
 echo "root:$rootPass" | chpasswd
 
 # Set sysadmin password
@@ -147,6 +157,16 @@ echo "Enter new sysadmin password: "
 stty -echo
 read sysadminPass
 stty echo
+echo "Confirm sysadmin password: "
+stty -echo
+read confirmSysadminPass
+stty echo
+
+if [ "$sysadminPass" != "$confirmSysadminPass" ]; then
+    echo "Passwords do not match. Please try again."
+    exit 1
+fi
+
 echo "sysadmin:$sysadminPass" | chpasswd
 
 # Uninstall SSH
