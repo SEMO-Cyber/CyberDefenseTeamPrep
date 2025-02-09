@@ -133,6 +133,10 @@ cp -R "$SPLUNK_HOME" "$BACKUP_DIR/splunkORIGINAL"
 #
 #
 
+echo "restricting user creation to root only"
+chmod 700 /usr/sbin/useradd
+chmod 700 /usr/sbin/groupadd
+
 # Clear crontab
 echo "Clearing crontab..."
 echo "" > /etc/crontab
