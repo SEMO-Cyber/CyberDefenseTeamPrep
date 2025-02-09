@@ -3,6 +3,7 @@ export SPLUNK_USERNAME="admin"
 export SPLUNK_PASSWORD="Changeme1!"
 export SPLUNK_HOME="/opt/splunk"
 
+cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
 # System logs (main index)
 [monitor:///var/log/messages]
 index = main
