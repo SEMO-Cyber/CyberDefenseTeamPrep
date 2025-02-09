@@ -82,9 +82,11 @@ iptables -A OUTPUT -p tcp --dport 587 -j ACCEPT
 iptables -A INPUT -p tcp --dport 110 -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 110 -j ACCEPT
 
-# Allow incoming HTTP/HTTPS traffic for Roundcube
+# Allow incoming and outgoing HTTP/HTTPS traffic
 iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
 
 # Allow outgoing NTP traffic
 iptables -A OUTPUT -p udp --dport 123 -j ACCEPT
