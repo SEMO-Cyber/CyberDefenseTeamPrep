@@ -193,7 +193,6 @@ $PKG_MANAGER autoremove -y
 #
 #
 #Set the base directory for Splunk
-export SPLUNK_HOME=/opt/splunk
 
 echo "Hardening the Splunk configuration..."
 
@@ -216,6 +215,35 @@ fi
 # Set consistent authentication variables
 SPLUNK_USERNAME="admin"
 SPLUNK_PASSWORD="$splunkPass"
+SPLUNK_HOME="/opt/splunk"
+CONF_FILE="/opt/splunk/etc/system/local/server.conf"
+
+
+#Change the server.conf file to let me change everything via script.
+#
+#   WARNING: THIS IS BAD PRACTICE FOR AN ACTUAL PRODUCTION ENVIRONMENT. IT'S WORTH IT IN THIS COMP SO I CAN SCRIPT MUCH OF MY WORK
+#            BUT DON'T ACTUALLY TREAT THIS LIKE IT'S HOW YOU SHOULD DO IT. AGAIN: DO NOT DO THIS OUTSIDE THE COMP!!!!!!
+
+# Backup the config file
+cp "$CONF_FILE" "${CONF_FILE}.bak"
+echo "Created backup: ${CONF_FILE}.bak"
+
+# Remove any lines containing sslPassword
+sed -i '/^sslPassword/d' "$CONF_FILE"
+
+# Remove the existing sslConfig section
+sed -i '/^\[sslConfig\]/,/^\[/d' "$CONF_FILE"
+
+# Add the new sslConfig section
+cat >> "$CONF_FILE" << EOF
+[sslConfig]
+cliVerifyServerName = false
+EOF
+
+# Verify the configuration
+grep -q "\[sslConfig\]" "$CONF_FILE" && echo "Configuration updated successfully"
+grep -q "cliVerifyServerName = false" "$CONF_FILE" || echo "Warning: Configuration not found!"
+grep -q "^sslPassword" "$CONF_FILE" && echo "Warning: sslPassword lines still exist!" || echo "All sslPassword lines removed successfully"
 
 # Change admin password with proper error handling
 if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
