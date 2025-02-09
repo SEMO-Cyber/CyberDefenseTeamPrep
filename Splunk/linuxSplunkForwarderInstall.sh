@@ -87,7 +87,8 @@ setup_monitors() {
   MONITOR_CONFIG="$INSTALL_DIR/etc/system/local/inputs.conf"
 
   # Common monitors for all systems
-  COMMON_MONITORS="[monitor:///var/log]
+  COMMON_MONITORS="
+[monitor:///var/log]
 index = main
 sourcetype = syslog
 recursive = true
@@ -102,7 +103,13 @@ sourcetype = auth
 
 [monitor:///var/log/syslog]
 index = main
-sourcetype = syslog"
+sourcetype = syslog
+
+#Test log
+[monitor:///tmp/test.log]
+index = main
+sourcetype = test
+"
 
   # OS-specific monitor configurations
   case $ID in
@@ -268,6 +275,11 @@ else
   exit 1
 fi
 
+#Create test log
+echo "${BLUE}Creating test log. ${NC}"
+echo "Test log entry" > /tmp/test.log
+sudo setfacl -m u:splunk:r /tmp/test.log
+  
 # Verify installation
 sudo $INSTALL_DIR/bin/splunk version
 
@@ -313,10 +325,6 @@ EOL
   # Verify the fix service status
   echo "${BLUE}Verifying fix service status: ${NC}"
   sudo systemctl status splunk-fix.service
-
-  echo "${BLUE}Creating test log. ${NC}"
-  echo "Test log entry" > /tmp/test.log
-  sudo setfacl -m u:splunk:r /tmp/test.log
 
   # Reload systemd daemon
   echo "${BLUE}Reloading systemctl daemons${NC}"
