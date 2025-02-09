@@ -249,42 +249,42 @@ touch "$SPLUNK_HOME/etc/system/local/authentication.conf"
 touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
 
 # Edit authentication.conf
-cat > $SPLUNK_HOME/etc/system/local/authentication.conf << EOF
-[authentication]
-authType = Splunk
-authSettings = Splunk
+#cat > $SPLUNK_HOME/etc/system/local/authentication.conf << EOF
+#[authentication]
+#authType = Splunk
+#authSettings = Splunk
 
-[roleMap_Splunk]
-sysadmin = admin
+#[roleMap_Splunk]
+#sysadmin = admin
 
-[authenticationResponse]
-attributemap = Splunk:role -> role
-EOF
+#[authenticationResponse]
+#attributemap = Splunk:role -> role
+#EOF
 
 # Edit authorize.conf
-cat > $SPLUNK_HOME/etc/system/local/authorize.conf << EOF
-[role_admin]
-importRoles = admin
-srchJobsQuota = 50
-rtSrchJobsQuota = 50
-srchDiskQuota = 10000
-srchFilter = *
-srchIndexesAllowed = *
-srchIndexesDefault = main
-srchMaxTime = 8640000
-rtSrchMaxTime = 30
-srchMaxTotalDiskQuota = 500000
-importRoles = user
-srchJobsQuota = 50
-rtSrchJobsQuota = 50
-srchDiskQuota = 10000
-srchFilter = *
-srchIndexesAllowed = *
-srchIndexesDefault = main
-srchMaxTime = 8640000
-rtSrchMaxTime = 30
-srchMaxTotalDiskQuota = 500000
-EOF
+#cat > $SPLUNK_HOME/etc/system/local/authorize.conf << EOF
+#[role_admin]
+#importRoles = admin
+#srchJobsQuota = 50
+#rtSrchJobsQuota = 50
+#srchDiskQuota = 10000
+#srchFilter = *
+#srchIndexesAllowed = *
+#srchIndexesDefault = main
+#srchMaxTime = 8640000
+#rtSrchMaxTime = 30
+#srchMaxTotalDiskQuota = 500000
+#importRoles = user
+#srchJobsQuota = 50
+#rtSrchJobsQuota = 50
+#srchDiskQuota = 10000
+#srchFilter = *
+#srchIndexesAllowed = *
+#srchIndexesDefault = main
+#srchMaxTime = 8640000
+#rtSrchMaxTime = 30
+#srchMaxTotalDiskQuota = 500000
+#EOF
 
 # Configure receivers
 cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
