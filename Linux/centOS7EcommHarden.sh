@@ -89,6 +89,10 @@ iptables-save > /etc/iptables/rules.v4
 echo "Uninstalling SSH..."
 yum remove -y openssh-server
 
+echo "restricting user creation to root only"
+chmod 700 /usr/sbin/useradd
+chmod 700 /usr/sbin/groupadd
+
 # Harden cron
 echo "Locking down Cron and AT permissions..."
 touch /etc/cron.allow
