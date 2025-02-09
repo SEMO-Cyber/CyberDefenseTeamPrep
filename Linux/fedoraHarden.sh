@@ -173,7 +173,7 @@ echo "sysadmin:$sysadminPass" | chpasswd
 
 # Uninstall SSH
 echo "Uninstalling SSH..."
-dnf remove --purge openssh-server -y
+$PKG_MANAGER remove --purge openssh-server -y
 
 # Harden cron
 echo "Locking down Cron and AT permissions..."
@@ -187,7 +187,7 @@ awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 
 # Final steps
 echo "Final steps..."
-dnf autoremove -y
+$PKG_MANAGER autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc, THEN RESTART THE MACHINE. IT WILL UPDATE TO A BETTER KERNEL!!!!!!"
