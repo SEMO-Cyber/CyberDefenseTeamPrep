@@ -227,8 +227,16 @@ $PKG_MANAGER autoremove -y
 #
 echo "Hardening the Splunk configuration..."
 
+# Set the banner for Splunk
+cat > "$SPLUNK_HOME/etc/system/local/global-banner.conf" << EOF
+[BANNER_MESSAGE_SINGLETON]
+global_banner.visible = true
+global_banner.message = "WARNING: NO UNAUTHORIZED ACCESS. This is property of Team 10 LLC. Unauthorized users will be prosecuted and tried to the furthest extent of the law. By accessing this system, you consent to constant monitoring and logging of your activities. DO NOT PROCEED FURTHER UNLESS AUTHORIZED BY A TEAM10 LLC ADMIN!"
+global_banner.background_color = red
+EOF
 
-# Add to Splunk configuration section
+
+# Set better permissions for important Splunk configurations
 echo "Setting secure local file permissions..."
 chmod -R 700 "$SPLUNK_HOME/etc/system/local"
 chmod -R 700 "$SPLUNK_HOME/etc/system/default"
