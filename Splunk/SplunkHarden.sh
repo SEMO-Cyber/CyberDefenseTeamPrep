@@ -268,9 +268,10 @@ done
 # Set consistent authentication variables
 SPLUNK_USERNAME="admin"
 SPLUNK_PASSWORD="$splunkPass"
+OG_SPLUNK_PASSWORD="changeme"
 
 # Change admin password with proper error handling
-if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
+if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$OG_SPLUNK_PASSWORD"; then
     echo "Error: Failed to change admin password"
     exit 1
 fi
