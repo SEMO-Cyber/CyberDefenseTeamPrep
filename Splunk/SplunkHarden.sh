@@ -220,11 +220,14 @@ awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 echo "Final steps for the basic box hardening..."
 $PKG_MANAGER autoremove -y
 
-
+#
+#
 #
 #   Splunk Security Hardening
 #
 #
+#
+
 echo "Hardening the Splunk configuration..."
 
 # Set the banner for Splunk
@@ -263,11 +266,11 @@ while true; do
 done
 
 # Set consistent authentication variables
-SPLUNK_USERNAME="sysadmin"
+SPLUNK_USERNAME="admin"
 SPLUNK_PASSWORD="$splunkPass"
 
 # Change admin password with proper error handling
-if ! $SPLUNK_HOME/bin/splunk edit user sysadmin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
+if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"; then
     echo "Error: Failed to change admin password"
     exit 1
 fi
@@ -275,7 +278,7 @@ fi
 $SPLUNK_HOME/bin/splunk edit user admin -password $splunkPass -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 #Remove all users except admin user. This is a little wordy in the output.
-USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
+USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "admin" | awk '{print $2}')
 
 for USER in $USERS; do
     $SPLUNK_HOME/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
@@ -334,7 +337,7 @@ find "$BACKUP_DIR/splunk" -type f -size 0 -delete
 #authSettings = Splunk
 
 #[roleMap_Splunk]
-#sysadmin = admin
+#admin = admin
 
 #[authenticationResponse]
 #attributemap = Splunk:role -> role
@@ -379,7 +382,7 @@ echo "Check for cronjobs, services on timers, etc. Also do a manual search throu
 # Add a final output to help quickly search for rogue system accounts. This isn't exactly a sophisticated sweep, just something to help find some minor plants quicker.
 echo "Looking for system accounts with permissions under 500. Double check these, but still make sure you check the /etc/shadow file for more accounts." 
 echo "Permissions under or above 500 don't instantly mean an account is legit/malicious."
-awk -F: '$3 >= 500 && $1 != "sysadmin" && $1 != "splunk" {print $1}' /etc/passwd | while read user; do
+awk -F: '$3 >= 500 && $1 != "admin" && $1 != "splunk" {print $1}' /etc/passwd | while read user; do
     echo "Found system account: $user"
     echo "To lock this account manually, run:"
     echo "  sudo usermod -L $user    # Lock the account"
