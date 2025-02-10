@@ -109,7 +109,7 @@ iptables -A OUTPUT -p tcp --dport 443 -m conntrack --ctstate NEW,ESTABLISHED -j 
 iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT  #Splunk Forwarders
 iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
-iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW -j ACCEPT   #Logs from Palo
+iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW, -j ACCEPT   #Logs from Palo
 iptables -A OUTPUT -p tcp --sport 514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 #sudo iptables -A INPUT -p tcp --dport 8089 -j ACCEPT   #NOT NEEDED
@@ -294,7 +294,7 @@ cat > "$SPLUNK_HOME/etc/system/local/inputs.conf" << EOF
 #connection_host = dns
 #disabled = false
 
-[udp://514]
+[tcp://514]
 sourcetype = pan:firewall
 no_appending_timestamp = true
 index = pan_logs
