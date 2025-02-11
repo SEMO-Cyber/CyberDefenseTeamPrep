@@ -42,11 +42,19 @@ echo "Installing EPEL repository..." | tee -a "$LOG_FILE"
 yum install -y epel-release >> "$LOG_FILE" 2>&1 || handle_error "EPEL installation failed"
 
 # Step 3: Configure CentOS Stream repository
-echo "Creating CentOS Stream repository configuration..." | tee -a "$LOG_FILE"
-cat << EOF > /etc/yum.repos.d/centos-stream.repo
+echo "Configuring CentOS Stream repository..." | tee -a "$LOG_FILE"
+
+# Update SSL certificates first
+echo "Updating SSL certificates..." | tee -a "$LOG_FILE"
+urlgrabber -o ca-certificates.rpm \
+  http://archive.kernel.org/centos-vault/centos/7.9.2009/updates/Source/SPackages/ca-certificates-2023.2.60_v7.0.306-72.el7_9.src.rpm >> "$LOG_FILE" 2>&1 || handle_error "Failed to download SSL certificates"
+rpm -i ca-certificates.rpm >> "$LOG_FILE" 2>&1 || handle_error "Failed to install SSL certificates"
+
+# Create repository configuration
+cat > /etc/yum.repos.d/centos-stream.repo << EOF
 [centos-stream]
 name=CentOS Stream \$releasever - Base
-baseurl=http://mirror.centos.org/\$releasever-stream/BaseOS/\$basearch/os/
+baseurl=https://vault.centos.org/centos/9-stream/BaseOS/\$basearch/os/
 enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
@@ -56,6 +64,12 @@ EOF
 echo "Cleaning yum cache and verifying repository configuration..." | tee -a "$LOG_FILE"
 yum clean all >> "$LOG_FILE" 2>&1 || handle_error "Failed to clean yum cache"
 yum repolist enabled >> "$LOG_FILE" 2>&1 || handle_error "Failed to verify repository configuration"
+
+# Clean yum cache and verify repository configuration
+echo "Cleaning yum cache and verifying repository configuration..." | tee -a "$LOG_FILE"
+yum clean all >> "$LOG_FILE" 2>&1 || handle_error "Failed to clean yum cache"
+yum repolist enabled >> "$LOG_FILE" 2>&1 || handle_error "Failed to verify repository configuration"
+
 
 # Step 4: Install CentOS Stream release package
 echo "Installing CentOS Stream release package..." | tee -a "$LOG_FILE"
