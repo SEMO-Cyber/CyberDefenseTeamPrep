@@ -189,7 +189,7 @@ chmod 700 /usr/sbin/groupadd
 
 echo "Creating backups..."
 mkdir /etc/conf_services && chmod 600 /etc/conf_services
-mv /etc/bind /etc/conf_services/bind.bak
+tar -czf /etc/conf_services/bind.tar.gz -C /etc/bind .
 
 #harden cron
 echo "Locking down Cron and AT permissions..."
