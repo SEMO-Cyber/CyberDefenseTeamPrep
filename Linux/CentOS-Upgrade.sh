@@ -5,8 +5,6 @@
 #
 #  Samuel Brucker 2024 - 2025
 
-#!/bin/bash
-# almalinux_upgrade.sh
 
 # Color codes for better visibility
 GREEN='\033[0;32m'
@@ -33,12 +31,17 @@ verify_system() {
         error_exit "YUM package manager not found"
     fi
     
-    # Get current OS version
+    # Get current OS information
     CURRENT_OS=$(cat /etc/redhat-release)
     echo "Current OS: $CURRENT_OS"
+    
+    # Check if system is CentOS-based
+    if ! grep -iq "centos\|red hat enterprise linux server" <<< "$CURRENT_OS"; then
+        error_exit "This script only works on CentOS/RHEL systems"
+    fi
 }
 
-# Function to upgrade CentOS 7 to AlmaLinux 8
+# Function to upgrade CentOS to AlmaLinux 8
 upgrade_to_alma8() {
     echo -e "${GREEN}Phase 1: Upgrading to AlmaLinux 8...${NC}"
     
@@ -130,7 +133,7 @@ main() {
         prepare_for_alma9
         upgrade_to_alma9
     else
-        error_exit "Unsupported starting operating system"
+        error_exit "Unsupported operating system version"
     fi
 }
 
