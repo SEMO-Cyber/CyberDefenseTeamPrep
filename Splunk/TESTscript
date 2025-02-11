@@ -1,11 +1,8 @@
 #!/bin/bash
-#Hardening script for Splunk. Assumes some version of Oracle Linux 9.2
-#CCDC has taught me that a RedHat OS is just a hint at how it makes me want to decorate my walls.
-# UPDATE: It is now two or three months after that "joke" and I am installing a Fedora-based distro on my laptop. It's immutable, so I don't think it really counts, but worth a mention.
-# I still, mostly, stand by my words.
-#
-# This is based off a mixture of my work (and many, many, many hours of testing), online guides, forums, splunk documentation, and ofc, AI to smooth the process over. 
-# It's WIP, there are minor bugs here and there and a few sections could use a rewrite, but it should work about 90-95% of the way. Certainly better than nothing!
+#   My lab environment's Splunk has a slightly different base configuration than what is found in comp. This script is to let me test the script without 
+# having to manually change the accounts and passwords every time. 
+#   
+#    Do not run this in comp. It will not work.  
 #
 # Samuel Brucker 2024-2025
 
