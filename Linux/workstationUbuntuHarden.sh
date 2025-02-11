@@ -78,6 +78,16 @@ iptables -P FORWARD DROP
 mkdir /etc/iptables
 iptables-save > /etc/iptables/rules.v4
 
+#disable and uninstall ufw. I love UFW (outside of this comp), but it's not needed.
+systemctl stop ufw
+systemctl disable ufw
+apt remove ufw -y
+#Clean up configuration files
+rm -rf /etc/ufw
+rm -rf /lib/systemd/system/ufw.service
+
+
+
 #
 #   Uninstall SSH, harden cron, final notes
 #
