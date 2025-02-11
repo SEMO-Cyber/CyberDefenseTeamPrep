@@ -132,7 +132,7 @@ systemctl stop firewalld
 
 systemctl disable firewalld
 
-$PKG_MANAGER remove firewalld
+$PKG_MANAGER remove firewalld -y
 
 
 #
