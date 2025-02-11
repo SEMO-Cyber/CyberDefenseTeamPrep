@@ -106,10 +106,10 @@ iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -m limit --limit
 iptables -A OUTPUT -p tcp --dport 443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
 # Allow Splunk-specific traffic
-iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT  #Splunk Forwarders
+iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW -j ACCEPT  #Splunk Forwarders
 iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
 
-iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW, -j ACCEPT   #Logs from Palo
+iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW -j ACCEPT   #Logs from Palo
 iptables -A OUTPUT -p tcp --sport 514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 #sudo iptables -A INPUT -p tcp --dport 8089 -j ACCEPT   #NOT NEEDED
@@ -220,14 +220,11 @@ awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 echo "Final steps for the basic box hardening..."
 $PKG_MANAGER autoremove -y
 
-#
-#
+
 #
 #   Splunk Security Hardening
 #
 #
-#
-
 echo "Hardening the Splunk configuration..."
 
 # Set the banner for Splunk
@@ -266,12 +263,12 @@ while true; do
 done
 
 # Set consistent authentication variables
-SPLUNK_USERNAME="admin"
+SPLUNK_USERNAME="sysadmin"
 SPLUNK_PASSWORD="$splunkPass"
-OG_SPLUNK_PASSWORD="changeme"
+OG_SPLUNK_PASSWORD="Changeme1!"
 
 # Change admin password with proper error handling
-if ! $SPLUNK_HOME/bin/splunk edit user admin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$OG_SPLUNK_PASSWORD"; then
+if ! $SPLUNK_HOME/bin/splunk edit user sysadmin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$OG_SPLUNK_PASSWORD"; then
     echo "Error: Failed to change admin password"
     exit 1
 fi
@@ -279,7 +276,7 @@ fi
 $SPLUNK_HOME/bin/splunk edit user admin -password $splunkPass -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 #Remove all users except admin user. This is a little wordy in the output.
-USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "admin" | awk '{print $2}')
+USERS=$($SPLUNK_HOME/bin/splunk list user -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}" | grep -v "sysadmin" | awk '{print $2}')
 
 for USER in $USERS; do
     $SPLUNK_HOME/bin/splunk remove user $USER -auth "${SPLUNK_USERNAME}:${SPLUNK_PASSWORD}"
@@ -304,6 +301,9 @@ EOF
 #Add the 9997 listener using splunk CLI
 $SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
+#Add the index for Palo logs
+$SPLUNK_HOME/bin/splunk add index pan_logs
+
 # Install Palo Alto Networks apps
 echo "Installing Palo Alto Networks apps..."
 
@@ -314,13 +314,6 @@ mv SplunkforPaloAltoNetworks "$SPLUNK_HOME/etc/apps/"
 # Clone the Palo Alto splunk add-on
 git clone https://github.com/PaloAltoNetworks/Splunk_TA_paloalto.git Splunk_TA_paloalto
 mv Splunk_TA_paloalto "$SPLUNK_HOME/etc/apps/"
-
-# Set proper permissions for the newly cloned apps
-chmod -R 700 "$SPLUNK_HOME/etc/apps/SplunkforPaloAltoNetworks"
-chmod -R 700 "$SPLUNK_HOME/etc/apps/Splunk_TA_paloalto"
-chown -R splunk:splunk "$SPLUNK_HOME/etc/apps/SplunkforPaloAltoNetworks"
-chown -R splunk:splunk "$SPLUNK_HOME/etc/apps/Splunk_TA_paloalto"
-
 
 # Disable distributed search
 echo "Disabling distributed search"
@@ -356,7 +349,7 @@ find "$BACKUP_DIR/splunk" -type f -size 0 -delete
 #authSettings = Splunk
 
 #[roleMap_Splunk]
-#admin = admin
+#sysadmin = admin
 
 #[authenticationResponse]
 #attributemap = Splunk:role -> role
@@ -387,6 +380,12 @@ find "$BACKUP_DIR/splunk" -type f -size 0 -delete
 #srchMaxTotalDiskQuota = 500000
 #EOF
 
+#  ------------   NOT WORKING  ------------
+#
+# Install Palo Alto apps
+#echo "Installing Palo Alto apps..."
+#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
+#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 echo "\n\nMAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!\n\n"
@@ -395,7 +394,7 @@ echo "Check for cronjobs, services on timers, etc. Also do a manual search throu
 # Add a final output to help quickly search for rogue system accounts. This isn't exactly a sophisticated sweep, just something to help find some minor plants quicker.
 echo "Looking for system accounts with permissions under 500. Double check these, but still make sure you check the /etc/shadow file for more accounts." 
 echo "Permissions under or above 500 don't instantly mean an account is legit/malicious."
-awk -F: '$3 >= 500 && $1 != "admin" && $1 != "splunk" {print $1}' /etc/passwd | while read user; do
+awk -F: '$3 >= 500 && $1 != "sysadmin" && $1 != "splunk" {print $1}' /etc/passwd | while read user; do
     echo "Found system account: $user"
     echo "To lock this account manually, run:"
     echo "  sudo usermod -L $user    # Lock the account"
