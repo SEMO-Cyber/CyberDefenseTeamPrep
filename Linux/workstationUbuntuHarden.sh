@@ -9,6 +9,12 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+echo "Setting device banner"
+cat > /etc/issue << EOF
+LEGAL DISCLAIMER: This computer system is the property of Team 10 LLC. By using this system, all users acknowledge notice of, and agree to comply with, the Acceptable User of Information Technology Resources Polity (AUP). 
+By using this system, you consent to these terms and conditions. Use is also consent to monitoring, logging, and use of logging to prosecute abuse. 
+If you do NOT wish to comply with these terms and conditions, you must LOG OFF IMMEDIATELY.
+EOF
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
@@ -69,6 +75,7 @@ iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
 
 # Save the rules
+mkdir /etc/iptables
 iptables-save > /etc/iptables/rules.v4
 
 #
