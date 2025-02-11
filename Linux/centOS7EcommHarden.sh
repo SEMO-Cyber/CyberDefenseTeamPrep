@@ -102,6 +102,7 @@ iptables -A INPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 
 # Save iptables rules
+mkdir /etc/iptables
 iptables-save > /etc/iptables/rules.v4
 
 # Set root password
