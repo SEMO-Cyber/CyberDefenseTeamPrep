@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #  A script to upgrade CentOS 7 
-#  Quick and dirty, the majority is AI generated
+#  Quick and dirty, the majority is AI generated with a little bit of tweaking from me.
 #
 #  Samuel Brucker 2024 - 2025
 
@@ -16,9 +16,13 @@ handle_error() {
     exit 1
 }
 
-# Verify we're running on CentOS 7
-if ! grep -q "CentOS Linux 7" /etc/centos-release; then
-    handle_error "This script must be run on CentOS 7"
+# Verify we're running on CentOS
+if [ ! -f /etc/os-release ] || [ ! -f /etc/centos-release ]; then
+    handle_error "CentOS release files not found"
+fi
+
+if ! grep -q "CentOS" /etc/centos-release; then
+    handle_error "This script must be run on CentOS"
 fi
 
 # Check for root privileges
