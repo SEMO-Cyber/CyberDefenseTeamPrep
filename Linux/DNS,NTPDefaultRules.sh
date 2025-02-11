@@ -187,6 +187,10 @@ echo "restricting user and group creation to root only"
 chmod 700 /usr/sbin/useradd
 chmod 700 /usr/sbin/groupadd
 
+echo "Creating backups..."
+mkdir /etc/conf_services && chmod 600 /etc/conf_services
+mv /etc/bind /etc/conf_services/bind.bak
+
 #harden cron
 echo "Locking down Cron and AT permissions..."
 touch /etc/cron.allow
