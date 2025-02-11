@@ -163,9 +163,25 @@ echo "sysadmin:$sysadminPass" | chpasswd
 #
 #
 
-# Uninstall SSH
 echo "Uninstalling SSH..."
 apt remove --purge openssh-server -y
+
+echo "Uninstalling FTP..."
+apt remove --purge proftpd -y
+
+echo "Uninstalling apache2..."
+apt remove --purge apache2 -y
+
+echo "Removing unnecessary users and their home directories..."
+userdel -r promon
+userdel -r produde
+userdel -r proscrape
+
+echo "Removing games directory..."
+rm -rf /usr/games
+
+echo "Removing README file..."
+rm -f /etc/sudoers.d/README
 
 echo "restricting user and group creation to root only"
 chmod 700 /usr/sbin/useradd
