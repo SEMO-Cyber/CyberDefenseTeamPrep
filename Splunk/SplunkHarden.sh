@@ -35,6 +35,20 @@ By using this system, you consent to these terms and conditions. Use is also con
 If you do NOT wish to comply with these terms and conditions, you must LOG OFF IMMEDIATELY.
 EOF
 
+#Fix the DNS server. Set it to 1.1.1.1 by default. I recommend changing this to point to your internal DNS servers when you get those set up.
+#For the start of comp, 1.1.1.1 is much more reliable.
+CONNECTION_NAME="ens192"
+DNS_SERVER="1.1.1.1"
+
+nmcli connection modify \
+    "$CONNECTION_NAME" \
+    ipv4.dns "$DNS_SERVER" \
+    ipv4.ignore-auto-dns yes
+nmcli connection up "$CONNECTION_NAME"
+
+CONNECTION_NAME="ens192"
+DNS_SERVER="1.1.1.1"
+
 # Determine package manager
 if command -v yum &> /dev/null; then
     PKG_MANAGER="yum"
