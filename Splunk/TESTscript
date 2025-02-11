@@ -301,6 +301,9 @@ EOF
 #Add the 9997 listener using splunk CLI
 $SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
+#Add the index for Palo logs
+$SPLUNK_HOME/bin/splunk add index pan_logs
+
 # Install Palo Alto Networks apps
 echo "Installing Palo Alto Networks apps..."
 
