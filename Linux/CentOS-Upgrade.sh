@@ -20,7 +20,7 @@ handle_error() {
 }
 
 # Verify we're running on CentOS 7
-if ! grep -q "CentOS Linux 7" /etc/centos-release; then
+if ! grep -q 'VERSION="7 (Core)"' /etc/centos-release; then
     handle_error "This script must be run on CentOS 7"
 fi
 
