@@ -1,92 +1,138 @@
 #!/bin/bash
 #
 #  A script to upgrade CentOS 7 
-#  Quick and dirty, the majority is AI generated with a little bit of tweaking from me.
+#  This took a bit of working out. 
 #
 #  Samuel Brucker 2024 - 2025
 
-# Set up logging
-LOG_FILE="/var/log/centos_upgrade.log"
-echo "Starting CentOS 7 to CentOS Stream 9 upgrade at $(date)" > "$LOG_FILE"
+#!/bin/bash
+# almalinux_upgrade.sh
 
-# Function to handle errors gracefully
-handle_error() {
-    echo "ERROR: $1" | tee -a "$LOG_FILE"
-    echo "Check $LOG_FILE for details"
+# Color codes for better visibility
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Function to display error and exit
+error_exit() {
+    echo -e "${RED}$1${NC}"
     exit 1
 }
 
-# Verify we're running on CentOS
-if [ ! -f /etc/os-release ] || [ ! -f /etc/centos-release ]; then
-    handle_error "CentOS release files not found"
-fi
+# Function to check if we're root
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        error_exit "Please run this script as root"
+    fi
+}
 
-if ! grep -q "CentOS" /etc/centos-release; then
-    handle_error "This script must be run on CentOS"
-fi
+# Function to verify system state
+verify_system() {
+    echo -e "${GREEN}Verifying system state...${NC}"
+    if ! command -v yum &> /dev/null; then
+        error_exit "YUM package manager not found"
+    fi
+    
+    # Get current OS version
+    CURRENT_OS=$(cat /etc/redhat-release)
+    echo "Current OS: $CURRENT_OS"
+}
 
-# Check for root privileges
-if [ "$(id -u)" != "0" ]; then
-    handle_error "This script must be run as root"
-fi
+# Function to upgrade CentOS 7 to AlmaLinux 8
+upgrade_to_alma8() {
+    echo -e "${GREEN}Phase 1: Upgrading to AlmaLinux 8...${NC}"
+    
+    # Update repositories
+    echo "Updating repositories..."
+    curl -o /etc/yum.repos.d/CentOS-Base.repo https://el7.repo.almalinux.org/centos/CentOS-Base.repo || error_exit "Failed to update repositories"
+    
+    # Upgrade system
+    echo "Upgrading system..."
+    yum upgrade -y || error_exit "System upgrade failed"
+    
+    # Install ELevate packages
+    echo "Installing ELevate packages..."
+    yum install -y http://repo.almalinux.org/elevate/elevate-release-latest-el$(rpm --eval %rhel).noarch.rpm || error_exit "Failed to install ELevate release"
+    yum install -y leapp-upgrade leapp-data-almalinux || error_exit "Failed to install Leapp packages"
+    
+    # Run preupgrade check
+    echo "Running preupgrade check..."
+    leapp preupgrade || error_exit "Preupgrade check failed"
+    
+    # Fix common issues
+    echo "Fixing common issues..."
+    rmmod pata_acpi 2>/dev/null
+    echo PermitRootLogin yes | tee -a /etc/ssh/sshd_config
+    leapp answer --section remove_pam_pkcs11_module_check.confirm=True
+    
+    # Perform upgrade
+    echo "Performing upgrade..."
+    leapp upgrade || error_exit "Upgrade failed"
+    
+    echo "Rebooting system..."
+    reboot
+}
 
-echo "Starting upgrade process..." | tee -a "$LOG_FILE"
+# Function to prepare system for AlmaLinux 9
+prepare_for_alma9() {
+    echo -e "${GREEN}Preparing system for AlmaLinux 9 upgrade...${NC}"
+    
+    # Edit yum.conf
+    echo "Editing yum.conf..."
+    sed -i '/exclude/d' /etc/yum.conf
+    
+    # Remove old packages
+    echo "Removing old packages..."
+    rpm -qa | grep el7 | xargs rpm -e --nodeps
+    
+    # Clean system
+    echo "Cleaning system..."
+    dnf clean all
+}
 
-# Step 1: Update current system
-echo "Updating current system..." | tee -a "$LOG_FILE"
-yum clean all >> "$LOG_FILE" 2>&1 || handle_error "Failed to clean yum cache"
-yum update -y >> "$LOG_FILE" 2>&1 || handle_error "System update failed"
+# Function to upgrade to AlmaLinux 9
+upgrade_to_alma9() {
+    echo -e "${GREEN}Phase 2: Upgrading to AlmaLinux 9...${NC}"
+    
+    # Install ELevate packages
+    echo "Installing ELevate packages..."
+    yum install -y http://repo.almalinux.org/elevate/elevate-release-latest-el$(rpm --eval %rhel).noarch.rpm || error_exit "Failed to install ELevate release"
+    yum install -y leapp-upgrade leapp-data-almalinux || error_exit "Failed to install Leapp packages"
+    
+    # Run preupgrade check
+    echo "Running preupgrade check..."
+    leapp preupgrade || error_exit "Preupgrade check failed"
+    
+    # Fix common issues
+    echo "Fixing common issues..."
+    sed -i "s/^AllowZoneDrifting=.*/AllowZoneDrifting=no/" /etc/firewalld/firewalld.conf
+    leapp answer --section check_vdo.confirm=True
+    
+    # Perform upgrade
+    echo "Performing upgrade..."
+    leapp upgrade || error_exit "Upgrade failed"
+    
+    echo "Rebooting system..."
+    reboot
+}
 
-# Step 2: Install EPEL repository
-echo "Installing EPEL repository..." | tee -a "$LOG_FILE"
-yum install -y epel-release >> "$LOG_FILE" 2>&1 || handle_error "EPEL installation failed"
+# Main function
+main() {
+    check_root
+    verify_system
+    
+    # Get current OS version
+    CURRENT_OS=$(cat /etc/redhat-release)
+    
+    if [[ $CURRENT_OS =~ "CentOS Linux 7" ]]; then
+        upgrade_to_alma8
+    elif [[ $CURRENT_OS =~ "AlmaLinux OS 8" ]]; then
+        prepare_for_alma9
+        upgrade_to_alma9
+    else
+        error_exit "Unsupported starting operating system"
+    fi
+}
 
-# Step 3: Configure CentOS Stream repository
-echo "Configuring CentOS Stream repository..." | tee -a "$LOG_FILE"
-
-# Update SSL certificates first
-echo "Updating SSL certificates..." | tee -a "$LOG_FILE"
-urlgrabber -o ca-certificates.rpm \
-  http://archive.kernel.org/centos-vault/centos/7.9.2009/updates/Source/SPackages/ca-certificates-2023.2.60_v7.0.306-72.el7_9.src.rpm >> "$LOG_FILE" 2>&1 || handle_error "Failed to download SSL certificates"
-rpm -i ca-certificates.rpm >> "$LOG_FILE" 2>&1 || handle_error "Failed to install SSL certificates"
-
-# Create repository configuration
-cat > /etc/yum.repos.d/centos-stream.repo << EOF
-[centos-stream]
-name=CentOS Stream \$releasever - Base
-baseurl=https://vault.centos.org/centos/9-stream/BaseOS/\$basearch/os/
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
-EOF
-
-# Clean yum cache and verify repository configuration
-echo "Cleaning yum cache and verifying repository configuration..." | tee -a "$LOG_FILE"
-yum clean all >> "$LOG_FILE" 2>&1 || handle_error "Failed to clean yum cache"
-yum repolist enabled >> "$LOG_FILE" 2>&1 || handle_error "Failed to verify repository configuration"
-
-# Clean yum cache and verify repository configuration
-echo "Cleaning yum cache and verifying repository configuration..." | tee -a "$LOG_FILE"
-yum clean all >> "$LOG_FILE" 2>&1 || handle_error "Failed to clean yum cache"
-yum repolist enabled >> "$LOG_FILE" 2>&1 || handle_error "Failed to verify repository configuration"
-
-
-# Step 4: Install CentOS Stream release package
-echo "Installing CentOS Stream release package..." | tee -a "$LOG_FILE"
-yum install -y centos-release-stream >> "$LOG_FILE" 2>&1 || handle_error "Failed to install Stream release package"
-
-# Step 5: Swap repositories
-echo "Swapping repositories..." | tee -a "$LOG_FILE"
-yum swap -y centos-{linux,stream}-repos >> "$LOG_FILE" 2>&1 || handle_error "Repository swap failed"
-
-# Step 6: Perform distribution synchronization
-echo "Performing distribution synchronization..." | tee -a "$LOG_FILE"
-yum distro-sync -y >> "$LOG_FILE" 2>&1 || handle_error "Distribution sync failed"
-
-# Step 7: Schedule reboot
-echo "Upgrade completed. System will reboot in 5 seconds..." | tee -a "$LOG_FILE"
-echo "Please review $LOG_FILE after reboot for any issues."
-sleep 5
-shutdown -r now
-
-exit 0
+# Run the main function
+main
