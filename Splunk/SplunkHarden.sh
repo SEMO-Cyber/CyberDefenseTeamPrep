@@ -306,19 +306,14 @@ $SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSW
 
 # Install Palo Alto Networks apps
 echo "Installing Palo Alto Networks apps..."
-cd "$SPLUNK_HOME/etc/apps/"
 
 # Clone the Palo Alto splunk app
-if ! git clone https://github.com/PaloAltoNetworks/SplunkforPaloAltoNetworks.git SplunkforPaloAltoNetworks; then
-    echo "Error: Failed to clone SplunkforPaloAltoNetworks app"
-    exit 1
-fi
+git clone https://github.com/PaloAltoNetworks/SplunkforPaloAltoNetworks.git SplunkforPaloAltoNetworks
+mv SplunkforPaloAltoNetworks "$SPLUNK_HOME/etc/apps/"
 
 # Clone the Palo Alto splunk add-on
-if ! git clone https://github.com/PaloAltoNetworks/Splunk_TA_paloalto.git Splunk_TA_paloalto; then
-    echo "Error: Failed to clone Splunk_TA_paloalto app"
-    exit 1
-fi
+git clone https://github.com/PaloAltoNetworks/Splunk_TA_paloalto.git Splunk_TA_paloalto
+mv Splunk_TA_paloalto "$SPLUNK_HOME/etc/apps/"
 
 # Set proper permissions for the newly cloned apps
 chmod -R 700 "$SPLUNK_HOME/etc/apps/SplunkforPaloAltoNetworks"
