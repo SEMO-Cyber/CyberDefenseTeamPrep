@@ -8,6 +8,28 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+# Make sure we are pointing to the correct mirrors
+cp /etc/yum.repos.d/CentOS-Base.repo{,.BACKUP}
+cat >/etc/yum.repos.d/CentOS-Base.repo <<'EOF'
+[base]
+name=CentOS-$releasever - Base
+baseurl=https://vault.centos.org/centos/$releasever/os/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[updates]
+name=CentOS-$releasever - Updates
+baseurl=https://vault.centos.org/centos/$releasever/updates/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+
+[extras]
+name=CentOS-$releasever - Extras
+baseurl=https://vault.centos.org/centos/$releasever/extras/$basearch/
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+EOF
+
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
 yum install -y curl wget nmap fail2ban iptables-services cron auditd
