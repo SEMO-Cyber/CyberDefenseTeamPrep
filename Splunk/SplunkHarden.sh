@@ -272,9 +272,9 @@ while true; do
 done
 
 # Set consistent authentication variables
-SPLUNK_USERNAME="sysadmin"
+SPLUNK_USERNAME="admin"
 SPLUNK_PASSWORD="$splunkPass"
-OG_SPLUNK_PASSWORD="Changeme1!"
+OG_SPLUNK_PASSWORD="changeme"
 
 # Change admin password with proper error handling
 if ! $SPLUNK_HOME/bin/splunk edit user sysadmin -password "$SPLUNK_PASSWORD" -auth "$SPLUNK_USERNAME:$OG_SPLUNK_PASSWORD"; then
