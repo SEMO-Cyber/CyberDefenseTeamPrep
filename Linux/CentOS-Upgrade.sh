@@ -4,9 +4,6 @@
 #  Quick and dirty, the majority is AI generated
 #
 #  Samuel Brucker 2024 - 2025
-#!/bin/bash
-
-
 
 # Set up logging
 LOG_FILE="/var/log/centos_upgrade.log"
@@ -20,7 +17,7 @@ handle_error() {
 }
 
 # Verify we're running on CentOS 7
-if ! grep -q 'VERSION="7 (Core)"' /etc/centos-release; then
+if ! grep -q "CentOS Linux 7" /etc/centos-release; then
     handle_error "This script must be run on CentOS 7"
 fi
 
@@ -41,10 +38,20 @@ echo "Installing EPEL repository..." | tee -a "$LOG_FILE"
 yum install -y epel-release >> "$LOG_FILE" 2>&1 || handle_error "EPEL installation failed"
 
 # Step 3: Configure CentOS Stream repository
-echo "Configuring CentOS Stream repository..." | tee -a "$LOG_FILE"
-curl -o /etc/yum.repos.d/centos-stream.repo \
-http://mirror.centos.org/centos/8-stream/BaseOS/x86_64/os/Packages/centos-stream-release-8.1-1.el8.noarch.rpm \
->> "$LOG_FILE" 2>&1 || handle_error "Failed to configure Stream repository"
+echo "Creating CentOS Stream repository configuration..." | tee -a "$LOG_FILE"
+cat << EOF > /etc/yum.repos.d/centos-stream.repo
+[centos-stream]
+name=CentOS Stream \$releasever - Base
+baseurl=http://mirror.centos.org/\$releasever-stream/BaseOS/\$basearch/os/
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+EOF
+
+# Clean yum cache and verify repository configuration
+echo "Cleaning yum cache and verifying repository configuration..." | tee -a "$LOG_FILE"
+yum clean all >> "$LOG_FILE" 2>&1 || handle_error "Failed to clean yum cache"
+yum repolist enabled >> "$LOG_FILE" 2>&1 || handle_error "Failed to verify repository configuration"
 
 # Step 4: Install CentOS Stream release package
 echo "Installing CentOS Stream release package..." | tee -a "$LOG_FILE"
