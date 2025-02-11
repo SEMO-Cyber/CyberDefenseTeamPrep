@@ -304,11 +304,9 @@ $SPLUNK_HOME/bin/splunk add index pan_logs
 # Install Palo Alto Networks apps
 echo "Installing Palo Alto Networks apps..."
 
-# CURRENTLY NOT WORKING
-# Splunk does not need this to receive and parse Palo logs, so I'm not concerned with debugging this anytime soon.
 # Clone the Palo Alto splunk app
-#git clone https://github.com/PaloAltoNetworks/SplunkforPaloAltoNetworks.git SplunkforPaloAltoNetworks
-m#v SplunkforPaloAltoNetworks "$SPLUNK_HOME/etc/apps/"
+git clone https://github.com/PaloAltoNetworks/SplunkforPaloAltoNetworks.git SplunkforPaloAltoNetworks
+mv SplunkforPaloAltoNetworks "$SPLUNK_HOME/etc/apps/"
 
 # Clone the Palo Alto splunk add-on
 git clone https://github.com/PaloAltoNetworks/Splunk_TA_paloalto.git Splunk_TA_paloalto
