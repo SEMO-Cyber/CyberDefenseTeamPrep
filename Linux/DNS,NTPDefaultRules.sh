@@ -177,6 +177,8 @@ echo "Removing unnecessary users and their home directories..."
 userdel -r promon
 userdel -r produde
 userdel -r proscrape
+userdel -r ftp
+userdel -r proftpd
 
 echo "Removing games directory..."
 rm -rf /usr/games
