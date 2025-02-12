@@ -95,8 +95,8 @@ setup_monitors() {
   case $ID in
     centos)
       OS_MONITORS="
-[default]
-host = CentOS7_Ecomm
+#[default]
+#host = CentOS7_Ecomm
 
 [monitor:///var/log/secure]
 index = main
@@ -129,8 +129,8 @@ sourcetype = test"
       
     fedora)
       OS_MONITORS="
-[default]
-host = Fedora21_Webmail
+#[default]
+#host = Fedora21_Webmail
 
 [monitor:///var/log/roundcube]
 index = main
@@ -169,8 +169,8 @@ sourcetype = test
       
     ubuntu)
       OS_MONITORS="
-[default]
-host = Ubuntu18_Web
+#[default]
+#host = Ubuntu18_Web
 
 [monitor:///var/log/apache2]
 index = main
@@ -196,8 +196,8 @@ sourcetype = test"
     debian)
       OS_MONITORS="
 
-[default]
-host = Debian_Bind9
+#[default]
+#host = Debian_Bind9
 
 [monitor:///var/log/dns]
 index = main
