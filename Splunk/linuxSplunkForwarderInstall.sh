@@ -91,35 +91,13 @@ EOL
 setup_monitors() {
   echo "${BLUE}Setting up monitors for $ID...${NC}"
   MONITOR_CONFIG="$INSTALL_DIR/etc/system/local/inputs.conf"
-
-  # Common monitors for all systems
-  COMMON_MONITORS="
-[monitor:///var/log]
-index = main
-sourcetype = syslog
-
-[monitor:///var/log/messages]
-index = main
-sourcetype = syslog
-
-[monitor:///var/log/auth.log]
-index = main
-sourcetype = auth
-
-[monitor:///var/log/syslog]
-index = main
-sourcetype = syslog
-
-#Test log
-[monitor:///tmp/test.log]
-index = main
-sourcetype = test
-"
-
-  # OS-specific monitor configurations
+  
   case $ID in
     centos)
       OS_MONITORS="
+[default]
+host = CentOS7_Ecomm
+
 [monitor:///var/log/secure]
 index = main
 sourcetype = auth
@@ -138,11 +116,22 @@ index = main
 sourcetype = mysql
 recursive = true
 
-[default]
-host = CentOS7-Ecomm"
+[monitor:///var/log/*]
+index = main
+sourcetype = syslog
+recursive = true
+
+#Test log
+[monitor:///tmp/test.log]
+index = main
+sourcetype = test"
       ;;
+      
     fedora)
       OS_MONITORS="
+[default]
+host = Fedora21_Webmail
+
 [monitor:///var/log/roundcube]
 index = main
 sourcetype = roundcube
@@ -166,11 +155,23 @@ index = main
 sourcetype = apache
 recursive = true
 
-[default]
-host = Fedora21-Webmail"
+[monitor:///var/log/*]
+index = main
+sourcetype = syslog
+recursive = true
+
+#Test log
+[monitor:///tmp/test.log]
+index = main
+sourcetype = test
+"
       ;;
+      
     ubuntu)
       OS_MONITORS="
+[default]
+host = Ubuntu18_Web
+
 [monitor:///var/log/apache2]
 index = main
 sourcetype = apache
@@ -181,11 +182,23 @@ index = main
 sourcetype = package_manager
 recursive = true
 
-[default]
-host = Ubuntu18-Web"
+[monitor:///var/log/*]
+index = main
+sourcetype = syslog
+recursive = true
+
+#Test log
+[monitor:///tmp/test.log]
+index = main
+sourcetype = test"
       ;;
+      
     debian)
       OS_MONITORS="
+
+[default]
+host = Debian_Bind9
+
 [monitor:///var/log/dns]
 index = main
 sourcetype = bind0
@@ -201,18 +214,23 @@ index = main
 sourcetype = ntp
 recursive = true
 
-[default]
-host = Debian-Bind9"
+[monitor:///var/log/*]
+index = main
+sourcetype = syslog
+recursive = true
+
+#Test log
+[monitor:///tmp/test.log]
+index = main
+sourcetype = test"
       ;;
     *)
       OS_MONITORS=""
       ;;
   esac
 
-  # Write the combined configuration
+  # Write the configuration. This is donat using cat and EOL to improve flexibility and customization.
   sudo bash -c "cat > $MONITOR_CONFIG" <<EOL
-$COMMON_MONITORS
-
 $OS_MONITORS
 EOL
 
