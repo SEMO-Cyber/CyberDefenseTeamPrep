@@ -1,12 +1,18 @@
 #!/bin/bash
 # Automates the installation of the Splunk Universal Forwarder. Currently set to v9.1.1, but that is easily changed.
-# Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux. You need to run this as sudo
+# Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux. You need to run this as sudo.
 
 # This was put together as an amalgamation of code from my own work, other automatic installation scripts, and AI to tie everything together.
 # Lots time went into this script. Be nice to it plz <3
 #
 # Samuel Brucker 2024-2025
 #
+#    Note: Right now the script is only looking at distro name to decide what custom inputs are used. This includes the custom name Splunk sees.
+#          As we get two Ubuntu machines, this means they will share a name. YOU MUST MANUALLY CHANGE THIS IN THE SCRIPT ON THE UBUNTU WORKSTATION
+#          BEFORE RUNNING, OR IT WILL MAKE SEARCHING SPLUNK MUCH MORE DIFFICULT FOR THOSE MACHINES.
+#
+#          I hope to find a good solution to fix this - and I have several in mind - but I don't have the time to develop and test that right now.
+
 
 # Define Splunk Forwarder variables
 SPLUNK_VERSION="9.1.1"
