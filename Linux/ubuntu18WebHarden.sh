@@ -82,6 +82,49 @@ iptables -P FORWARD DROP
 mkdir /etc/iptables
 iptables-save > /etc/iptables/rules.v4
 
+# Password Management
+echo "Setting new passwords..."
+
+# Set root password
+while true; do
+    echo "Enter new root password: "
+    stty -echo
+    read rootPass
+    stty echo
+    echo "Confirm root password: "
+    stty -echo
+    read confirmRootPass
+    stty echo
+
+    if [ "$rootPass" = "$confirmRootPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
+
+echo "root:$rootPass" | chpasswd
+
+# Set sysadmin password
+while true; do
+    echo "Enter new sysadmin password: "
+    stty -echo
+    read sysadminPass
+    stty echo
+    echo "Confirm sysadmin password: "
+    stty -echo
+    read confirmSysadminPass
+    stty echo
+
+    if [ "$sysadminPass" = "$confirmSysadminPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
+
+echo "sysadmin:$sysadminPass" | chpasswd
+
 
 #
 #   Uninstall SSH, harden cron, final notes
