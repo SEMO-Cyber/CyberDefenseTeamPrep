@@ -30,7 +30,7 @@ $inputsConfPath = "$INSTALL_DIR\etc\system\local\inputs.conf"
 Write-Host "Configuring inputs.conf for monitoring..."
 @"
 [default]
-host = ActiveDirectory
+host = Docker_Remote
 
 [WinEventLog://Security]
 disabled = 0
