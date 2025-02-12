@@ -389,12 +389,6 @@ find "$BACKUP_DIR/splunk" -type f -size 0 -delete
 #srchMaxTotalDiskQuota = 500000
 #EOF
 
-#  ------------   NOT WORKING  ------------
-#
-# Install Palo Alto apps
-#echo "Installing Palo Alto apps..."
-#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7523 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
-#$SPLUNK_HOME/bin/splunk install app https://splunkbase.splunk.com/app/7505 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSWORD"
 
 echo "\n\nMAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!\n\n"
