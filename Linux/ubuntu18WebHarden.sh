@@ -125,6 +125,12 @@ done
 
 echo "sysadmin:$sysadminPass" | chpasswd
 
+echo "Removing unnecessary files..."
+rm -f ~/discord-0.0.1.deb
+rm -f ~/discord.deb
+
+echo "Backing up important directories..."
+
 
 #
 #   Uninstall SSH, harden cron, final notes
