@@ -116,10 +116,21 @@ index = main
 sourcetype = mysql
 recursive = true
 
-[monitor:///var/log/*]
+[monitor:///var/log]
 index = main
 sourcetype = syslog
-recursive = true
+
+[monitor:///var/log/messages]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/auth.log]
+index = main
+sourcetype = auth
+
+[monitor:///var/log/syslog]
+index = main
+sourcetype = syslog
 
 #Test log
 [monitor:///tmp/test.log]
@@ -155,10 +166,21 @@ index = main
 sourcetype = apache
 recursive = true
 
-[monitor:///var/log/*]
+[monitor:///var/log]
 index = main
 sourcetype = syslog
-recursive = true
+
+[monitor:///var/log/messages]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/auth.log]
+index = main
+sourcetype = auth
+
+[monitor:///var/log/syslog]
+index = main
+sourcetype = syslog
 
 #Test log
 [monitor:///tmp/test.log]
@@ -182,10 +204,21 @@ index = main
 sourcetype = package_manager
 recursive = true
 
-[monitor:///var/log/*]
+[monitor:///var/log]
 index = main
 sourcetype = syslog
-recursive = true
+
+[monitor:///var/log/messages]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/auth.log]
+index = main
+sourcetype = auth
+
+[monitor:///var/log/syslog]
+index = main
+sourcetype = syslog
 
 #Test log
 [monitor:///tmp/test.log]
@@ -199,9 +232,9 @@ sourcetype = test"
 #[default]
 #host = Debian_Bind9
 
-[monitor:///var/log/dns]
+[monitor:///var/log/dns/*]
 index = main
-sourcetype = bind0
+sourcetype = bind9
 recursive = true
 
 [monitor:///var/log/named]
@@ -209,15 +242,26 @@ index = main
 sourcetype = bind9
 recursive = true
 
-[monitor:///var/log/ntp]
+[monitor:///var/log/ntp.log]
 index = main
 sourcetype = ntp
 recursive = true
 
-[monitor:///var/log/*]
+[monitor:///var/log]
 index = main
 sourcetype = syslog
-recursive = true
+
+[monitor:///var/log/messages]
+index = main
+sourcetype = syslog
+
+[monitor:///var/log/auth.log]
+index = main
+sourcetype = auth
+
+[monitor:///var/log/syslog]
+index = main
+sourcetype = syslog
 
 #Test log
 [monitor:///tmp/test.log]
