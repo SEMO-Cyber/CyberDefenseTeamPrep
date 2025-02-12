@@ -130,7 +130,10 @@ recursive = true
 [monitor:///var/log/mariadb]
 index = main
 sourcetype = mysql
-recursive = true"
+recursive = true
+
+[default]
+host = CentOS7-Ecomm"
       ;;
     fedora)
       OS_MONITORS="
@@ -155,8 +158,10 @@ recursive = true
 [monitor:///var/log/httpd]
 index = main
 sourcetype = apache
-recursive = true"
+recursive = true
 
+[default]
+host = Fedora21-Webmail"
       ;;
     ubuntu)
       OS_MONITORS="
@@ -168,7 +173,10 @@ recursive = true
 [monitor:///var/log/apt]
 index = main
 sourcetype = package_manager
-recursive = true"
+recursive = true
+
+[default]
+host = Ubuntu18-Web"
       ;;
     debian)
       OS_MONITORS="
@@ -185,7 +193,10 @@ recursive = true
 [monitor:///var/log/ntp]
 index = main
 sourcetype = ntp
-recursive = true"
+recursive = true
+
+[default]
+host = Debian-Bind9"
       ;;
     *)
       OS_MONITORS=""
