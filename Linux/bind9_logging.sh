@@ -7,7 +7,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 # Define variables
-BIND_CONFIG_FILE="/etc/bind/named.conf"  # Adjust this path if necessary
+BIND_CONFIG_FILE="/etc/bind/named.conf.options"  # Adjust this path if necessary
 LOGGING_CONFIG_FILE="bind9_logging_config.conf"  # Temporary file to store logging config
 
 # Check if the logging block already exists
