@@ -194,7 +194,7 @@ sourcetype = test
 #[default]
 #host = Ubuntu18_Web
 
-[monitor:///var/log/apache2]
+[monitor:///var/log/apache2/*]
 index = main
 sourcetype = apache
 recursive = true
@@ -203,10 +203,6 @@ recursive = true
 index = main
 sourcetype = package_manager
 recursive = true
-
-[monitor:///var/log]
-index = main
-sourcetype = syslog
 
 [monitor:///var/log/messages]
 index = main
