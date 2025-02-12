@@ -168,9 +168,11 @@ echo "Uninstalling SSH..."
 apt remove --purge openssh-server -y
 
 echo "Uninstalling FTP..."
+systemctl stop proftpd
 apt remove --purge proftpd -y
 
 echo "Uninstalling apache2..."
+systemctl stop apache2
 apt remove --purge apache2 -y
 
 echo "Removing unnecessary users and their home directories..."
