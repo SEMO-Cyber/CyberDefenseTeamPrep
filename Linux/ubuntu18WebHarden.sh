@@ -126,8 +126,8 @@ done
 echo "sysadmin:$sysadminPass" | chpasswd
 
 echo "Removing unnecessary files..."
-#rm -f ~/discord-0.0.1.deb
-#rm -f ~/discord.deb
+rm -f ~/discord-0.0.1.deb
+rm -f ~/discord.deb
 
 echo "Making backups..."
 mkdir /etc/conf_services && chmod 600 /etc/conf_services
