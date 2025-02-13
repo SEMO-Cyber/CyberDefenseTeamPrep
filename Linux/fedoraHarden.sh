@@ -114,6 +114,31 @@ iptables -P FORWARD DROP
 # Save iptables rules
 iptables-save > /etc/iptables.rules
 
+
+# Password Management
+echo "Setting new passwords..."
+
+# Set root password
+while true; do
+    echo "Enter new root password: "
+    stty -echo
+    read rootPass
+    stty echo
+    echo "Confirm root password: "
+    stty -echo
+    read confirmRootPass
+    stty echo
+
+    if [ "$rootPass" = "$confirmRootPass" ]; then
+        break
+    else
+        echo "Passwords do not match. Please try again."
+    fi
+done
+
+echo "root:$rootPass" | chpasswd
+
+
 #
 #   Initial Backup
 #
