@@ -5,11 +5,11 @@
 set -e #Exit on error
 
 # 1. Ensure SELinux is Enforcing
-echo "Verifying SELinux enforcement..."
-sed -i 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config
-setenforce 1
+#echo "Verifying SELinux enforcement..."
+#sed -i 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config
+#setenforce 1
 
-echo "SELinux enforced."
+#echo "SELinux enforced."
 
 # 2. Secure HTTPD Configuration
 echo "Hardening Apache HTTPD..."
