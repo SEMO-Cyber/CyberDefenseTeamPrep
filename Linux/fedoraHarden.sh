@@ -28,7 +28,7 @@ fi
 
 # Install necessary tools and dependencies
 echo "Installing necessary tools and dependencies..."
-$PKG_MANAGER install -y curl wget nmap iptables-services cronie auditd
+$PKG_MANAGER install -y curl wget iptables-services sed cronie auditd 
 
 
 
@@ -114,78 +114,96 @@ iptables -P FORWARD DROP
 # Save iptables rules
 iptables-save > /etc/iptables.rules
 
+#
+#   Initial Backup
+#
+#
+# Define the main backup directory and subdirectory
+MAIN_BACKUP_DIR="/etc/backs"
+BACKUP_DIR="$MAIN_BACKUP_DIR/initial"
+
+# Check if /etc/backs exists, if not, create it
+if [ ! -d "$MAIN_BACKUP_DIR" ]; then
+    echo "Backup directory does not exist. Creating /etc/backs..."
+    mkdir -p "$MAIN_BACKUP_DIR"
+fi
+
+# Ensure the specific backup subdirectory exists
+mkdir -p "$BACKUP_DIR"
+
+echo "Starting Initial Backup..."
+
+# Backup critical system files before any changes
+tar -czvf $BACKUP_DIR/initial_backup.tar.gz \
+    /root \
+    /var/www/html \
+    /etc/roundcubemail \
+    /etc/httpd \
+    /etc/dovecot \
+    /etc/postfix \
+    /etc/cron* \
+    /etc/passwd \
+    /etc/group \
+    /etc/shadow \
+    /etc/sudoers* \
+    /etc/hosts \
+    /etc/hostname \
+    /etc/aliases \
+    /etc/systemd \
+    /etc/yum* \
+    /etc/resolv.conf \
+    /usr/share/httpd \
+    /srv/vmail \
+    /etc/sysconfig \
+    /usr/share/roundcubemail \
+    /usr/share/dovecot
+
+echo "Initial Backup Completed Successfully and stored in $BACKUP_DIR"
+echo "Setting permission only to root"
+chmod 700 /etc/backs
 
 #
 #   System Hardening
 #
 #
 
-echo "restricting user creation to root only"
-chmod 700 /usr/sbin/useradd
-chmod 700 /usr/sbin/groupadd
+# 1. Secure File Permissions
+echo "Setting secure permissions for critical files..."
+chmod 600 /etc/shadow
+chmod 600 /etc/gshadow
+chmod 600 /etc/ssh/sshd_config
+chmod 640 /var/log/messages
+chmod 640 /var/log/secure
 
-# Password Management
-echo "Setting new passwords..."
+echo "File permissions set."
 
-# Set root password
-while true; do
-    echo "Enter new root password: "
-    stty -echo
-    read rootPass
-    stty echo
-    echo "Confirm root password: "
-    stty -echo
-    read confirmRootPass
-    stty echo
+# 2. Restrict Access to Root User
+echo "Restricting access to root user..."
+chmod 700 /root
+chown root:root /root
+echo "Root access restricted."
 
-    if [ "$rootPass" = "$confirmRootPass" ]; then
-        break
-    else
-        echo "Passwords do not match. Please try again."
-    fi
-done
+#3. Removing shell access to other sus users
+echo "Removing shell access to apache, vmail, system users"
+sudo usermod -s /sbin/nologin apache
+sudo usermod -s /sbin/nologin vmail
+sudo usermod -s /sbin/nologin system
 
-echo "root:$rootPass" | chpasswd
-
-# Set sysadmin password
-while true; do
-    echo "Enter new sysadmin password: "
-    stty -echo
-    read sysadminPass
-    stty echo
-    echo "Confirm sysadmin password: "
-    stty -echo
-    read confirmSysadminPass
-    stty echo
-
-    if [ "$sysadminPass" = "$confirmSysadminPass" ]; then
-        break
-    else
-        echo "Passwords do not match. Please try again."
-    fi
-done
-
-echo "sysadmin:$sysadminPass" | chpasswd
+#4. Removing SUID Bit in /bin/dash
+sudo chmod u-s /bin/dash
 
 
-#
-#   Uninstall SSH, harden cron, final notes
-#
-#
-
-# Uninstall SSH
-echo "Uninstalling SSH..."
-$PKG_MANAGER remove --purge openssh-server -y
-
-# Harden cron
-echo "Locking down Cron and AT permissions..."
+# 4. Lock Down Cron Jobs
+echo "Securing cron jobs..."
 touch /etc/cron.allow
-chmod 600 /etc/cron.allow
-awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/cron.deny
-
 touch /etc/at.allow
-chmod 600 /etc/at.allow
-awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
+echo 'root' > /etc/cron.allow
+echo 'root' > /etc/at.allow
+chmod 600 /etc/cron.allow /etc/at.allow
+chmod 700 /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly
+
+echo "Cron jobs secured."
+
 
 # Final steps
 echo "Final steps..."
