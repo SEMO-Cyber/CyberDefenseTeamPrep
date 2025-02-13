@@ -6,6 +6,7 @@ set address priv-ubuntu-wkst ip-netmask 172.20.242.111
 set address priv-splunk ip-netmask 172.20.241.20
 set address priv-centos ip-netmask 172.20.241.30
 set address priv-fedora ip-netmask 172.20.241.40
+set address PANOS ip-netmask 172.20.242.150
 set address google-dns ip-netmask 8.8.8.8
 set address cloudflare-dns ip-netmask 1.1.1.1
 set address priv-10 ip-netmask 10.0.0.0/8
@@ -14,6 +15,15 @@ set address priv-192 ip-netmask 192.168.0.0/16
 
 set deviceconfig system dns-setting servers primary 8.8.8.8
 set deviceconfig system dns-setting servers secondary 1.1.1.1
+
+set address PAN_Internal_GW ip-netmask 172.20.240.254
+set address PAN_User_GW ip-netmask 172.20.242.254
+set address PAN_Public_GW ip-netmask 172.20.241.254
+
+set address-group Internal_Hosts static [ priv-debian10 priv-docker ]
+set address-group Public_Hosts static [ priv-centos priv-fedora priv-splunk  ]
+set address-group User_Hosts static [ priv-windows-server PANOS priv-ubuntu-server priv-ubuntu-wkst  ]
+set address-group PAN_Interfaces static [ PAN_Internal_GW PAN_Public_GW PAN_User_GW ]
 
 set profile-group ccdc virus default
 set profile-group ccdc spyware strict
@@ -26,6 +36,10 @@ set deviceconfig system service disable-https no
 set deviceconfig system service disable-snmp yes
 set deviceconfig system login-banner "Warning: Only authorized users are permitted to login. All network activity is being monitored and logged, and may be used to investigate and prosecute any instance of unauthorized access."
 set deviceconfig system ack-login-banner yes
+
+set application-group Outbound_Apps members [ web-browsing ssl apt-get yum git-base github-base google-base ms-update pastebin ping ocsp paloalto-updates pan-db-cloud dns dns-base ]
+set application-group Internal_Apps members [ ntp dns ssh ping web-browsing ssl  mysql splunk snmp snmp-trap ]
+set application-group Log_Apps members [ splunk ssl web-browsing syslog ]
 
 set network profiles zone-protection-profile Default discard-overlapping-tcp-segment-mismatch yes
 set network profiles zone-protection-profile Default discard-unknown-option yes
@@ -82,6 +96,17 @@ set service smtp protocol tcp port 25,517
 set service smtp protocol tcp override no
 set service pop3 protocol tcp port 110
 set service pop3 protocol tcp override no
+
+set rulebase security rules Internal2External profile-setting group ccdc
+set rulebase security rules Internal2External application Outbound_Apps
+set rulebase security rules Internal2External service application-default
+set rulebase security rules Internal2External to External
+set rulebase security rules Internal2External from [ Internal Public User ]
+set rulebase security rules Internal2External source [ Internal_Hosts Public_Hosts User_Hosts ]
+set rulebase security rules Internal2External destination any
+set rulebase security rules Internal2External log-start no
+set rulebase security rules Internal2External log-end yes
+set rulebase security rules Internal2External log-setting defaultlogs
 
 set rulebase security rules EXTERNAL2SELF_DROP profile-setting group ccdc
 set rulebase security rules EXTERNAL2SELF_DROP application any
@@ -291,6 +316,19 @@ set rulebase security rules INSIDE2SPLUNK action allow
 set rulebase security rules INSIDE2SPLUNK log-start no
 set rulebase security rules INSIDE2SPLUNK log-end yes
 set rulebase security rules INSIDE2SPLUNK log-setting defaultlogs
+
+set rulebase security rules BaseDeny profile-setting group ccdc
+set rulebase security rules BaseDeny application any
+set rulebase security rules BaseDeny service any
+set rulebase security rules BaseDeny to any
+set rulebase security rules BaseDeny from any
+set rulebase security rules BaseDeny source any
+set rulebase security rules BaseDeny destination any
+set rulebase security rules BaseDeny action deny
+set rulebase security rules BaseDeny log-start no
+set rulebase security rules BaseDeny log-end yes
+set rulebase security rules BaseDeny log-settings defaultlogs
+move rulebase security rules BaseDeny bottom
 
 
 set rulebase nat rules splunk-to-wkst to External
