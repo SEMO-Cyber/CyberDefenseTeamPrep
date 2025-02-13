@@ -9,7 +9,7 @@ mkdir -p $BACKUP_DIR
 echo "Starting Post-Hardening Backup..."
 
 # Backup only the changed files after security hardening
-tar -czvf $BACKUP_DIR/post_hardening_backup.tar.gz \
+tar --exclude='/root/CyberDefenseTeamPrep' -czvf $BACKUP_DIR/post_hardening_backup.tar.gz \
     /root \
     /var/www/html \
     /etc/roundcubemail \
