@@ -58,21 +58,21 @@ sed -i 's/^disable_functions =.*/disable_functions = exec,system,shell_exec,pass
 systemctl restart httpd
 
 # 10. Secure MySQL Configuration
-echo "Hardening MySQL..."
-mysql_secure_installation <<EOF
+# echo "Hardening MySQL..."
+# mysql_secure_installation <<EOF
 
-Y
-Y
-Y
-Y
-Y
-EOF
+# Y
+# Y
+# Y
+# Y
+# Y
+# EOF
 
 # Restrict MySQL remote access
-sed -i 's/^bind-address.*/bind-address = 127.0.0.1/' /etc/my.cnf.d/mariadb-server.cnf
-systemctl restart mariadb
+# sed -i 's/^bind-address.*/bind-address = 127.0.0.1/' /etc/my.cnf.d/mariadb-server.cnf
+# systemctl restart mariadb
 
-echo "MySQL secured."
+# echo "MySQL secured."
 
 echo "Security misconfiguration hardening complete."
 echo "Security misconfiguration hardening complete."
