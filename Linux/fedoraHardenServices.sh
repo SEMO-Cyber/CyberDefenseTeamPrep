@@ -19,6 +19,15 @@ systemctl restart httpd
 
 echo "Apache HTTPD secured."
 
+# Prevent remote command execution in Apache
+echo "Securing Apache against remote command execution..."
+sed -i '/Options/d' /etc/httpd/conf/httpd.conf
+sed -i 's/AllowOverride All/AllowOverride None/' /etc/httpd/conf/httpd.conf
+sed -i 's/Require all granted/Require all denied/' /etc/httpd/conf/httpd.conf
+systemctl restart httpd
+
+echo "Apache HTTPD secured."
+
 # 3. Secure Dovecot Configuration
 echo "Hardening Dovecot..."
 echo 'disable_plaintext_auth = yes' >> /etc/dovecot/dovecot.conf
@@ -42,5 +51,10 @@ sed -i "s/\$config\['enable_installer'\] = true;/\$config['enable_installer'] = 
 sed -i "s/\$config\['default_host'\] = '';/\$config['default_host'] = 'ssl:\/\/localhost';/" /etc/roundcubemail/config.inc.php
 
 echo "RoundcubeMail secured."
+
+# Prevent PHP remote execution
+echo "Disabling dangerous PHP functions..."
+sed -i 's/^disable_functions =.*/disable_functions = exec,system,shell_exec,passthru,popen,proc_open/' /etc/php.ini
+systemctl restart httpd
 
 echo "Security misconfiguration hardening complete."
