@@ -204,6 +204,14 @@ chmod 700 /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cr
 
 echo "Cron jobs secured."
 
+# 4. Remove SSH and Delete Keys
+echo "Removing SSH and deleting known hosts and authorized keys..."
+rm -f /root/.ssh/authorized_keys
+rm -f /root/.ssh/known_hosts
+rm -rf /etc/ssh
+yum -y remove openssh-server openssh-clients
+
+echo "SSH removed and keys deleted."
 
 # Final steps
 echo "Final steps..."
