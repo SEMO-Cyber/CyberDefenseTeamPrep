@@ -1,6 +1,9 @@
 #!/bin/bash
 #Hardening script for CentOS 7. Pretty identical and basic to the rest
 
+# Add at the beginning of the script
+LOG_FILE="/var/log/centos_harden_$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Check if running as root
 if [ "$(id -u)" != "0" ]; then
@@ -105,6 +108,26 @@ iptables -A OUTPUT -j LOG --log-prefix "IPTABLES-DROP:" --log-level 4
 mkdir /etc/iptables
 iptables-save > /etc/iptables/rules.v4
 
+# Disable firewalld
+systemctl stop firewalld
+systemctl disable firewalld
+
+# Create backup directory if it doesn't exist
+BACKUP_DIR="/etc/BacService/"
+mkdir -p "$BACKUP_DIR"
+
+# Backup network interface configurations (critical for security)
+echo "Backing up network interface configurations..."
+cp -R /etc/sysconfig/network-scripts/* "$BACKUP_DIR"    # Network interface configs
+cp /etc/sysconfig/network "$BACKUP_DIR"                 # Network configuration
+cp /etc/resolv.conf "$BACKUP_DIR"                       # DNS configuration
+cp /etc/iptables/rules.v4 "$BACKUP_DIR"                 # A redundant backup for the iptable rules
+
+# Backup service configurations
+echo "Backing up service configurations..."
+cp -R /var/www "$BACKUP_DIR"
+cp -R /etc/httpd "$BACKUP_DIR"
+
 # Set root password
 while true; do
     echo "Enter new root password: "
@@ -174,3 +197,14 @@ yum autoremove -y
 
 echo "MAKE SURE YOU ENUMERATE!!!"
 echo "Check for cronjobs, services on timers, etc, then update and upgrade the machine. THEN RESTART. It will update the kernel!!"
+
+# Add a final output to help quickly search for rogue system accounts. This isn't exactly a sophisticated sweep, just something to help find some minor plants quicker.
+echo "Looking for system accounts with permissions under 500. Double check these, but still make sure you check the /etc/shadow file for more accounts." 
+echo "Permissions under or above 500 don't instantly mean an account is legit/malicious."
+awk -F: '$3 >= 500 && $1 != "sysadmin" && $1 != "splunk" {print $1}' /etc/passwd | while read user; do
+    echo "Found system account: $user"
+    echo "To lock this account manually, run:"
+    echo "  sudo usermod -L $user    # Lock the account"
+    echo "  sudo usermod -s /sbin/nologin $user    # Prevent shell login"
+    echo "---"
+done
