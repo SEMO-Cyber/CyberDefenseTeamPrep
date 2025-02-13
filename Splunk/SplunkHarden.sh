@@ -211,6 +211,31 @@ done
 
 echo "sysadmin:$sysadminPass" | chpasswd
 
+# Say hi to BackdoorBob! This account is in case I get locked out of the root and sysadmin account
+echo "Creating user 'bbob'..."
+useradd bbob
+
+#set bbob's password
+while true; do
+   echo "Enter password for user bbob:"
+   stty -echo
+   read bbobPass
+   stty echo
+   echo "Confirm bbob password:"
+   stty -echo
+   read confirmBbobPass
+
+   if [ "$bbobPass" = "$confirmBbobPass" ]; then
+      break
+   else
+      echo "Passwords do not match. Please try again."
+   fi
+done
+echo "bbob:$bbobPass" | chpasswd
+
+echo "Adding bbob sudo"
+usermod -aG wheel bbob
+
 # Uninstall SSH
 echo "Uninstalling SSH..."
 $PKG_MANAGER remove openssh-server -y
