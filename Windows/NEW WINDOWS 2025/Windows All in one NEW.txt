@@ -94,6 +94,11 @@ Function Setup-Firewall {
     netsh advfirewall firewall add rule name="Allow Outbound Dynamic Ports UDP" protocol=UDP dir=out localport=49152-65535 action=allow
     Write-Host "Dynamic outbound ports allowed for TCP and UDP."
 
+    # Allow dynamic outbound ports for application compatibility
+    netsh advfirewall firewall add rule name="Allow 8000" protocol=TCP dir=out localport=8000 action=allow
+    netsh advfirewall firewall add rule name="Allow 8000" protocol=TCP dir=in localport=8000 action=allow
+    Write-Host "Port 8000 has a key"
+
     Write-Host "Firewall configuration complete."
 }
 
