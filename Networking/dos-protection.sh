@@ -12,6 +12,6 @@
 
 printf "Starting dos-protection script\n"
 
-ssh -T admin@172.20.242.150 < ./dos-protection.txt
+ssh -T -o HostKeyAlgoritms=+ssh-rsa -o PubKeyAuthentication=no -o PasswordAuthentication=yes admin@172.20.242.150 < ./dos-protection.txt
 
 exit 0
