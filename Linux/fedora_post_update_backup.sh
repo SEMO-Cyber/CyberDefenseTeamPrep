@@ -9,7 +9,7 @@ mkdir -p $BACKUP_DIR
 echo "Starting Post-Update Backup..."
 
 # Backup everything again after applying updates
-tar -czvf $BACKUP_DIR/post_update_backup.tar.gz \
+tar --exclude='/root/CyberDefenseTeamPrep' -czvf $BACKUP_DIR/post_update_backup.tar.gz \
     /root \
     /var/www/html \
     /etc/roundcubemail \
