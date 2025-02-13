@@ -121,6 +121,7 @@ iptables-save > /etc/iptables.rules
 # Define the main backup directory and subdirectory
 MAIN_BACKUP_DIR="/etc/backs"
 BACKUP_DIR="$MAIN_BACKUP_DIR/initial"
+BACKUP_FILE="$BACKUP_DIR/initial_backup.tar.gz"
 
 # Check if /etc/backs exists, if not, create it
 if [ ! -d "$MAIN_BACKUP_DIR" ]; then
@@ -130,6 +131,12 @@ fi
 
 # Ensure the specific backup subdirectory exists
 mkdir -p "$BACKUP_DIR"
+
+# Check if the backup already exists
+if [-f "$BACKUP_FILE" ]; then
+   echo "Initial backup already exists at $BACKUP_FILE. Skipping backup."
+   exit 0
+fi
 
 echo "Starting Initial Backup..."
 
