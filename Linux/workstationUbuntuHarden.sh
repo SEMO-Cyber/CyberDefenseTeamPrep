@@ -88,14 +88,6 @@ rm -rf /lib/systemd/system/ufw.service
 
 
 
-#
-#   Uninstall SSH, harden cron, final notes
-#
-#
-
-# Uninstall SSH
-#echo "Uninstalling SSH..."
-#apt remove --purge openssh-server -y
 
 # Set root password
 while true; do
