@@ -141,7 +141,7 @@ fi
 echo "Starting Initial Backup..."
 
 # Backup critical system files before any changes
-tar -czvf $BACKUP_DIR/initial_backup.tar.gz \
+tar --exclude='/root/CyberDefenseTeamPrep' -czvf $BACKUP_DIR/initial_backup.tar.gz \
     /root \
     /var/www/html \
     /etc/roundcubemail \
