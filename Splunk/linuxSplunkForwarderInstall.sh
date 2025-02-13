@@ -61,9 +61,39 @@ create_splunk_user() {
 }
 
 # Function to install Splunk Forwarder
+# Blame the length on CentOS 
 install_splunk() {
+  local max_retries=3
+  local retry_count=0
+  local download_success=false
+
   echo "${BLUE}Downloading Splunk Forwarder tarball...${NC}"
-  wget -O $SPLUNK_PACKAGE_TGZ $SPLUNK_DOWNLOAD_URL
+
+  while [ $retry_count -lt $max_retries ] && [ $download_success = false ]; do
+    if [ $retry_count -eq 0 ]; then
+      # First attempt: Try with certificate verification
+      wget -O $SPLUNK_PACKAGE_TGZ $SPLUNK_DOWNLOAD_URL
+      local status=$?
+    else
+      # Subsequent attempts: Try without certificate verification
+      echo "${YELLOW}Certificate verification failed, attempting download without certificate check...${NC}"
+      wget --no-check-certificate -O $SPLUNK_PACKAGE_TGZ $SPLUNK_DOWNLOAD_URL
+      local status=$?
+    fi
+
+    if [ $status -eq 0 ]; then
+      download_success=true
+    else
+      retry_count=$((retry_count + 1))
+      echo "${RED}Download failed (attempt $retry_count/$max_retries). Retrying in 5 seconds...${NC}"
+      sleep 5
+    fi
+  done
+
+  if [ $download_success = false ]; then
+    echo "${RED}All download attempts failed. Aborting installation.${NC}"
+    return 1
+  fi
 
   echo "${BLUE}Extracting Splunk Forwarder tarball...${NC}"
   sudo tar -xvzf $SPLUNK_PACKAGE_TGZ -C /opt
@@ -73,6 +103,7 @@ install_splunk() {
   create_splunk_user
   sudo chown -R splunk:splunk $INSTALL_DIR
 }
+
 
 # Function to set admin credentials
 set_admin_credentials() {
