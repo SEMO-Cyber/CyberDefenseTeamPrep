@@ -2,30 +2,15 @@ set cli scripting-mode on
 configure
 
 set profiles dos-protection CCDC-profile type classified
-set profiles dos-protection CCDC-profile flood tcp-syn enable yes
-set profiles dos-protection CCDC-profile flood tcp-syn red alarm-rate 1000
-set profiles dos-protection CCDC-profile flood tcp-syn red activate-rate 1500
-set profiles dos-protection CCDC-profile flood tcp-syn red maximal-rate 2000
+set profiles dos-protection CCDC-profile flood tcp-syn enable yes red alarm-rate 1000 red activate-rate 1500 red maximal-rate 2000
 
-set profiles dos-protection CCDC-profile flood udp enable yes
-set profiles dos-protection CCDC-profile flood udp red alarm-rate 1000
-set profiles dos-protection CCDC-profile flood udp red activate-rate 1500
-set profiles dos-protection CCDC-profile flood udp red maximal-rate 2000
+set profiles dos-protection CCDC-profile flood udp enable yes red alarm-rate 1000 red activate-rate 1500 red maximal-rate 2000
 
-set profiles dos-protection CCDC-profile flood icmp enable yes
-set profiles dos-protection CCDC-profile flood icmp red alarm-rate 1000
-set profiles dos-protection CCDC-profile flood icmp red activate-rate 1500
-set profiles dos-protection CCDC-profile flood icmp red maximal-rate 2000
+set profiles dos-protection CCDC-profile flood icmp enable yes red alarm-rate 1000 red activate-rate 1500 red maximal-rate 2000
 
-set profiles dos-protection CCDC-profile flood icmpv6 enable yes
-set profiles dos-protection CCDC-profile flood icmpv6 red alarm-rate 1000
-set profiles dos-protection CCDC-profile flood icmpv6 red activate-rate 1500
-set profiles dos-protection CCDC-profile flood icmpv6 red maximal-rate 2000
+set profiles dos-protection CCDC-profile flood icmpv6 enable yes red alarm-rate 1000 red activate-rate 1500 icmpv6 red maximal-rate 2000
 
-set profiles dos-protection CCDC-profile flood other-ip enable yes
-set profiles dos-protection CCDC-profile flood other-ip red alarm-rate 1000
-set profiles dos-protection CCDC-profile flood other-ip red activate-rate 1500
-set profiles dos-protection CCDC-profile flood other-ip red maximal-rate 2000
+set profiles dos-protection CCDC-profile flood other-ip enable yes red alarm-rate 1000 red activate-rate 1500 red maximal-rate 2000
 
 set rulebase dos rules CCDC-dos action protect
 set rulebase dos rules CCDC-dos from zone [ External ]
