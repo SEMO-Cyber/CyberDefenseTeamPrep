@@ -6,9 +6,9 @@
 #
 #  Samuel Brucker 2024-2025
 
-
-
 echo "Hardening the Splunk configuration..."
+
+SPLUNK_HOME="/opt/splunk"
 
 # Set the banner for Splunk
 cat > "$SPLUNK_HOME/etc/system/local/global-banner.conf" << EOF
@@ -87,17 +87,6 @@ $SPLUNK_HOME/bin/splunk enable listen 9997 -auth "$SPLUNK_USERNAME:$SPLUNK_PASSW
 #Add the index for Palo logs
 $SPLUNK_HOME/bin/splunk add index pan_logs
 
-# Install Palo Alto Networks apps
-echo "Installing Palo Alto Networks apps..."
-
-# Clone the Palo Alto splunk app
-git clone https://github.com/PaloAltoNetworks/SplunkforPaloAltoNetworks.git SplunkforPaloAltoNetworks
-mv SplunkforPaloAltoNetworks "$SPLUNK_HOME/etc/apps/"
-
-# Clone the Palo Alto splunk add-on
-git clone https://github.com/PaloAltoNetworks/Splunk_TA_paloalto.git Splunk_TA_paloalto
-mv Splunk_TA_paloalto "$SPLUNK_HOME/etc/apps/"
-
 # Disable distributed search
 echo "Disabling distributed search"
 echo "[distributedSearch]" > $SPLUNK_HOME/etc/system/local/distsearch.conf
@@ -116,53 +105,4 @@ find "$BACKUP_DIR/splunk" -type f -size +0 -print0 | xargs -0 md5sum > "$BACKUP_
 find "$BACKUP_DIR/splunk" -type f -size 0 -delete
 
 
-############################
-# WIP, not functioning yet #
-############################
-
-#Lock down who is able to log in
-#make sure files exist
-#touch "$SPLUNK_HOME/etc/system/local/authentication.conf"
-#touch "$SPLUNK_HOME/etc/system/local/authorize.conf"
-
-# Edit authentication.conf
-#cat > $SPLUNK_HOME/etc/system/local/authentication.conf << EOF
-#[authentication]
-#authType = Splunk
-#authSettings = Splunk
-
-#[roleMap_Splunk]
-#sysadmin = admin
-
-#[authenticationResponse]
-#attributemap = Splunk:role -> role
-#EOF
-
-# Edit authorize.conf
-#cat > $SPLUNK_HOME/etc/system/local/authorize.conf << EOF
-#[role_admin]
-#importRoles = admin
-#srchJobsQuota = 50
-#rtSrchJobsQuota = 50
-#srchDiskQuota = 10000
-#srchFilter = *
-#srchIndexesAllowed = *
-#srchIndexesDefault = main
-#srchMaxTime = 8640000
-#rtSrchMaxTime = 30
-#srchMaxTotalDiskQuota = 500000
-#importRoles = user
-#srchJobsQuota = 50
-#rtSrchJobsQuota = 50
-#srchDiskQuota = 10000
-#srchFilter = *
-#srchIndexesAllowed = *
-#srchIndexesDefault = main
-#srchMaxTime = 8640000
-#rtSrchMaxTime = 30
-#srchMaxTotalDiskQuota = 500000
-#EOF
-
-
-echo "\n\nMAKE SURE YOU ENUMERATE!!!"
-echo "Check for cronjobs, services on timers, etc. Also do a manual search through Splunk. Once done, run sudo yum update -y and then restart the machine. Have fun!\n\n"
+echo "Splunk's service hardening complete!"
