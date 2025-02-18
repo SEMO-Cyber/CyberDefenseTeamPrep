@@ -4,11 +4,14 @@
 # instead of the forwarder installation lol. Again, this is safe, just don't run it in comp because you'll have a bad time undoing this.
 # super quick automatic script to install Splunk 9.3.2
 # Mostly original with a little sprinkle of AI
+#
 # Samuel Brucker 2024-2025
 
 # Define variables
 SPLUNK_URL="https://download.splunk.com/products/splunk/releases/9.3.2/linux/splunk-9.3.2-d8bb32809498.x86_64.rpm"
 SPLUNK_RPM="splunk-9.3.2-d8bb32809498.x86_64.rpm"
+SPLUNK_PASS="Changeme1!"
+
 
 # Install prerequisites
 echo "Installing prerequisites..."
@@ -50,9 +53,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Set admin credentials. Currently, this is set to sysadmin/Changeme1!
+# Change admin password. See the $SPLUNK_PASS variable at line 12.
 echo "Setting admin password..."
-sudo /opt/splunk/bin/splunk edit user sysadmin -password Changeme1! -auth admin:changeme
+sudo /opt/splunk/bin/splunk edit user admin -password $SPLUNK_PASS -auth admin:changeme
 if [ $? -ne 0 ]; then
     echo "Failed to set admin password. Exiting."
     exit 1
@@ -68,8 +71,8 @@ fi
 
 # Configure Splunk to receive logs on ports 9997 and 514.
 echo "Configuring Splunk ports..."
-sudo /opt/splunk/bin/splunk add udp 514 -auth admin:Changeme1!
-sudo /opt/splunk/bin/splunk add tcp 9997 -auth admin:Changeme1!
+sudo /opt/splunk/bin/splunk add udp 514 -auth admin:$SPLUNK_PASS
+sudo /opt/splunk/bin/splunk add tcp 9997 -auth admin:$SPLUNK_PASS
 
 # Final restart
 echo "Performing final restart..."
