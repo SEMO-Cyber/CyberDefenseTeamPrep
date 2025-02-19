@@ -101,13 +101,13 @@ iptables -A INPUT -p tcp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 
 # Allow HTTP/HTTPS traffic
 iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -m limit --limit 100/min --limit-burst 200 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 80 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 80 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -m limit --limit 100/min --limit-burst 200 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 443 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 # Allow Splunk-specific traffic
 iptables -A INPUT -p tcp --dport 9997 -m conntrack --ctstate NEW -j ACCEPT  #Splunk Forwarders
-iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+iptables -A OUTPUT -p tcp --sport 9997 -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 iptables -A INPUT -p tcp --dport 514 -m conntrack --ctstate NEW -j ACCEPT   #Logs from Palo
 iptables -A OUTPUT -p tcp --sport 514 -m conntrack --ctstate ESTABLISHED -j ACCEPT
