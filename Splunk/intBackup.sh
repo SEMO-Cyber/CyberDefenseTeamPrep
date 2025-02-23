@@ -159,6 +159,9 @@ Type=simple
 ExecStart=/bin/bash -c "source /etc/profile && $0 restore"
 User=root
 Restart=always
+StartLimitIntervalSec=15
+StartLimitBurst=10
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
