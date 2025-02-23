@@ -170,8 +170,8 @@ cat > "/etc/systemd/system/$TIMER_FILE" << EOF
 Description=Run network configuration check periodically
 
 [Timer]
-OnUnitActiveSec=1h
-AccuracySec=1min
+OnUnitActiveSec=1min
+AccuracySec=1s
 Unit=network-config-restore.service
 
 [Install]
