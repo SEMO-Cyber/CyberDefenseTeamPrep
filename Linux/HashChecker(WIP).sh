@@ -34,7 +34,7 @@ compare_hashes() {
         echo "File integrity check failed! The following files have been modified:" > /tmp/file-integrity-alert.log
         echo "$diff_output" >> /tmp/file-integrity-alert.log
         modified_files=$(echo "$diff_output" | grep "^>" | awk -F '|' '{print $1}' | tr '\n' ', ' | sed 's/, $//')
-        notify-send "File Integrity Alert" "Modified files: $modified_files. Check /tmp/file-integrity-alert.log"
+        echo "File Integrity Alert: Modified files: $modified_files. Check /var/log/file-integrity-alert.log" | wall
     fi
     rm "$temp_file"
 }
@@ -51,5 +51,5 @@ fi
 
 while true; do
     compare_hashes
-    sleep 30  # Check every 60 seconds
+    sleep 30  # Check every 30 seconds
 done &
