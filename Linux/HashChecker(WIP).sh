@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Check if running as root
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 path_file="scan_paths.txt"
 hash_file="file-check.txt"
 
