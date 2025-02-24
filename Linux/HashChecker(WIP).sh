@@ -6,12 +6,12 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-path_file="scan_paths.txt"
-hash_file="file-check.txt"
+path_file="/etc/conf_srv/scan_paths.txt"
+hash_file="/etc/conf_srv/file-check.txt"
 
 # Check if the path file exists and prompt the user to enter paths if not
 if [[ ! -f "$path_file" ]]; then
-    read -p "Enter directories or files to scan (separated by space): " -a paths
+    read -p "Enter directories or files to monitor (separated by space): " -a paths
     echo "${paths[@]}" > "$path_file"  # Save the paths to a file
 else
     # Read paths from the file
@@ -19,11 +19,11 @@ else
 fi
 
 # Ask if the user wants to add more paths to scan
-read -p "Do you want to add additional directories or files to scan? (yes/no): " add_choice
+read -p "Do you want to add additional directories or files to monitor? (yes/no): " add_choice
 if [[ "$add_choice" == "yes" ]]; then
-    read -p "Enter the additional directory or file to scan: " new_path
-    paths+=("$new_path")  # Add the new path to the list
-    echo "$new_path" >> "$path_file"  # Save the new path to the path file
+    read -p "Enter directories or files to monitor (separated by space): " -a new_paths
+    paths+=("${new_paths[@]}")  # Add the new paths to the list
+    echo "${new_paths[@]}" >> "$path_file"
 fi
 
 read -p "Do you want to rehash the files? (yes/no): " rehash_choice
@@ -73,10 +73,10 @@ compare_hashes() {
 
     diff_output=$(diff "$hash_file" "$temp_file")
     if [[ -n "$diff_output" ]]; then
-        echo "File integrity check failed! The following files have been modified:" > /tmp/file-integrity-alert.log
-        echo "$diff_output" >> /tmp/file-integrity-alert.log
+        echo "File integrity check failed! The following files have been modified:" > /var/log/file-integrity-alert.log
+        echo "$diff_output" >> /var/log/file-integrity-alert.log
         modified_files=$(echo "$diff_output" | grep "^>" | awk -F '|' '{print $1}' | tr '\n' ', ' | sed 's/, $//')
-        echo "File Integrity Alert: Modified files: $modified_files. Check /tmp/file-integrity-alert.log"
+        echo "File Integrity Alert: Modified files: $modified_files. Check /var/log/file-integrity-alert.log"
     fi
     rm "$temp_file"
 }
