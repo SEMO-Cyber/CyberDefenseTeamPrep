@@ -6,29 +6,6 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-mkdir /etc/conf_srv $$ chmod 700
-path_file="/etc/conf_srv/scan_paths.txt"
-hash_file="/etc/conf_srv/file-check.txt"
-
-# Check if the path file exists and prompt the user to enter paths if not
-if [[ ! -f "$path_file" ]]; then
-    read -p "Enter directories or files to monitor (separated by space): " -a paths
-    echo "${paths[@]}" > "$path_file"  # Save the paths to a file
-else
-    # Read paths from the file
-    IFS=' ' read -r -a paths < "$path_file"
-fi
-
-# Ask if the user wants to add more paths to scan
-read -p "Do you want to add additional directories or files to monitor? (yes/no): " add_choice
-if [[ "$add_choice" == "yes" ]]; then
-    read -p "Enter directories or files to monitor (separated by space): " -a new_paths
-    paths+=("${new_paths[@]}")  # Add the new paths to the list
-    echo "${new_paths[@]}" >> "$path_file"
-fi
-
-read -p "Do you want to rehash the files? (yes/no): " rehash_choice
-
 generate_hash() {
     md5sum "$1" | awk '{print $1}'
 }
@@ -82,9 +59,32 @@ compare_hashes() {
     rm "$temp_file"
 }
 
+mkdir /etc/conf_srv $$ chmod 700
+path_file="/etc/conf_srv/scan_paths.txt"
+hash_file="/etc/conf_srv/file-check.txt"
+
+# Check if the file does not exists or is empty
+if [[ ! -s "$path_file" ]]; then
+    read -p "Enter directories or files to monitor (separated by space): " -a paths
+    echo "${paths[@]}" > "$path_file"  # Save the paths to a file
+else
+    IFS=' ' read -r -a paths < "$path_file"
+   read -p "Do you want to add additional directories or files to monitor? (yes/no): " add_choice
+   if [[ "$add_choice" == "yes" ]]; then
+       read -p "Enter directories or files to monitor (separated by space): " -a new_paths
+       paths+=("${new_paths[@]}")  # Add the new paths to the list
+       echo "${new_paths[@]}" >> "$path_file"
+   fi
+   echo "Would you like to hash the files?"
+   echo "1) Hash all paths"
+   echo "2) Select a specific path to hash"
+   echo "3) Skip hashing"
+   read -p "Enter your choice (1/2/3): " rehash_choice
+fi
+
 echo "Running file integrity scan in the background."
-if [[ "$rehash_choice" == "yes" ]]; then
-    echo "Rehashing files and updating records."
+if [[ "$rehash_choice" == "1" ]]; then
+    echo "Hashing files and updating records."
     > "$hash_file"
     save_file_hashes
 elif [[ ! -f "$hash_file" ]]; then
