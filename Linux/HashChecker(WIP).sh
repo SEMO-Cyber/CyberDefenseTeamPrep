@@ -6,6 +6,7 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+mkdir /etc/conf_srv $$ chmod 700
 path_file="/etc/conf_srv/scan_paths.txt"
 hash_file="/etc/conf_srv/file-check.txt"
 
