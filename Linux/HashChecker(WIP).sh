@@ -97,7 +97,6 @@ else
 fi
 
 # run through hashing options
-echo "Running file integrity scan in the background."
 if [[ "$HASH_CHOICE" == "1" ]]; then
     echo "Hashing files and updating records."
     > "$HASH_FILE"
@@ -123,6 +122,7 @@ elif [[ ! -s "$HASH_FILE" ]]; then
     save_file_hashes
 fi
 
+echo "Running file integrity scan in the background."
 # Loop to periodically check integrity
 while true; do
     compare_hashes
