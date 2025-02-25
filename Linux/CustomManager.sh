@@ -97,11 +97,37 @@ MALICIOUS_KEYWORDS=(
     [rust]="std::net::TcpStream, std::net::TcpListener, std::process::Command"
 )
 
-# Function to print colored text
+# Function to detect terminal capabilities
+detect_terminal() {
+    if [[ -t 1 ]]; then
+        # Check if terminal supports colors
+        if [[ -x "/usr/bin/tput" ]]; then
+            COLORS[RESET]=$(tput sgr0)
+            COLORS[BLACK]=$(tput setaf 0)
+            COLORS[RED]=$(tput setaf 1)
+            COLORS[GREEN]=$(tput setaf 2)
+            COLORS[YELLOW]=$(tput setaf 3)
+            COLORS[BLUE]=$(tput setaf 4)
+            COLORS[MAGENTA]=$(tput setaf 5)
+            COLORS[CYAN]=$(tput setaf 6)
+            COLORS[WHITE]=$(tput setaf 7)
+        fi
+    fi
+}
+
+# Function to print colored text with format handling
 print_colored() {
     local color=$1
     local text=$2
-    echo -e "${COLORS[$color]}$text${COLORS[RESET]}"
+    local format=$3
+    
+    # Handle format specifiers
+    if [[ $format == "center" ]]; then
+        local width=${4:-20}
+        printf "%*s\n" $(( (${#text} + width) / 2 )) "${COLORS[$color]}$text${COLORS[RESET]}"
+    else
+        echo -e "${COLORS[$color]}$text${COLORS[RESET]}"
+    fi
 }
 
 # Function to list services and their file types
