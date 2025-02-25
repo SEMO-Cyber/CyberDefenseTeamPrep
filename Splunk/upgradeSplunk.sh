@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 #  A script to automate upgrading Splunk during competition.
-#  Not super complicated. Much nicer than most of my other Splunk scripts
+#  Not super complicated. Much nicer than most of my other Splunk scripts. 
 #
-#  Most of this is AI, I'm a little short on time to make a script from scratch. I just hope it works. Doing this manually during comp would (will) suck.
+#  Most of this is AI generated with nudges and tweaks from me. It's solid and worked well in comp!
 #
 #  Samuel Brucker 2024-2025
 

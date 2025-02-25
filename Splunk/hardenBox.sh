@@ -248,3 +248,5 @@ awk -F: '{print $1}' /etc/passwd | grep -v root > /etc/at.deny
 # Final steps
 echo "Final steps for the basic box hardening..."
 $PKG_MANAGER autoremove -y
+
+echo "Splunk machine hardening complete!"

@@ -1,4 +1,4 @@
-#!/bin/bash
+a#!/bin/bash
 # Automates the installation of the Splunk Universal Forwarder. Currently set to v9.1.1, but that is easily changed.
 # Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux. You need to run this as sudo.
 
@@ -129,27 +129,21 @@ setup_monitors() {
 #[default]
 #host = CentOS7_Ecomm
 
-[monitor:///var/log/secure]
-index = main
-sourcetype = auth
-
 [monitor:///var/log/yum.log]
 index = main
 sourcetype = package_manager
 
-[monitor:///var/log/httpd]
+[monitor:///var/log/httpd/access_log]
+index = main
+sourtype = apache
+
+[monitor:///var/log/httpd/error_log]
 index = main
 sourcetype = apache
-recursive = true
 
-[monitor:///var/log/mariadb]
+[monitor:///var/log/mariadb/mariadb.log]
 index = main
 sourcetype = mysql
-recursive = true
-
-[monitor:///var/log]
-index = main
-sourcetype = syslog
 
 [monitor:///var/log/messages]
 index = main
@@ -162,6 +156,14 @@ sourcetype = auth
 [monitor:///var/log/syslog]
 index = main
 sourcetype = syslog
+
+[monitor:///var/log/cron]
+index = main
+sourcetype = cron
+
+[monitor:///var/log/secure]
+index = main
+sourecetype = secure
 
 #Test log
 [monitor:///tmp/test.log]
@@ -174,11 +176,6 @@ sourcetype = test"
 #[default]
 #host = Fedora21_Webmail
 
-[monitor:///var/log/roundcube]
-index = main
-sourcetype = roundcube
-recursive = true
-
 [monitor:///var/log/maillog]
 index = main
 sourcetype = postfix
@@ -187,19 +184,25 @@ sourcetype = postfix
 index = main
 sourcetype = dovecot
 
-[monitor:///var/log/mariadb]
+[monitor:///var/log/mariadb/mariadb.log]
 index = main
 sourcetype = mysql
-recursive = true
 
-[monitor:///var/log/httpd]
+#IT IS RECOMMENDED THAT YOU DISABLE ROUNDCUBE AND HTTPD. AS OF 2025 QUALS, IT IS NOT SCORED
+[monitor:///var/log/roundcubemail/errors]
+index = main
+
+[monitor:///var/log/httpd/access_log]
 index = main
 sourcetype = apache
-recursive = true
 
-[monitor:///var/log]
+[monitor:///var/log/httpd/error_log]
 index = main
-sourcetype = syslog
+sourcetype = apache
+
+[monitor:///var/log/cron]
+index = main
+sourcetype = cron
 
 [monitor:///var/log/messages]
 index = main
@@ -209,6 +212,10 @@ sourcetype = syslog
 index = main
 sourcetype = auth
 
+[monitor:///var/log/secure]
+index = main
+sourecetype = secure
+
 [monitor:///var/log/syslog]
 index = main
 sourcetype = syslog
@@ -216,24 +223,25 @@ sourcetype = syslog
 #Test log
 [monitor:///tmp/test.log]
 index = main
-sourcetype = test
-"
-      ;;
+sourcetype = test"
+    ;;
       
     ubuntu)
       OS_MONITORS="
 #[default]
 #host = Ubuntu18_Web
 
-[monitor:///var/log/apache2/*]
+[monitor:///var/log/apache2/access.log]
 index = main
 sourcetype = apache
-recursive = true
 
-[monitor:///var/log/apt]
+[monitor:///var/log/apache2/error.log]
+index = main
+sourcetype = apache
+
+[monitor:///var/log/apt/history.log]
 index = main
 sourcetype = package_manager
-recursive = true
 
 [monitor:///var/log/messages]
 index = main
@@ -255,21 +263,15 @@ sourcetype = test"
       
     debian)
       OS_MONITORS="
-
 #[default]
 #host = Debian_Bind9
 
-[monitor:///var/log/dns/*]
+[monitor:///var/log/dns/queries]
 index = main
 sourcetype = bind9
 recursive = true
 
-[monitor:///var/log/named]
-index = main
-sourcetype = bind9
-recursive = true
-
-[monitor:///var/log/ntp.log]
+[monitor:///var/log/ntpstats/*]
 index = main
 sourcetype = ntp
 recursive = true

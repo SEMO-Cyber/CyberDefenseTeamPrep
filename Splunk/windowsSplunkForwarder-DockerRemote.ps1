@@ -4,7 +4,7 @@
 # this is 55% AI (Bash to Powershell conversion), 25% forums, and 20% me pushing buttons until it worked.
 #
 # IMPORTANT NOTE: Because of how my environment is set up, I needed to set custom server names in this config, else all my Windows servers would show the sane hostname in Splunk.
-#   For this script, the hostname is set to "Windows-Docker_Remote" by default. To change this, go to Line 64.
+#   For this script, the hostname is set to "Windows-Docker_Remote" by default. To change this, go to lines 33 and 65.
 #
 # Samuel Brucker 2024 - 2025
 
