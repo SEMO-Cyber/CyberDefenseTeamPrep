@@ -28,15 +28,15 @@ save_file_hashes() {
 
    # argument was not provided, used paths array
    else
-      for PATH in "${PATHS[@]}"; do
-         if [[ -d "$PATH" ]]; then
-            find "$PATH" -type f -print0 | while IFS= read -r -d '' FILE; do
+      for DIR in "${PATHS[@]}"; do
+         if [[ -d "$DIR" ]]; then
+            find "$DIR" -type f -print0 | while IFS= read -r -d '' FILE; do
                FILE_HASH=$(generate_hash "$FILE")
                echo "$FILE|$FILE_HASH" >> "$HASH_FILE"
             done
-         elif [[ -f "$PATH" ]]; then
-            FILE_HASH=$(generate_hash "$PATH")
-            echo "$PATH|$FILE_HASH" >> "$HASH_FILE"
+         elif [[ -f "$DIR" ]]; then
+            FILE_HASH=$(generate_hash "$DIR")
+            echo "$DIR|$FILE_HASH" >> "$HASH_FILE"
          fi
       done
    fi
@@ -51,17 +51,17 @@ compare_hashes() {
     TEMP_FILE="/tmp/current_hashes.txt"
     > "$TEMP_FILE"
     
-    for path in "${PATHS[@]}"; do
-        if [[ -d "$PATH" ]]; then
+    for DIR in "${PATHS[@]}"; do
+        if [[ -d "$PDIR" ]]; then
             # If it's a directory, find all files within it
-            find "$PATH" -type f -print0 | while IFS= read -r -d '' FILE; do
+            find "$DIR" -type f -print0 | while IFS= read -r -d '' FILE; do
                 FILE_HASH=$(generate_hash "$FILE")
                 echo "$FILE|$FILE_HASH" >> "$TEMP_FILE"
             done
-        elif [[ -f "$PATH" ]]; then
+        elif [[ -f "$DIR" ]]; then
             # If it's an individual file, just hash it
             FILE_HASH=$(generate_hash "$PATH")
-            echo "$PATH|$FILE_HASH" >> "$TEMP_FILE"
+            echo "$DIR|$FILE_HASH" >> "$TEMP_FILE"
         fi
     done
 
