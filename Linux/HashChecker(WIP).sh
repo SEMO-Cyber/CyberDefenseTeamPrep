@@ -109,7 +109,7 @@ elif [[ "$HASH_CHOICE" == "2" ]]; then
          echo "$((i+1))) ${PATHS[i]}"
       done
       read -p "Enter the number of the path you want to hash: " SELECTED_INDEX
-      if [[ $SELECTED_INDEX >= 1 && $selected_index <= ${#PATHS[@]} )); then
+      if [[ $SELECTED_INDEX >= 1 && $SELECTED_INDEX <= ${#PATHS[@]} ]]; then
          SELECTED_PATH="${PATHS[SELECTED_INDEX-1]}"
          echo "Hashing $SELECTED_PATH..."
          grep -v "^$SELECTED_PATH|" "$HASH_FILE" > /tmp/temp_hashes && mv /tmp/temp_hashes "$HASH_FILE"   # gets rid of old hash of the selected path
