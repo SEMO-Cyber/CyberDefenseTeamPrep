@@ -7,7 +7,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 generate_hash() {
-   /usr/bin/md5sum "$1" | /usr/bin/awk '{print $1}'
+   md5sum "$1" | awk '{print $1}'
 }
 
 save_file_hashes() {
@@ -52,7 +52,7 @@ compare_hashes() {
     > "$TEMP_FILE"
     
     for DIR in "${PATHS[@]}"; do
-        if [[ -d "$PDIR" ]]; then
+        if [[ -d "$DIR" ]]; then
             # If it's a directory, find all files within it
             find "$DIR" -type f -print0 | while IFS= read -r -d '' FILE; do
                 FILE_HASH=$(generate_hash "$FILE")
@@ -128,5 +128,5 @@ echo "Running file integrity scan in the background."
 # Loop to periodically check integrity
 while true; do
     compare_hashes
-    sleep 30  # Check every 30 seconds
+    sleep 45  # Check every 45 seconds
 done &
