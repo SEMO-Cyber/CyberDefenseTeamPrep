@@ -7,7 +7,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 generate_hash() {
-   md5sum "$1" | awk '{print $1}'
+   /usr/bin/md5sum "$1" | /usr/bin/awk '{print $1}'
 }
 
 save_file_hashes() {
