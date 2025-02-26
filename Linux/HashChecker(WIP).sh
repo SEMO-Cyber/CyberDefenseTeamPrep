@@ -60,7 +60,7 @@ compare_hashes() {
             done
         elif [[ -f "$DIR" ]]; then
             # If it's an individual file, just hash it
-            FILE_HASH=$(generate_hash "$PATH")
+            FILE_HASH=$(generate_hash "$DIR")
             echo "$DIR|$FILE_HASH" >> "$TEMP_FILE"
         fi
     done
