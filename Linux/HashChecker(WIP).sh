@@ -13,7 +13,7 @@ generate_hash() {
 save_file_hashes() {
    local TARGET_PATH="$1"
    # argument was provieded, used that instead
-   if [[ -n "$TARGET_PATH"]]; then
+   if [[ -n "$TARGET_PATH" ]]; then
       if [[ -d "$TARGET_PATH" ]]; then
          # If it's a directory, find all files within it
          find "$TARGET_PATH" -type f -print0 | while IFS= read -r -d '' FILE; do
