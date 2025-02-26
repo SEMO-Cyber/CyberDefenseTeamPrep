@@ -13,10 +13,10 @@ generate_hash() {
 save_file_hashes() {
    local TARGET_PATH="$1"
    # argument was provieded, used that instead
-   if [[-n "TARGET_PATH"]]; then
+   if [[ -n "$TARGET_PATH"]]; then
       if [[ -d "$TARGET_PATH" ]]; then
          # If it's a directory, find all files within it
-         find "$TARGET_PATH" -type f -print0 | while IFS= read -r -d '' file; do
+         find "$TARGET_PATH" -type f -print0 | while IFS= read -r -d '' FILE; do
             FILE_HASH=$(generate_hash "$FILE")
             echo "$FILE|$FILE_HASH" >> "$HASH_FILE"
          done
@@ -27,17 +27,19 @@ save_file_hashes() {
       fi
 
    # argument was not provided, used paths array
-   for PATH in "${PATHS[@]}"; do
-      if [[ -d "$PATH" ]]; then
-         find "$PATH" -type f -print0 | while IFS= read -r -d '' file; do
-            FILE_HASH=$(generate_hash "$FILE")
-            echo "$FILE|$FILE_HASH" >> "$HASH_FILE"
-         done
-      elif [[ -f "$PATH" ]]; then
-         FILE_HASH=$(generate_hash "$PATH")
-         echo "$PATH|$FILE_HASH" >> "$HASH_FILE"
-      fi
-   done
+   else
+      for PATH in "${PATHS[@]}"; do
+         if [[ -d "$PATH" ]]; then
+            find "$PATH" -type f -print0 | while IFS= read -r -d '' FILE; do
+               FILE_HASH=$(generate_hash "$FILE")
+               echo "$FILE|$FILE_HASH" >> "$HASH_FILE"
+            done
+         elif [[ -f "$PATH" ]]; then
+            FILE_HASH=$(generate_hash "$PATH")
+            echo "$PATH|$FILE_HASH" >> "$HASH_FILE"
+         fi
+      done
+   fi
 }
 
 compare_hashes() {
@@ -52,7 +54,7 @@ compare_hashes() {
     for path in "${PATHS[@]}"; do
         if [[ -d "$PATH" ]]; then
             # If it's a directory, find all files within it
-            find "$PATH" -type f -print0 | while IFS= read -r -d '' file; do
+            find "$PATH" -type f -print0 | while IFS= read -r -d '' FILE; do
                 FILE_HASH=$(generate_hash "$FILE")
                 echo "$FILE|$FILE_HASH" >> "$TEMP_FILE"
             done
