@@ -92,7 +92,7 @@ compare_hashes() {
 }
 
 # Remove old script process and create a new one
-stop_old_process()
+stop_old_process
 echo $$ > "$PID_FILE"
 echo "Starting new instance of the script (PID: $$)..."
 
