@@ -151,3 +151,5 @@ while true; do
     compare_hashes
     sleep 45  # Check every 45 seconds
 done &
+
+trap 'rm -f "$PID_FILE"' EXIT
