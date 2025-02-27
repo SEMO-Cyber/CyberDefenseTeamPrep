@@ -6,6 +6,22 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+SCRIPT_NAME=$(basename "$0")
+PID_FILE="/tmp/${SCRIPT_NAME}.pid" 
+
+stop_old_process() {
+    if [[ -f "$PID_FILE" ]]; then
+        OLD_PID=$(cat "$PID_FILE")
+        # Check if the process is actually running
+        if ps -p "$OLD_PID" > /dev/null 2>&1; then
+            echo "Stopping old instance of the script (PID: $OLD_PID)..."
+            kill -9 "$OLD_PID"
+            sleep 2  # Wait for the process to terminate
+        fi
+        rm -f "$PID_FILE"
+    fi
+}
+
 generate_hash() {
    md5sum "$1" | awk '{print $1}'
 }
@@ -74,6 +90,11 @@ compare_hashes() {
     fi
     rm "$TEMP_FILE"
 }
+
+# Remove old script process and create a new one
+stop_old_process()
+echo $$ > "$PID_FILE"
+echo "Starting new instance of the script (PID: $$)..."
 
 mkdir /etc/conf_srv $$ chmod 700
 PATH_FILE="/etc/conf_srv/scan_paths.txt"
