@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-#  A script that backs up interface configurations, sets them as immutable, and creates a service to check the integrity every minute.
+#  A script that automatically backs up interface configurations, sets them as immutable, 
+#  and creates a service to check the integrity every minute.
 #  If the integrity is invalid, it pulls from the backup.
 #
 #  Heavily AI generated with slight tweaks from me. No way I'm doing this one by hand.
@@ -247,9 +248,9 @@ restore_config() {
         systemctl restart network
     fi
     
+    # Restore NetworkManager configurations
     if jq -e '.nmcli' <<< "$config_data" > /dev/null; then
         local connections=$(jq -r '.nmcli' <<< "$config_data")
-        # Split the output into individual connections
         while IFS= read -r line; do
             if [[ $line =~ NAME=([^ ]+) ]]; then
                 local conn_name="${BASH_REMATCH[1]}"
@@ -305,24 +306,17 @@ fi
 # Set up lock file descriptor
 exec 200>$LOCK_FILE
 
-case "$1" in
-    install)
-        install_systemd_files
-        backup_config
-        ;;
-    backup)
-        backup_config
-        ;;
-    restore)
-        restore_config
-        ;;
-    check)
-        check_integrity
-        ;;
-    *)
-        log_message "ERROR" "Usage: $0 {install|backup|restore|check}"
-        exit 1
-        ;;
-esac
+# Perform all operations automatically
+log_message "INFO" "Starting automatic configuration management..."
+log_message "INFO" "Installing systemd files..."
+install_systemd_files
+
+log_message "INFO" "Creating initial backup..."
+backup_config
+
+log_message "INFO" "Checking configuration integrity..."
+check_integrity
+
+log_message "INFO" "All operations completed successfully. System is now monitoring configurations automatically."
 
 exit 0
