@@ -7,7 +7,8 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 SCRIPT_NAME=$(basename "$0")
-PID_FILE="/tmp/${SCRIPT_NAME}.pid" 
+PID_FILE="/tmp/${SCRIPT_NAME}.pid"
+YELLOW=$'\e[0;33m'
 
 stop_old_process() {
     if [[ -f "$PID_FILE" ]]; then
@@ -86,7 +87,7 @@ compare_hashes() {
         echo "File integrity check failed! The following files have been modified:" > /var/log/file-integrity-alert.log
         echo "$DIFF_OUTPUT" >> /var/log/file-integrity-alert.log
         MODIFIED_FILES=$(echo "$DIFF_OUTPUT" | grep "^>" | sed 's/^> //' | awk -F '|' '{print $1}' | paste -sd "   " -)
-        echo "File Integrity Alert: Modified files: $MODIFIED_FILES. Check /var/log/file-integrity-alert.log"
+        echo "${YELLOW}File Integrity Alert: Modified files: $MODIFIED_FILES. Check /var/log/file-integrity-alert.log"
     fi
     rm "$TEMP_FILE"
 }
@@ -151,5 +152,3 @@ while true; do
     compare_hashes
     sleep 45  # Check every 45 seconds
 done &
-
-trap 'rm -f "$PID_FILE"' EXIT
