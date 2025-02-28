@@ -78,7 +78,7 @@ compare_hashes() {
 
     DIFF_OUTPUT=$(diff "$HASH_FILE" "$TEMP_FILE")
     if [[ -n "$DIFF_OUTPUT" ]]; then
-        echo "File integrity check failed! The following files have been modified:" > /var/log/file-integrity-alert.log
+        echo "$(date '+%m-%d %H:%M:%S') - File integrity check failed! The following files have been modified:" >> /var/log/file-integrity-alert.log
         echo "$DIFF_OUTPUT" >> /var/log/file-integrity-alert.log
         MODIFIED_FILES=$(echo "$DIFF_OUTPUT" | grep "^>" | sed 's/^> //' | awk -F '|' '{print $1}' | paste -sd "   " -)
         echo "${YELLOW}File Integrity Alert: Modified files: $MODIFIED_FILES. Check /var/log/file-integrity-alert.log${NC}"
