@@ -247,13 +247,16 @@ restore_config() {
         systemctl restart network
     fi
     
-    # Restore NetworkManager configurations
     if jq -e '.nmcli' <<< "$config_data" > /dev/null; then
         local connections=$(jq -r '.nmcli' <<< "$config_data")
-        for conn in $(echo "$connections" | grep -oP '(?<=NAME=)[^ ]+'); do
-            nmcli connection reload "$conn"
-            log_message "INFO" "Reloaded NetworkManager connection: $conn"
-        done
+        # Split the output into individual connections
+        while IFS= read -r line; do
+            if [[ $line =~ NAME=([^ ]+) ]]; then
+                local conn_name="${BASH_REMATCH[1]}"
+                nmcli connection reload "$conn_name"
+                log_message "INFO" "Reloaded NetworkManager connection: $conn_name"
+            fi
+        done <<< "$connections"
     fi
     
     # Restore systemd-networkd configurations
