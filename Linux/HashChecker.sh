@@ -22,7 +22,7 @@ stop_old_process() {
         fi
         rm -f "$PID_FILE"
     fi
-}
+} 
 
 generate_hash() {
    md5sum "$1" | awk '{print $1}'
@@ -94,10 +94,9 @@ compare_hashes() {
 }
 
 # Remove old script process and create a new one
-trap 'if [[ $$ == $(cat "$PID_FILE") ]]; then kill $(jobs -p) 2>/dev/null; fi' EXIT
-stop_old_process
-echo $$ > "$PID_FILE"
-echo "Starting new instance of the script (PID: $$)..."
+#stop_old_process
+#cho $$ > "$PID_FILE"
+#echo "Starting new instance of the script (PID: $$)..."
 
 mkdir /etc/conf_srv $$ chmod 700
 PATH_FILE="/etc/conf_srv/scan_paths.txt"
