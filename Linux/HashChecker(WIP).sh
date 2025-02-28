@@ -9,6 +9,7 @@ fi
 SCRIPT_NAME=$(basename "$0")
 PID_FILE="/tmp/${SCRIPT_NAME}.pid"
 YELLOW=$'\e[0;33m'
+NC=$'\e[0m'
 
 stop_old_process() {
     if [[ -f "$PID_FILE" ]]; then
@@ -87,7 +88,7 @@ compare_hashes() {
         echo "File integrity check failed! The following files have been modified:" > /var/log/file-integrity-alert.log
         echo "$DIFF_OUTPUT" >> /var/log/file-integrity-alert.log
         MODIFIED_FILES=$(echo "$DIFF_OUTPUT" | grep "^>" | sed 's/^> //' | awk -F '|' '{print $1}' | paste -sd "   " -)
-        echo "${YELLOW}File Integrity Alert: Modified files: $MODIFIED_FILES. Check /var/log/file-integrity-alert.log"
+        echo "${YELLOW}File Integrity Alert: Modified files: $MODIFIED_FILES. Check /var/log/file-integrity-alert.log${NC}"
     fi
     rm "$TEMP_FILE"
 }
