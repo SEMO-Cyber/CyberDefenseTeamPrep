@@ -98,9 +98,6 @@ trap 'kill $(jobs -p) 2>/dev/null' EXIT
 stop_old_process
 echo $$ > "$PID_FILE"
 echo "Starting new instance of the script (PID: $$)..."
-stop_old_process
-echo $$ > "$PID_FILE"
-echo "Starting new instance of the script (PID: $$)..."
 
 mkdir /etc/conf_srv $$ chmod 700
 PATH_FILE="/etc/conf_srv/scan_paths.txt"
