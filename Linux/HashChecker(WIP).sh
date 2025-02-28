@@ -94,7 +94,7 @@ compare_hashes() {
 }
 
 # Remove old script process and create a new one
-trap 'kill $(jobs -p) 2>/dev/null' EXIT
+trap 'if [[ $$ == $(cat "$PID_FILE") ]]; then kill $(jobs -p) 2>/dev/null; fi' EXIT
 stop_old_process
 echo $$ > "$PID_FILE"
 echo "Starting new instance of the script (PID: $$)..."
