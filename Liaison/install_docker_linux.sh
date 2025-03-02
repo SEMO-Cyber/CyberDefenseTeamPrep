@@ -1,61 +1,85 @@
 #!/bin/bash
+set -e
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run this script as root (e.g., with sudo)"
-  exit 1
-fi
-
-# Determine the Linux distribution
+# Detect distribution
 if [ -f /etc/os-release ]; then
-  . /etc/os-release
+    . /etc/os-release
+    case $ID in
+        debian|ubuntu)
+            DISTRO="debian"
+            PKG_MANAGER="apt-get"
+            ;;
+        centos|rhel|fedora)
+            DISTRO="redhat"
+            if [ "$ID" = "fedora" ] || [ "${VERSION_ID:0:1}" = "8" ]; then
+                PKG_MANAGER="dnf"
+            else
+                PKG_MANAGER="yum"
+            fi
+            ;;
+        *)
+            echo "Unsupported distribution: $ID"
+            exit 1
+            ;;
+    esac
 else
-  echo "Cannot determine Linux distribution: /etc/os-release not found"
-  exit 1
+    echo "Cannot determine distribution"
+    exit 1
 fi
 
-# Check if Docker is already installed
-if command -v docker &> /dev/null; then
-  echo "Docker is already installed"
-else
-  case "$ID" in
-    ubuntu|debian)
-      echo "Installing Docker on Debian-based system ($ID)"
-      # Update package index and install prerequisites
-      apt update
-      apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
-      # Add Docker's GPG key
-      curl -fsSL https://download.docker.com/linux/$ID/gpg | apt-key add -
-      # Add Docker repository
-      add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$ID $(lsb_release -cs) stable"
-      # Update package index again and install Docker
-      apt update
-      apt install -y docker-ce docker-ce-cli containerd.io
-      ;;
-    centos|rhel)
-      echo "Installing Docker on RedHat-based system ($ID)"
-      # Install yum-utils for repository management
-      yum install -y yum-utils
-      # Add Docker repository (using CentOS repo, compatible with RHEL)
-      yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-      # Install Docker
-      yum install -y docker-ce docker-ce-cli containerd.io
-      ;;
-    *)
-      echo "Unsupported distribution: $ID"
-      exit 1
-      ;;
-  esac
+# Install Docker
+if [ "$DISTRO" = "debian" ]; then
+    sudo $PKG_MANAGER update
+    sudo $PKG_MANAGER install -y apt-transport-https ca-certificates curl gnupg lsb-release
+    curl -fsSL "https://download.docker.com/linux/$ID/gpg" | sudo apt-key add -
+    echo "deb [arch=amd64] https://download.docker.com/linux/$ID $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
+    sudo $PKG_MANAGER update
+    sudo $PKG_MANAGER install -y docker-ce docker-ce-cli containerd.io
+elif [ "$DISTRO" = "redhat" ]; then
+    if [ "$ID" = "fedora" ]; then
+        REPO_URL="https://download.docker.com/linux/fedora/docker-ce.repo"
+    else
+        REPO_URL="https://download.docker.com/linux/centos/docker-ce.repo"
+    fi
+    if [ "$PKG_MANAGER" = "yum" ]; then
+        sudo yum install -y yum-utils
+        sudo yum-config-manager --add-repo "$REPO_URL"
+        sudo yum install -y docker-ce docker-ce-cli containerd.io
+    elif [ "$PKG_MANAGER" = "dnf" ]; then
+        sudo dnf -y install dnf-plugins-core
+        sudo dnf config-manager --add-repo "$REPO_URL"
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io
+    fi
 fi
 
 # Start and enable Docker service
-systemctl start docker
-systemctl enable docker
+sudo systemctl start docker
+sudo systemctl enable docker
 
-# Add the original user (if run with sudo) to the Docker group
-if [ -n "$SUDO_USER" ]; then
-  usermod -aG docker "$SUDO_USER"
-  echo "Added $SUDO_USER to the docker group. Please log out and log back in for changes to take effect."
+# Install Docker Compose if not already installed
+if ! command -v docker-compose >/dev/null 2>&1; then
+    echo "Installing Docker Compose..."
+    COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$COMPOSE_VERSION" ]; then
+        echo "Failed to fetch latest Docker Compose version. Using default version 2.20.0"
+        COMPOSE_VERSION="2.20.0"
+    fi
+    sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    echo "Docker Compose installed successfully"
+else
+    echo "Docker Compose is already installed"
 fi
 
-echo "Docker installation completed."
+# Verify installations
+echo "Verifying installations..."
+if command -v docker >/dev/null 2>&1; then
+    echo "Docker is installed: $(docker --version)"
+else
+    echo "Docker is not installed or not in PATH"
+fi
+if command -v docker-compose >/dev/null 2>&1; then
+    echo "Docker Compose is installed: $(docker-compose --version)"
+else
+    echo "Docker Compose is not installed or not in PATH"
+fi
