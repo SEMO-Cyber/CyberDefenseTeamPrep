@@ -10,13 +10,14 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m'
 
 stop_old_process() {
+   sleep 1
    if [[ -s /etc/conf_srv/pid ]]; then
       PID=$(</etc/conf_srv/pid)
       echo "Killing PID: $PID..."
       kill -9 $PID
       sleep 1
    fi
-   ps aux | grep "HashChecker.sh" | grep -v "grep" | awk '{print $2}' > /etc/conf_srv/pid
+   ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid
 } 
 
 generate_hash() {
