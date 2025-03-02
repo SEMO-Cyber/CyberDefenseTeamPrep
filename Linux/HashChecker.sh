@@ -12,7 +12,9 @@ NC=$'\e[0m'
 stop_old_process() {
    if [[ -f /etc/conf_srv/pid ]]; then
       PID=$(ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}")
+      echo "Killing PID: $PID..."
       kill -9 $PID
+      sleep 1
    fi
    ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid
 } 
@@ -86,8 +88,8 @@ compare_hashes() {
     rm "$TEMP_FILE"
 }
 
-mkdir /etc/conf_srv && chmod 700
-touch /etc/conf_srv/pid && chmod 700
+mkdir /etc/conf_srv && chmod 700 /etc/conf_srv
+touch /etc/conf_srv/pid && chmod 700 /etc/conf_srv/pid
 PATH_FILE="/etc/conf_srv/scan_paths.txt"
 HASH_FILE="/etc/conf_srv/file-check.txt"
 
