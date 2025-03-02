@@ -143,7 +143,7 @@ backup_config() {
         
         # Backup traditional network configuration
         if [ -f "/etc/network/interfaces" ]; then
-            debian_config=$(jq ".interfaces = \"$input\"" <<< "$debian_config" <<< "$(cat /etc/network/interfaces)")
+            debian_config=$(jq ".interfaces = $(cat /etc/network/interfaces)" <<< "$debian_config")
         fi
         
         # Backup Netplan configurations (Ubuntu)
