@@ -7,18 +7,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 YELLOW=$'\e[0;33m'
-NC=$'\e[0m'
-
-stop_old_process() {
-   sleep 5
-   if [[ -s /etc/conf_srv/pid ]]; then
-      PID=$(</etc/conf_srv/pid)
-      echo "Killing PID: $PID..."
-      kill -9 $PID
-      sleep 1
-   fi
-   ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid
-} 
+NC=$'\e[0m' 
 
 generate_hash() {
    md5sum "$1" | awk '{print $1}'
@@ -94,8 +83,13 @@ touch /etc/conf_srv/pid && chmod 700 /etc/conf_srv/pid
 PATH_FILE="/etc/conf_srv/scan_paths.txt"
 HASH_FILE="/etc/conf_srv/file-check.txt"
 
-stop_old_process
-
+# if old proccess exists then kill it
+if [[ -s /etc/conf_srv/pid ]]; then
+      PID=$(</etc/conf_srv/pid)
+      echo "Killing PID: $PID..."
+      kill -9 $PID && >/etc/conf_srv/pid
+   fi
+   
 # Check if the file does not exists or is empty
 if [[ ! -s "$PATH_FILE" ]]; then
     read -p "Enter directories or files to monitor (separated by space): " -a PATHS
@@ -147,3 +141,4 @@ while true; do
     compare_hashes
     sleep 45  # Check every 45 seconds
 done &
+ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid # stores pid of background process to be killed later when script is re-ran
