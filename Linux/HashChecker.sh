@@ -70,9 +70,8 @@ compare_hashes() {
 
     DIFF_OUTPUT=$(diff "$HASH_FILE" "$TEMP_FILE")
     if [[ -n "$DIFF_OUTPUT" ]]; then
-        echo "$(date '+%m-%d %H:%M:%S') - File integrity check failed! The following files have been modified:" >> /var/log/file-integrity-alert.log
-        echo "$DIFF_OUTPUT" >> /var/log/file-integrity-alert.log
         MODIFIED_FILES=$(echo "$DIFF_OUTPUT" | grep "^>" | sed 's/^> //' | awk -F '|' '{print $1}' | paste -sd "   " -)
+        echo "$(date '+%m-%d %H:%M:%S') - File integrity check failed! The following files have been modified: $MODIFIED_FILES" >> /var/log/file-integrity-alert.log
         echo "${YELLOW}File Integrity Alert: Modified files: $MODIFIED_FILES. Check /var/log/file-integrity-alert.log${NC}"
     fi
     rm "$TEMP_FILE"
@@ -142,4 +141,3 @@ while true; do
     sleep 45  # Check every 45 seconds
 done &
 echo "$!" > /etc/conf_srv/pid # stores pid of background process
-#ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid # stores pid of background process to be killed later when script is re-ran
