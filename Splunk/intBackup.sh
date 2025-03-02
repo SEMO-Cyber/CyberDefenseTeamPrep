@@ -143,7 +143,7 @@ backup_config() {
         
         # Backup traditional network configuration
         if [ -f "/etc/network/interfaces" ]; then
-            debian_config=$(jq ".interfaces = $(cat /etc/network/interfaces)" <<< "$debian_config")
+            debian_config=$(jq --arg intf "$(cat /etc/network/interfaces)" '.interfaces = $intf' <<< "$debian_config")
         fi
         
         # Backup Netplan configurations (Ubuntu)
@@ -152,7 +152,7 @@ backup_config() {
             for file in /etc/netplan/*.yaml; do
                 if [ -f "$file" ]; then
                     local content=$(cat "$file")
-                    netplan_config=$(jq ". + {\"$(basename "$file")\": \"$content\"}" <<< "$netplan_config")
+                    netplan_config=$(jq --arg key "$(basename "$file")" --arg val "$content" '. + {($key): $val}' <<< "$netplan_config")
                 fi
             done
             debian_config=$(jq ".netplan = $netplan_config" <<< "$debian_config")
@@ -170,7 +170,7 @@ backup_config() {
             if [ -f "$file" ]; then
                 local iface=$(basename "$file" | cut -d- -f2-)
                 local content=$(cat "$file")
-                rh_config=$(jq ". + {\"$iface\": \"$content\"}" <<< "$rh_config")
+                rh_config=$(jq --arg key "$iface" --arg val "$content" '. + {($key): $val}' <<< "$rh_config")
             fi
         done
         
@@ -180,7 +180,7 @@ backup_config() {
     # Check for NetworkManager configurations
     if command -v nmcli &> /dev/null; then
         local nm_config=$(nmcli -g NAME,UUID,DEVICE,TYPE connection show)
-        config_data=$(jq ". + {nmcli: \"$nm_config\"}" <<< "$config_data")
+        config_data=$(jq --arg nm "$nm_config" '. + {nmcli: $nm}' <<< "$config_data")
     fi
     
     # Check for systemd-networkd configurations
@@ -189,7 +189,7 @@ backup_config() {
         for file in /etc/systemd/network/*.network; do
             if [ -f "$file" ]; then
                 local content=$(cat "$file")
-                systemd_config=$(jq ". + {\"$(basename "$file\")\": \"$content\"}" <<< "$systemd_config")
+                systemd_config=$(jq --arg key "$(basename "$file")" --arg val "$content" '. + {($key): $val}' <<< "$systemd_config")
             fi
         done
         config_data=$(jq ". + {systemd: $systemd_config}" <<< "$config_data")
