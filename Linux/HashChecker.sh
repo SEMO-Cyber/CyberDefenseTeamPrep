@@ -10,7 +10,7 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m'
 
 stop_old_process() {
-   sleep 1
+   sleep 5
    if [[ -s /etc/conf_srv/pid ]]; then
       PID=$(</etc/conf_srv/pid)
       echo "Killing PID: $PID..."
