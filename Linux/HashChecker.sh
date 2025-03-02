@@ -11,7 +11,7 @@ NC=$'\e[0m'
 
 stop_old_process() {
    if [[ -f /etc/conf_srv/pid ]]; then
-      PID = ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}"
+      PID=$(ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}")
       kill -9 $PID
    fi
    ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid
