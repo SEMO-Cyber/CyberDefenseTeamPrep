@@ -16,7 +16,7 @@ stop_old_process() {
       kill -9 $PID
       sleep 1
    fi
-   ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid
+   ps aux | grep "HashChecker.sh" | grep -v "grep" | awk '{print $2}' > /etc/conf_srv/pid
 } 
 
 generate_hash() {
