@@ -86,12 +86,12 @@ compare_hashes() {
     rm "$TEMP_FILE"
 }
 
-# Remove old script process and create a new one
-stop_old_process
-
-mkdir /etc/conf_srv $$ chmod 700
+mkdir /etc/conf_srv && chmod 700
+touch /etc/conf_srv/pid && chmod 700
 PATH_FILE="/etc/conf_srv/scan_paths.txt"
 HASH_FILE="/etc/conf_srv/file-check.txt"
+
+stop_old_process
 
 # Check if the file does not exists or is empty
 if [[ ! -s "$PATH_FILE" ]]; then
