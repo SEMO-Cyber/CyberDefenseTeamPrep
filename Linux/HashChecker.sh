@@ -141,4 +141,4 @@ while true; do
     compare_hashes
     sleep 45  # Check every 45 seconds
 done &
-ps aux | grep "HashChecker.sh" | grep -v "grep" | awk "{print $2}" > /etc/conf_srv/pid # stores pid of background process to be killed later when script is re-ran
+ps aux | grep "HashChecker.sh" | grep -v "grep" | awk '{print $2}' > /etc/conf_srv/pid # stores pid of background process to be killed later when script is re-ran
