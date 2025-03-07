@@ -11,7 +11,7 @@ log_event() {
 monitor_immutable() {
     while true; do
         for dir in $(awk '{print $3}' configuration.txt); do
-            if [[ $(lsattr -d "$dir" | awk '{print $1}') != "----i--------" ]]; then
+           if [[ $(lsattr -d "$dir") != @(i|ii|iS|iA|iSa|iAS)* ]];  then
                 log_event "Immutable flag removed from $dir. Restoring..."
                 chattr +i "$dir"
                 log_event "Restored immutable flag for $dir"
