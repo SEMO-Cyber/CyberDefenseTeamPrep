@@ -20,7 +20,7 @@ log_message() {
 }
 
 # Log script start
-log_message "Interface-Protection started"
+log_message "Script started"
 
 # Detect network management tool
 detect_network_manager() {
@@ -64,7 +64,7 @@ get_interfaces() {
     esac
 }
 
-# Function to backup configuration with selective fields for NetworkManager
+# Function to backup configuration with filtered nmcli output
 backup_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
@@ -73,10 +73,8 @@ backup_config() {
             log_message "Backup created for interface $interface (Netplan)"
             ;;
         networkmanager)
-            # Select stable connection fields
-            nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$interface" > "$BACKUP_DIR/$interface.profile.backup"
-            # Select stable device fields
-            nmcli -f GENERAL.NAME,GENERAL.TYPE,GENERAL.HWADDR device show "$interface" > "$BACKUP_DIR/$interface.state.backup"
+            # Backup connection profile, excluding dynamic fields
+            nmcli con show "$interface" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$BACKUP_DIR/$interface.profile.backup"
             log_message "Backup created for interface $interface (NetworkManager)"
             ;;
         systemd-networkd)
@@ -117,36 +115,23 @@ check_changes() {
             ;;
         networkmanager)
             local backup_profile="$BACKUP_DIR/$interface.profile.backup"
-            local backup_state="$BACKUP_DIR/$interface.state.backup"
             local temp_profile="/tmp/$interface.profile.current"
-            local temp_state="/tmp/$interface.state.current"
-            if [ ! -f "$backup_profile" ] || [ ! -f "$backup_state" ]; then
+            if [ ! -f "$backup_profile" ]; then
                 log_message "No backup found for $interface. Creating initial backup..."
                 backup_config "$interface"
                 return 0
             fi
-            # Match the fields used in backup
-            nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$interface" > "$temp_profile"
-            nmcli -f GENERAL.NAME,GENERAL.TYPE,GENERAL.HWADDR device show "$interface" > "$temp_state"
-            profile_changed=false
-            state_changed=false
+            # Create current profile with same filtering as backup
+            nmcli con show "$interface" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$temp_profile"
             if ! cmp -s "$temp_profile" "$backup_profile"; then
                 log_message "Changes detected in profile for interface $interface. The following lines show the differences:"
                 diff -u "$backup_profile" "$temp_profile" >> "$LOG_FILE" 2>&1
-                profile_changed=true
-            fi
-            if ! cmp -s "$temp_state" "$backup_state"; then
-                log_message "Changes detected in state for interface $interface. The following lines show the differences:"
-                diff -u "$backup_state" "$temp_state" >> "$LOG_FILE" 2>&1
-                state_changed=true
-            fi
-            rm -f "$temp_profile" "$temp_state"
-            if [ "$profile_changed" = true ] || [ "$state_changed" = true ]; then
+                rm -f "$temp_profile"
                 return 1
-            else
-                log_message "No changes detected in NetworkManager config for $interface"
-                return 0
             fi
+            rm -f "$temp_profile"
+            log_message "No changes detected in NetworkManager config for $interface"
+            return 0
             ;;
         systemd-networkd)
             for config_file in /etc/systemd/network/*.network; do
@@ -209,6 +194,7 @@ restore_config() {
             log_message "Configuration restored for interface $interface (Netplan)"
             ;;
         networkmanager)
+            # Restore by reloading the backup profile
             nmcli con load "$BACKUP_DIR/$interface.profile.backup"
             nmcli con down "$interface" 2>/dev/null || true
             nmcli con up "$interface"
@@ -261,4 +247,4 @@ for interface in $(get_interfaces); do
     fi
 done
 
-#log_message "Script finished"
+log_message "Script finished"
