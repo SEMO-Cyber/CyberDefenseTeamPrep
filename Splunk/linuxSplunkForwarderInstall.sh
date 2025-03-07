@@ -1,4 +1,4 @@
-a#!/bin/bash
+#!/bin/bash
 # Automates the installation of the Splunk Universal Forwarder. Currently set to v9.1.1, but that is easily changed.
 # Works with Debian, Ubuntu, CentOS, Fedora, and Oracle Linux. You need to run this as sudo.
 
