@@ -10,8 +10,12 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 # Backup directory and log file
-BACKUP_DIR="/etc/BacServices"
+BAC_SERVICES_DIR="/etc/BacServices"
+BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
 LOG_FILE="/var/log/interface-protection.log"
+
+# Create directories if they don’t exist
+mkdir -p "$BAC_SERVICES_DIR"
 mkdir -p "$BACKUP_DIR"
 
 # Function to log messages with timestamp
@@ -224,6 +228,17 @@ restore_config() {
     esac
 }
 
+# Function to setup cronjob
+setup_cronjob() {
+    # Path to the script
+    SCRIPT_PATH=$(realpath "$0")
+    # Cronjob command
+    CRON_COMMAND="* * * * * $SCRIPT_PATH monitor"
+    # Add cronjob to root’s crontab
+    (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
+    log_message "Cronjob setup to run $SCRIPT_PATH monitor every minute"
+}
+
 # Main logic
 if [ "$1" = "reset" ]; then
     NETWORK_MANAGER=$(detect_network_manager)
@@ -244,20 +259,24 @@ elif [ "$1" = "monitor" ]; then
         log_message "Unsupported network management tool detected"
         exit 1
     fi
-    (
-        flock -n 9 || { log_message "Another instance of the monitor is already running"; exit 1; }
-        log_message "Starting monitoring loop"
-        while true; do
-            for interface in $(get_interfaces); do
-                if ! check_changes "$interface"; then
-                    log_message "Restoring configuration for interface $interface"
-                    restore_config "$interface"
-                fi
-            done
-            sleep 20
+    for i in {1..3}; do
+        log_message "Starting monitoring cycle $i"
+        for interface in $(get_interfaces); do
+            if ! check_changes "$interface"; then
+                log_message "Restoring configuration for interface $interface"
+                restore_config "$interface"
+            fi
         done
-    ) 9>/var/lock/int-protection.lock
+        if [ "$i" -lt 3 ]; then
+            sleep 20
+        fi
+    done
+    log_message "Monitoring cycles completed"
+    exit 0
+elif [ "$1" = "--setup-cron" ]; then
+    setup_cronjob
+    exit 0
 else
-    echo "Usage: $0 {reset|monitor}"
+    echo "Usage: $0 {reset|monitor|--setup-cron}"
     exit 1
 fi
