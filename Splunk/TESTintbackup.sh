@@ -105,7 +105,7 @@ check_changes() {
                     return 0
                 fi
                 if ! cmp -s "$config_file" "$backup_copy"; then
-                    log_message "Changes detected in $config_file:"
+                    log_message "Changes detected in $config_file. The following lines show the differences:"
                     diff -u "$backup_copy" "$config_file" >> "$LOG_FILE" 2>&1
                     return 1
                 fi
@@ -128,12 +128,12 @@ check_changes() {
             profile_changed=false
             state_changed=false
             if ! cmp -s "$temp_profile" "$backup_profile"; then
-                log_message "Changes detected in profile for interface $interface:"
+                log_message "Changes detected in profile for interface $interface. The following lines show the differences:"
                 diff -u "$backup_profile" "$temp_profile" >> "$LOG_FILE" 2>&1
                 profile_changed=true
             fi
             if ! cmp -s "$temp_state" "$backup_state"; then
-                log_message "Changes detected in state for interface $interface:"
+                log_message "Changes detected in state for interface $interface. The following lines show the differences:"
                 diff -u "$backup_state" "$temp_state" >> "$LOG_FILE" 2>&1
                 state_changed=true
             fi
@@ -154,7 +154,7 @@ check_changes() {
                     return 0
                 fi
                 if ! cmp -s "$config_file" "$backup_copy"; then
-                    log_message "Changes detected in $config_file:"
+                    log_message "Changes detected in $config_file. The following lines show the differences:"
                     diff -u "$backup_copy" "$config_file" >> "$LOG_FILE" 2>&1
                     return 1
                 fi
@@ -170,7 +170,7 @@ check_changes() {
                 return 0
             fi
             if ! cmp -s /etc/network/interfaces "$backup_file"; then
-                log_message "Changes detected in /etc/network/interfaces:"
+                log_message "Changes detected in /etc/network/interfaces. The following lines show the differences:"
                 diff -u "$backup_file" /etc/network/interfaces >> "$LOG_FILE" 2>&1
                 return 1
             fi
@@ -186,7 +186,7 @@ check_changes() {
                 return 0
             fi
             if ! cmp -s "$config_file" "$backup_file"; then
-                log_message "Changes detected in $config_file:"
+                log_message "Changes detected in $config_file. The following lines show the differences:"
                 diff -u "$backup_file" "$config_file" >> "$LOG_FILE" 2>&1
                 return 1
             fi
