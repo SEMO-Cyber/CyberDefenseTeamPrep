@@ -64,7 +64,7 @@ get_interfaces() {
     esac
 }
 
-# Function to backup configuration
+# Function to backup configuration with selective fields for NetworkManager
 backup_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
@@ -73,8 +73,10 @@ backup_config() {
             log_message "Backup created for interface $interface (Netplan)"
             ;;
         networkmanager)
-            nmcli con show "$interface" > "$BACKUP_DIR/$interface.profile.backup"
-            nmcli device show "$interface" > "$BACKUP_DIR/$interface.state.backup"
+            # Select stable connection fields
+            nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$interface" > "$BACKUP_DIR/$interface.profile.backup"
+            # Select stable device fields
+            nmcli -f GENERAL.NAME,GENERAL.TYPE,GENERAL.HWADDR device show "$interface" > "$BACKUP_DIR/$interface.state.backup"
             log_message "Backup created for interface $interface (NetworkManager)"
             ;;
         systemd-networkd)
@@ -123,8 +125,9 @@ check_changes() {
                 backup_config "$interface"
                 return 0
             fi
-            nmcli con show "$interface" > "$temp_profile"
-            nmcli device show "$interface" > "$temp_state"
+            # Match the fields used in backup
+            nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$interface" > "$temp_profile"
+            nmcli -f GENERAL.NAME,GENERAL.TYPE,GENERAL.HWADDR device show "$interface" > "$temp_state"
             profile_changed=false
             state_changed=false
             if ! cmp -s "$temp_profile" "$backup_profile"; then
