@@ -20,7 +20,7 @@ log_message() {
 }
 
 # Log script start
-log_message "Script started"
+log_message "Interface-Protection started"
 
 # Detect network management tool
 detect_network_manager() {
@@ -261,4 +261,4 @@ for interface in $(get_interfaces); do
     fi
 done
 
-log_message "Script finished"
+#log_message "Script finished"
