@@ -19,9 +19,6 @@ log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
-# Log script start
-log_message "Script started"
-
 # Detect network management tool
 detect_network_manager() {
     if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
@@ -64,7 +61,7 @@ get_interfaces() {
     esac
 }
 
-# Function to backup configuration with filtered nmcli output
+# Function to backup configuration
 backup_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
@@ -73,7 +70,6 @@ backup_config() {
             log_message "Backup created for interface $interface (Netplan)"
             ;;
         networkmanager)
-            # Backup connection profile, excluding dynamic fields
             nmcli con show "$interface" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$BACKUP_DIR/$interface.profile.backup"
             log_message "Backup created for interface $interface (NetworkManager)"
             ;;
@@ -121,7 +117,6 @@ check_changes() {
                 backup_config "$interface"
                 return 0
             fi
-            # Create current profile with same filtering as backup
             nmcli con show "$interface" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$temp_profile"
             if ! cmp -s "$temp_profile" "$backup_profile"; then
                 log_message "Changes detected in profile for interface $interface. The following lines show the differences:"
@@ -194,7 +189,6 @@ restore_config() {
             log_message "Configuration restored for interface $interface (Netplan)"
             ;;
         networkmanager)
-            # Restore by reloading the backup profile
             nmcli con load "$BACKUP_DIR/$interface.profile.backup"
             nmcli con down "$interface" 2>/dev/null || true
             nmcli con up "$interface"
@@ -231,20 +225,39 @@ restore_config() {
 }
 
 # Main logic
-NETWORK_MANAGER=$(detect_network_manager)
-log_message "Detected Network Manager: $NETWORK_MANAGER"
-
-if [ "$NETWORK_MANAGER" = "unknown" ]; then
-    log_message "Unsupported network management tool detected"
+if [ "$1" = "reset" ]; then
+    NETWORK_MANAGER=$(detect_network_manager)
+    if [ "$NETWORK_MANAGER" = "unknown" ]; then
+        log_message "Unsupported network management tool detected"
+        exit 1
+    fi
+    log_message "Resetting backups"
+    rm -rf "$BACKUP_DIR"/*
+    for interface in $(get_interfaces); do
+        backup_config "$interface"
+    done
+    log_message "Backup reset completed"
+    exit 0
+elif [ "$1" = "monitor" ]; then
+    NETWORK_MANAGER=$(detect_network_manager)
+    if [ "$NETWORK_MANAGER" = "unknown" ]; then
+        log_message "Unsupported network management tool detected"
+        exit 1
+    fi
+    (
+        flock -n 9 || { log_message "Another instance of the monitor is already running"; exit 1; }
+        log_message "Starting monitoring loop"
+        while true; do
+            for interface in $(get_interfaces); do
+                if ! check_changes "$interface"; then
+                    log_message "Restoring configuration for interface $interface"
+                    restore_config "$interface"
+                fi
+            done
+            sleep 20
+        done
+    ) 9>/var/lock/int-protection.lock
+else
+    echo "Usage: $0 {reset|monitor}"
     exit 1
 fi
-
-for interface in $(get_interfaces); do
-    log_message "Checking interface: $interface"
-    if ! check_changes "$interface"; then
-        log_message "Restoring configuration for interface $interface"
-        restore_config "$interface"
-    fi
-done
-
-log_message "Script finished"
