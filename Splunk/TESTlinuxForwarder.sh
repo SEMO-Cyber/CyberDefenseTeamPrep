@@ -175,7 +175,7 @@ sourcetype = file_integrity
 index = main
 sourcetype = file_integrity
 
-[monitor///var/log/custom_manager.log]
+[monitor:///var/log/custom_manager.log]
 index = main
 sourcetype = custom
 
@@ -234,6 +234,7 @@ sourecetype = secure
 index = main
 sourcetype = syslog
 
+#These are logs for custom programs. 
 [monitor:///var/log/file-integrity-alert.log]
 index = main
 sourcetype = file_integrity
@@ -242,7 +243,7 @@ sourcetype = file_integrity
 index = main
 sourcetype = file_integrity
 
-[monitor///var/log/custom_manager.log]
+[monitor:///var/log/custom_manager.log]
 index = main
 sourcetype = custom
 
@@ -281,6 +282,7 @@ sourcetype = auth
 index = main
 sourcetype = syslog
 
+#These are logs for custom programs. 
 [monitor:///var/log/file-integrity-alert.log]
 index = main
 sourcetype = file_integrity
@@ -289,7 +291,7 @@ sourcetype = file_integrity
 index = main
 sourcetype = file_integrity
 
-[monitor///var/log/custom_manager.log]
+[monitor:///var/log/custom_manager.log]
 index = main
 sourcetype = custom
 
@@ -330,9 +332,18 @@ sourcetype = auth
 index = main
 sourcetype = syslog
 
+#These are logs for custom programs. 
 [monitor:///var/log/file-integrity-alert.log]
 index = main
 sourcetype = file_integrity
+
+[monitor:///var/log/integrity_monitor.log]
+index = main
+sourcetype = file_integrity
+
+[monitor:///var/log/custom_manager.log]
+index = main
+sourcetype = custom
 
 #Test log
 [monitor:///tmp/test.log]
