@@ -165,9 +165,19 @@ sourcetype = cron
 index = main
 sourecetype = secure
 
+
+#These are logs for custom programs. 
 [monitor:///var/log/file-integrity-alert.log]
 index = main
 sourcetype = file_integrity
+
+[monitor:///var/log/integrity_monitor.log]
+index = main
+sourcetype = file_integrity
+
+[monitor///var/log/custom_manager.log]
+index = main
+sourcetype = custom
 
 #Test log
 [monitor:///tmp/test.log]
@@ -228,6 +238,14 @@ sourcetype = syslog
 index = main
 sourcetype = file_integrity
 
+[monitor:///var/log/integrity_monitor.log]
+index = main
+sourcetype = file_integrity
+
+[monitor///var/log/custom_manager.log]
+index = main
+sourcetype = custom
+
 #Test log
 [monitor:///tmp/test.log]
 index = main
@@ -266,6 +284,14 @@ sourcetype = syslog
 [monitor:///var/log/file-integrity-alert.log]
 index = main
 sourcetype = file_integrity
+
+[monitor:///var/log/integrity_monitor.log]
+index = main
+sourcetype = file_integrity
+
+[monitor///var/log/custom_manager.log]
+index = main
+sourcetype = custom
 
 #Test log
 [monitor:///tmp/test.log]
