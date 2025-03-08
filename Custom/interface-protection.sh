@@ -236,8 +236,7 @@ restore_config() {
     fi
     case "$manager" in
         networkmanager)
-            # Reload NetworkManager to recognize restored files
-            nmcli connection reload || echo "Failed to reload NetworkManager"
+        
 
             # Restore device state from backup
             if [ -f "$MANAGER_BACKUP_DIR/device_states.backup" ]; then
@@ -264,6 +263,20 @@ restore_config() {
             else
                 echo "No device state backup found"
             fi
+
+            # Reload NetworkManager to recognize restored files
+            nmcli connection reload || echo "Failed to reload NetworkManager"
+            
+            # Restart NetworkManager to ensure changes are applied
+            systemctl restart NetworkManager || {
+                log_message "Failed to restart NetworkManager"
+                echo "Failed to restart NetworkManager"
+                exit 1
+            }
+            # Wait briefly for NetworkManager to stabilize
+            sleep 5
+
+            log_message "NetworkManager restarted to apply restored configuration"
             ;;
         netplan)
             netplan apply || log_message "Failed to apply Netplan"
