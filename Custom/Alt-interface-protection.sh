@@ -25,6 +25,34 @@ log_message() {
     echo "$1"
 }
 
+# Check if inotifywait is installed, install if necessary
+if ! command -v inotifywait > /dev/null; then
+    log_message "inotifywait not found, attempting to install inotify-tools..."
+    if command -v apt-get > /dev/null; then
+        apt-get update
+        apt-get install -y inotify-tools
+    elif command -v dnf > /dev/null; then
+        dnf install -y inotify-tools
+    elif command -v yum > /dev/null; then
+        yum install -y inotify-tools
+    elif command -v pacman > /dev/null; then
+        pacman -S --noconfirm inotify-tools
+    elif command -v zypper > /dev/null; then
+        zypper install -y inotify-tools
+    elif command -v apk > /dev/null; then  # Added for Alpine Linux
+        apk add --no-cache inotify-tools
+    else
+        log_message "No supported package manager found. Please install inotify-tools manually."
+        exit 1
+    fi
+    # Check if installation was successful
+    if ! command -v inotifywait > /dev/null; then
+        log_message "Failed to install inotify-tools. Please install it manually."
+        exit 1
+    fi
+    log_message "inotify-tools installed successfully."
+fi
+
 # Function to detect the active network manager
 detect_manager() {
     if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
@@ -168,6 +196,7 @@ monitor_config() {
         inotifywait -m -r -e modify,create,delete "$CONFIG_PATH" | while read -r line; do
             log_message "Change detected: $line"
             # Debounce: wait for DEBOUNCE_TIME seconds without further events
+            last_event_time=$(date +%s)
             while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
                 inotifywait -q -t 1 "$CONFIG_PATH" || break
             done
