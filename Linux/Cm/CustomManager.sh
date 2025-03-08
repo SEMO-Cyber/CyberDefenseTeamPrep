@@ -12,6 +12,8 @@ start_scripts() {
     nohup ./ServiceManager.sh &
 }
 
+stop_scripts
+start_scripts
 # Menu loop
 while true; do
     clear
