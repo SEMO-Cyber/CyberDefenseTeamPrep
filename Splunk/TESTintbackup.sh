@@ -28,7 +28,7 @@ if [ -z "$DBUS_SYSTEM_BUS_ADDRESS" ]; then
     export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
 fi
 
-# Detect network management tool
+# **Detect network management tool**
 detect_network_manager() {
     if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
         echo "netplan"
@@ -45,7 +45,7 @@ detect_network_manager() {
     fi
 }
 
-# Function to get list of interfaces
+# **Get list of interfaces**
 get_interfaces() {
     case "$NETWORK_MANAGER" in
         netplan)
@@ -70,7 +70,7 @@ get_interfaces() {
     esac
 }
 
-# Function to backup configuration
+# **Backup configuration**
 backup_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
@@ -97,7 +97,7 @@ backup_config() {
     esac
 }
 
-# Function to check for changes and log them
+# **Check for changes and log them**
 check_changes() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
@@ -118,28 +118,34 @@ check_changes() {
             return 0
             ;;
         networkmanager)
+            local changes_detected=0
             for backup_file in "$BACKUP_DIR"/*.nmconnection; do
+                [ -f "$backup_file" ] || continue
                 local connection_name=$(basename "$backup_file" .nmconnection)
                 local current_file="/etc/NetworkManager/system-connections/$connection_name.nmconnection"
                 if [ ! -f "$current_file" ]; then
                     log_message "Connection file $current_file not found"
-                    return 1
-                fi
-                if ! cmp -s "$current_file" "$backup_file"; then
+                    changes_detected=1
+                elif ! cmp -s "$current_file" "$backup_file"; then
                     log_message "Changes detected in connection $connection_name. Differences:"
                     diff -u "$backup_file" "$current_file" >> "$LOG_FILE" 2>&1
-                    return 1
+                    changes_detected=1
                 fi
             done
             for current_file in /etc/NetworkManager/system-connections/*.nmconnection; do
+                [ -f "$current_file" ] || continue
                 local connection_name=$(basename "$current_file" .nmconnection)
                 if [ ! -f "$BACKUP_DIR/$connection_name.nmconnection" ]; then
                     log_message "New connection detected: $connection_name"
-                    return 1
+                    changes_detected=1
                 fi
             done
-            log_message "No changes detected in NetworkManager connections"
-            return 0
+            if [ $changes_detected -eq 0 ]; then
+                log_message "No changes detected in NetworkManager connections"
+                return 0
+            else
+                return 1
+            fi
             ;;
         systemd-networkd)
             for config_file in /etc/systemd/network/*.network; do
@@ -189,7 +195,7 @@ check_changes() {
     esac
 }
 
-# Function to restore configuration
+# **Restore configuration**
 restore_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
@@ -199,9 +205,13 @@ restore_config() {
             log_message "Configuration restored for Netplan"
             ;;
         networkmanager)
-            rm -f /etc/NetworkManager/system-connections/*.nmconnection 2>> "$LOG_FILE"
+            # Remove all existing .nmconnection files to ensure a clean state
+            rm -f /etc/NetworkManager/system-connections/*.nmconnection 2>> "$LOG_FILE" || log_message "Failed to clear existing NetworkManager connections"
+            # Copy backup .nmconnection files to the system directory
             cp "$BACKUP_DIR"/*.nmconnection /etc/NetworkManager/system-connections/ 2>> "$LOG_FILE" || log_message "Failed to restore NetworkManager connection files"
-            nmcli con reload 2>> "$LOG_FILE" || log_message "Failed to reload NetworkManager connections"
+            # Reload NetworkManager to recognize the new configuration files
+            nmcli connection reload 2>> "$LOG_FILE" || log_message "Failed to reload NetworkManager connections"
+            # Bring up all connections to ensure they are active
             for connection in $(nmcli -t -f NAME con show); do
                 nmcli con up "$connection" 2>> "$LOG_FILE" || log_message "Failed to bring up $connection"
             done
@@ -237,7 +247,7 @@ restore_config() {
     esac
 }
 
-# Function to ensure backups exist
+# **Ensure backups exist**
 ensure_backups() {
     local interfaces=($(get_interfaces))
     case "$NETWORK_MANAGER" in
@@ -276,7 +286,7 @@ ensure_backups() {
     esac
 }
 
-# Function to backup all interfaces
+# **Backup all interfaces**
 backup_all() {
     case "$NETWORK_MANAGER" in
         netplan|networkmanager|systemd-networkd|interfaces)
@@ -291,17 +301,17 @@ backup_all() {
     esac
 }
 
-# Function to display usage
+# **Display usage**
 display_usage() {
     echo "Usage: $0 [backup|check|conf-check|reset|--setup-cron]"
-    echo "  backup: Create backups for all interfaces"
+    echo "  backup: Delete existing backups and create new ones"
     echo "  check: Manually check for changes in configurations"
     echo "  conf-check: Perform a single check-and-restore cycle"
-    echo "  reset: Delete existing backups and create new ones"
+    echo "  reset: Delete existing backups"
     echo "  --setup-cron: Setup cronjob to run conf-check every minute"
 }
 
-# Main logic
+# **Main logic**
 NETWORK_MANAGER=$(detect_network_manager)
 if [ "$NETWORK_MANAGER" = "unknown" ]; then
     log_message "Unsupported network management tool detected"
@@ -318,12 +328,14 @@ ACTION="$1"
 
 case "$ACTION" in
     reset)
-        log_message "Resetting backups"
+        log_message "Deleting existing backups"
         rm -rf "$BACKUP_DIR"/*
-        backup_all
-        log_message "Backup reset completed"
+        log_message "Backups deleted"
         ;;
     backup)
+        log_message "Deleting existing backups"
+        rm -rf "$BACKUP_DIR"/*
+        log_message "Creating new backups"
         backup_all
         log_message "Backups created"
         ;;
@@ -383,7 +395,7 @@ case "$ACTION" in
         log_message "Cronjob created to run $PRO_INT_DIR/$SCRIPT_NAME conf-check every minute"
         ;;
     *)
-        echo "Options: $ACTION"
+        echo "Invalid argument: $ACTION"
         display_usage
         exit 1
         ;;
