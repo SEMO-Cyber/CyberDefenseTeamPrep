@@ -120,7 +120,7 @@ backup_config() {
         }
     fi
     if [ "$manager" = "networkmanager" ]; then
-        nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS device show > "$MANAGER_BACKUP_DIR/device_states.backup" || {
+        nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS,GENERAL.STATE device show > "$MANAGER_BACKUP_DIR/device_states.backup" || {
             log_message "Failed to backup device states for NetworkManager"
             exit 1
         }
@@ -173,7 +173,7 @@ check_device_changes() {
         log_message "No device state backup found for NetworkManager"
         return 1
     fi
-    nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS device show > /tmp/current_device_states
+    nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS,GENERAL.STATE device show > /tmp/current_device_states
     diff /tmp/current_device_states "$MANAGER_BACKUP_DIR/device_states.backup" > /tmp/device_diff_output 2>&1
     diff_status=$?
     if [ $diff_status -eq 0 ]; then
@@ -218,9 +218,27 @@ restore_config() {
     case "$manager" in
         networkmanager)
             nmcli connection reload || log_message "Failed to reload NetworkManager"
-            for conn in $(nmcli -t -f NAME con show); do
-                nmcli con up "$conn" || log_message "Failed to bring up $conn"
-            done
+            # If network-scripts is also active, skip NetworkManager-specific restoration
+            if is_manager_active "network-scripts"; then
+                log_message "Network-scripts detected, skipping NetworkManager device state restoration"
+            else
+                # Restore device states from backup if available
+                if [ -f "$MANAGER_BACKUP_DIR/device_states.backup" ]; then
+                    while IFS=':' read -r key value; do
+                        if [[ "$key" =~ ^GENERAL\.DEVICE ]]; then
+                            device="$value"
+                        elif [[ "$key" =~ ^IP4\.ADDRESS\[1\] ]]; then
+                            ip_addr="$value"
+                            nmcli con mod "$device" ipv4.addresses "$ip_addr" ipv4.method manual || log_message "Failed to restore IP for $device"
+                        fi
+                    done < "$MANAGER_BACKUP_DIR/device_states.backup"
+                    nmcli con up "$device" || log_message "Failed to bring up $device"
+                else
+                    for conn in $(nmcli -t -f NAME con show); do
+                        nmcli con up "$conn" || log_message "Failed to bring up $conn"
+                    done
+                fi
+            fi
             ;;
         netplan)
             netplan apply || log_message "Failed to apply Netplan"
