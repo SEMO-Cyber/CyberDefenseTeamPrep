@@ -149,36 +149,62 @@ def key_search(config):
     else:
         logging.info("No malicious keywords found.")
 
-# Main function
-def main():
+# Menu to interact with the user for Backup, Config editing, etc.
+def menu():
     config = load_config()
 
-    # Start IntegrityCheck, ServiceManager and KeySearch in background
-    import threading
-
-    integrity_thread = threading.Thread(target=integrity_check, args=(config,))
-    service_thread = threading.Thread(target=service_manager, args=(config,))
-    keysearch_thread = threading.Thread(target=key_search, args=(config,))
-
-    integrity_thread.daemon = True
-    service_thread.daemon = True
-    keysearch_thread.daemon = True
-
-    integrity_thread.start()
-    service_thread.start()
-    keysearch_thread.start()
-
-    # Optionally handle backup creation and restoration
-    create_backup(config)
-    # For restore, provide the backup filename and restore path
-    # restore_backup('/path/to/backup.tar.gz', '/restore/path')
-
-    # Example of editing config
-    # edit_config(config, 'serviceup_config', ['nginx', 'apache2'])
-
-    # Allow threads to run
     while True:
-        time.sleep(1)
+        print("\n---- Main Menu ----")
+        print("1. Run Integrity Check")
+        print("2. Run Service Manager")
+        print("3. Create Backup")
+        print("4. Restore Backup")
+        print("5. Edit Configurations")
+        print("6. Search for Malicious Keywords")
+        print("7. Exit")
+
+        choice = input("Enter your choice: ")
+
+        if choice == "1":
+            print("Running Integrity Check in background...")
+            threading.Thread(target=integrity_check, args=(config,), daemon=True).start()
+        
+        elif choice == "2":
+            print("Running Service Manager in background...")
+            threading.Thread(target=service_manager, args=(config,), daemon=True).start()
+        
+        elif choice == "3":
+            print("Creating Backup...")
+            create_backup(config)
+        
+        elif choice == "4":
+            backup_file = input("Enter the backup file path to restore: ")
+            restore_path = input("Enter the path to restore the backup to: ")
+            restore_backup(backup_file, restore_path)
+        
+        elif choice == "5":
+            section = input("Enter the config section to modify (e.g., 'serviceup_config', 'fs_config'): ")
+            new_data = input("Enter the new data (in JSON format): ")
+            try:
+                new_data = json.loads(new_data)
+                edit_config(config, section, new_data)
+            except json.JSONDecodeError:
+                print("Invalid JSON format.")
+        
+        elif choice == "6":
+            print("Searching for malicious keywords...")
+            key_search(config)
+        
+        elif choice == "7":
+            print("Exiting...")
+            break
+        
+        else:
+            print("Invalid choice! Please try again.")
+
+# Main function
+def main():
+    menu()
 
 if __name__ == "__main__":
     main()
