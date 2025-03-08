@@ -29,8 +29,8 @@ if [ -z "$DBUS_SYSTEM_BUS_ADDRESS" ]; then
     export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
 fi
 
-# List of possible network managers
-managers=("netplan" "networkmanager" "systemd-networkd" "interfaces" "network-scripts")
+# List of possible network managers, with network-scripts before networkmanager
+managers=("netplan" "network-scripts" "networkmanager" "systemd-networkd" "interfaces")
 
 # Function to get the service name for a manager
 get_service_name() {
@@ -53,33 +53,6 @@ get_service_name() {
     esac
 }
 
-# Function to check if a service exists and is active
-check_and_start_service() {
-    local service="$1"
-    # Check if the service exists
-    if systemctl cat "$service" >/dev/null 2>&1; then
-        echo "Service $service exists."
-    else
-        echo "Service $service does not exist."
-        return 1
-    fi
-
-    # Check if it’s active
-    if systemctl is-active --quiet "$service"; then
-        echo "Service $service is already active."
-    else
-        echo "Service $service is not active. Starting it..."
-        systemctl start "$service"
-        # Wait briefly and verify
-        sleep 1
-        if systemctl is-active --quiet "$service"; then
-            echo "Service $service started successfully."
-        else
-            echo "Service $service failed to start."
-            return 1
-        fi
-    fi
-}
 # Function to check if a manager is active
 is_manager_active() {
     case "$1" in
@@ -251,7 +224,44 @@ check_device_changes() {
     fi
 }
 
-# Restore Configuration
+# Function to check and start service with delay
+check_and_start_service() {
+    local service="$1"
+    if [ -z "$service" ]; then
+        log_message "No service name provided. Skipping."
+        return 1
+    fi
+
+    # Check if the service unit exists
+    if systemctl cat "$service" >/dev/null 2>&1; then
+        log_message "Service unit $service exists."
+    else
+        log_message "Service unit $service does not exist on the system."
+        return 1
+    fi
+
+    # Get current service status
+    local is_active=$(systemctl is-active "$service" 2>/dev/null)
+    log_message "Service $service status before check: $is_active"
+
+    if [ "$is_active" = "active" ]; then
+        log_message "Service $service is already active. No action needed."
+        return 0
+    else
+        log_message "Service $service is not active (state: $is_active). Attempting to start it."
+        systemctl start "$service" 2>>"$LOG_FILE"
+        sleep 5  # Give the service 5 seconds to start
+        is_active=$(systemctl is-active "$service" 2>/dev/null)
+        log_message "Service $service status after start attempt: $is_active"
+        if [ "$is_active" = "active" ]; then
+            log_message "Service $service started successfully."
+        else
+            log_message "Service $service did not start successfully."
+        fi
+    fi
+}
+
+# Restore Configuration with delay
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -287,7 +297,7 @@ restore_config() {
                 echo "Failed to restart NetworkManager"
                 exit 1
             }
-            sleep 5
+            sleep 5  # Delay after restart
             for device in $(nmcli -t -f DEVICE device show | grep -v lo); do
                 nmcli device reapply "$device" || {
                     log_message "Warning: Failed to reapply configuration for $device"
@@ -300,15 +310,19 @@ restore_config() {
             ;;
         netplan)
             netplan apply || log_message "Failed to apply Netplan"
+            sleep 5  # Delay after apply
             ;;
         systemd-networkd)
             systemctl restart systemd-networkd || log_message "Failed to restart systemd-networkd"
+            sleep 5  # Delay after restart
             ;;
         interfaces)
             if command -v systemctl >/dev/null 2>&1; then
                 systemctl restart networking || log_message "Failed to restart networking"
+                sleep 5  # Delay after restart
             elif command -v rc-service >/dev/null 2>&1; then
                 rc-service networking restart || log_message "Failed to restart networking"
+                sleep 5  # Delay after restart
             else
                 log_message "Cannot restart networking service"
             fi
@@ -316,8 +330,10 @@ restore_config() {
         network-scripts)
             if command -v systemctl >/dev/null 2>&1; then
                 systemctl restart network || log_message "Failed to restart network"
+                sleep 5  # Delay after restart
             elif command -v service >/dev/null 2>&1; then
                 service network restart || log_message "Failed to restart network"
+                sleep 5  # Delay after restart
             else
                 log_message "Cannot restart network service"
             fi
@@ -379,16 +395,7 @@ elif [ "$ACTION" = "conf-check" ]; then
     for manager in "${managers[@]}"; do
         service_name=$(get_service_name "$manager")
         if [ -n "$service_name" ]; then
-            if ! systemctl list-units --type=service | grep -q "$service_name\.service"; then
-                log_message "Service unit $service_name.service does not exist. Skipping."
-            elif ! systemctl is-active --quiet "$service_name"; then
-                log_message "Service $service_name is not active. Attempting to start it."
-                if ! systemctl start "$service_name" 2>>"$LOG_FILE"; then
-                    log_message "Failed to start $service_name: $(tail -n 1 "$LOG_FILE")"
-                else
-                    sleep 2  # Allow service to stabilize
-                fi
-            fi
+            check_and_start_service "$service_name"
         fi
         if is_manager_active "$manager"; then
             config_changed=false
