@@ -277,6 +277,9 @@ restore_config() {
             sleep 5
 
             log_message "NetworkManager restarted to apply restored configuration"
+            # Log current device states for verification
+            log_message "Device states after restoration:"
+            nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS,GENERAL.STATE device show >> "$LOG_FILE"
             ;;
         netplan)
             netplan apply || log_message "Failed to apply Netplan"
