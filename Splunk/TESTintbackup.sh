@@ -100,7 +100,6 @@ revert_changes() {
     echo "$(date) - Reverted $manager configuration to backup" >> "$LOG_FILE"
 }
 
-# Main function
 main() {
     local manager=$(detect_interface_manager)
     create_backup "$manager"
@@ -110,8 +109,15 @@ main() {
             echo "$(date) - Attempting to revert unauthorized changes..." >> "$LOG_FILE"
             revert_changes "$manager"
             
-            # Log specific changes
-            diff -ru "$latest_backup" /etc/NetworkManager/system-connections >> "$LOG_FILE" 2>&1
+            # Get the latest backup directory
+            local latest_backup=$(find "$BACKUP_DIR" -name "*_${manager,,}_backup" -type d | sort | tail -n1)
+            
+            # Only attempt diff if we have a valid backup
+            if [ -n "$latest_backup" ]; then
+                diff -ru "$latest_backup" /etc/NetworkManager/system-connections >> "$LOG_FILE" 2>&1
+            else
+                echo "$(date) - No valid backup found for diff operation" >> "$LOG_FILE"
+            fi
             
             echo "$(date) - Changes reverted successfully" >> "$LOG_FILE"
         fi
