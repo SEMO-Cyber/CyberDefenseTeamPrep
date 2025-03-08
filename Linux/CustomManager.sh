@@ -113,6 +113,35 @@ check_integrity_thread() {
     fi
 }
 
+# Function to look for added or removed files in a directory
+monitor_directory() {
+    mkdir /etc/linuxkt && chmod 700 /etc/linuxkt
+    touch /etc/linuxkt/dirs && chmod 700 /etc/linuxkt/dirs
+    touch /etc/linuxkt/oput0 && chmod 700 /etc/linuxkt/oput0
+    touch /etc/linuxkt/oput1 && chmod 700 /etc/linuxkt/oput1
+
+    if [[ ! -s "/etc/linuxkt/dirs" ]]; then
+        read -p "Enter in the directories you would like to monitor seperated by a space: " -a DIRS
+        echo "${DIRS[@]}" > /etc/linuxkt/dirs
+    fi
+    for DIR in "${DIRS[@]}"; do
+        if [[ ! -d "$DIR" ]]; then
+            echo "not a directory"
+            break
+        fi
+        find $DIR -type f -print >> oput0
+    done
+    echo "Monitoring directories in the background."
+    while true; do
+        check_directory
+        sleep 45  # Check every 45 seconds
+    done &
+}
+
+check_directory() {
+    
+}
+
 # Main menu
 while true; do
     echo "CustomManager - Blue Team Cyber Defense"
@@ -123,7 +152,8 @@ while true; do
     echo "5. Backup Manager"
     echo "6. View Configuration"
     echo "7. Check Integrity Thread Status"
-    echo "8. Quit"
+    echo "8. Monitor Directories"
+    echo "9. Quit"
     read -p "Select an option: " choice
 
     case $choice in
@@ -134,7 +164,8 @@ while true; do
         5) backup_manager ;;
         6) cat "$CONFIG_FILE" ;;
         7) check_integrity_thread ;;
-        8) exit 0 ;;
+        8) monitor_directory ;;
+        9) exit 0 ;;
         *) echo "Invalid option!" ;;
     esac
 done
