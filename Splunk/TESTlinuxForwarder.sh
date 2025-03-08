@@ -163,7 +163,7 @@ sourcetype = cron
 
 [monitor:///var/log/secure]
 index = main
-sourecetype = secure
+sourcetype = secure
 
 #These are logs for custom programs. 
 [monitor:///var/log/file-integrity-alert.log]
@@ -231,7 +231,7 @@ sourcetype = auth
 
 [monitor:///var/log/secure]
 index = main
-sourecetype = secure
+sourcetype = secure
 
 [monitor:///var/log/syslog]
 index = main
