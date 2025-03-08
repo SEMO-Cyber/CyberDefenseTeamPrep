@@ -224,6 +224,11 @@ restore_config() {
                 echo "Failed to restore $CONFIG_PATH for $manager"
                 exit 1
             }
+            # Set correct permissions for NetworkManager files
+            if [ "$manager" = "networkmanager" ]; then
+                chown root:root "$CONFIG_PATH"/*
+                chmod 600 "$CONFIG_PATH"/*
+            fi
         else
             log_message "Backup directory $MANAGER_BACKUP_DIR is empty for $manager, no files to restore"
             echo "Backup directory $MANAGER_BACKUP_DIR is empty for $manager, no files to restore"
@@ -236,38 +241,7 @@ restore_config() {
     fi
     case "$manager" in
         networkmanager)
-        
-
-            # Restore device state from backup
-            if [ -f "$MANAGER_BACKUP_DIR/device_states.backup" ]; then
-                while IFS=':' read -r key value; do
-                    if [[ "$key" =~ ^GENERAL\.DEVICE ]]; then
-                        device="$value"
-                    elif [[ "$key" =~ ^IP4\.ADDRESS\[1\] ]]; then
-                        ip_addr="$value"
-                    elif [[ "$key" =~ ^IP4\.GATEWAY ]]; then
-                        gateway="$value"
-                    fi
-                done < "$MANAGER_BACKUP_DIR/device_states.backup"
-
-                if [ -n "$device" ] && [ -n "$ip_addr" ] && [ -n "$gateway" ]; then
-                    # Delete the existing connection to clear misconfigurations
-                    nmcli connection delete "$device" || echo "Failed to delete connection for $device"
-                    # Create a new connection with backed-up settings
-                    nmcli connection add type ethernet ifname "$device" con-name "$device" \
-                        ipv4.method manual ipv4.addresses "$ip_addr" ipv4.gateway "$gateway"
-                    nmcli connection up "$device" || echo "Failed to bring up $device"
-                else
-                    echo "Missing device, IP, or gateway in backup"
-                fi
-            else
-                echo "No device state backup found"
-            fi
-
-            # Reload NetworkManager to recognize restored files
-            nmcli connection reload || echo "Failed to reload NetworkManager"
-            
-            # Restart NetworkManager to ensure changes are applied
+            # Restart NetworkManager to load restored configurations
             systemctl restart NetworkManager || {
                 log_message "Failed to restart NetworkManager"
                 echo "Failed to restart NetworkManager"
@@ -275,8 +249,14 @@ restore_config() {
             }
             # Wait briefly for NetworkManager to stabilize
             sleep 5
-
-            log_message "NetworkManager restarted to apply restored configuration"
+            # Reapply configuration to all devices (excluding loopback)
+            for device in $(nmcli -t -f DEVICE device show | grep -v lo); do
+                nmcli device reapply "$device" || {
+                    log_message "Warning: Failed to reapply configuration for $device"
+                    echo "Warning: Failed to reapply configuration for $device"
+                }
+            done
+            log_message "NetworkManager configuration restored and reapplied"
             # Log current device states for verification
             log_message "Device states after restoration:"
             nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS,GENERAL.STATE device show >> "$LOG_FILE"
