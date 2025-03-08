@@ -10,10 +10,12 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 # Backup directory and log file
-BACKUP_DIR="/etc/BacServices/nmcli-protection"
+INIT_BACKUP_DIR="/etc/BacServices"
+BACKUP_DIR="/etc/BacServices/int-protection"
 LOG_FILE="/var/log/nmcli-protection.log"
 
 # Create directories if they don't exist
+mkdir -p "$INIT_BACKUP_DIR"
 mkdir -p "$BACKUP_DIR"
 
 # Function to log messages with timestamp
