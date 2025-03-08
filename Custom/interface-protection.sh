@@ -298,11 +298,8 @@ restore_config() {
                 exit 1
             }
             sleep 5  # Delay after restart
-            for device in $(nmcli -t -f GENERAL.DEVICE device show | grep -v lo); do
-                nmcli device reapply "$device" || {
-                    log_message "Warning: Failed to reapply configuration for $device"
-                    echo "Warning: Failed to reapply configuration for $device"
-                }
+            for device in $(nmcli -t -f GENERAL.DEVICE device show | cut -d':' -f2 | grep -v lo); do
+                nmcli device reapply "$device" || log_message "Warning: Failed to reapply configuration for $device"
             done
             log_message "NetworkManager configuration restored and reapplied"
             log_message "Device states after restoration:"
