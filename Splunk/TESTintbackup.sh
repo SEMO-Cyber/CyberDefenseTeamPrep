@@ -1,97 +1,123 @@
 #!/bin/bash
 
-# Define backup and log locations
+# Constants
 BACKUP_DIR="/etc/BacServices/int-protection"
 LOG_FILE="/var/log/int-protection.log"
 
-# Function to detect the interface manager
-detect_manager() {
-    # Check for netplan (Ubuntu-specific, prioritized if present)
-    if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
-        echo "netplan"
-    # Check for NetworkManager (nmcli) if it's installed and running
-    elif command -v nmcli >/dev/null 2>&1 && (systemctl is-active --quiet NetworkManager || pgrep NetworkManager >/dev/null); then
+# Create backup directories
+mkdir -p "/etc/BacServices"
+mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
+
+# Initialize logging
+touch "$LOG_FILE"
+chmod 600 "$LOG_FILE"
+
+# Function to detect interface manager
+detect_interface_manager() {
+    if command -v nmcli &> /dev/null; then
         echo "NetworkManager"
-    # Check for systemd-networkd if config exists and service is active
-    elif [ -d /etc/systemd/network ] && (systemctl is-active --quiet systemd-networkd || [ -f /run/systemd/networkd.pid ]); then
+    elif [ -d /etc/netplan ]; then
+        echo "netplan"
+    elif [ -d /etc/systemd/network ]; then
         echo "systemd-networkd"
-    # Check for ifupdown (or ifupdown-ng on Alpine) via interfaces file
-    elif [ -f /etc/network/interfaces ]; then
-        echo "ifupdown"
-    # Check for netctl (Arch Linux) if config directory exists
-    elif [ -d /etc/netctl ]; then
-        echo "netctl"
     else
         echo "unknown"
     fi
 }
 
-# Detect the interface manager
-manager=$(detect_manager)
-if [ "$manager" = "unknown" ]; then
-    echo "$(date): ERROR: Unknown interface manager detected" >> "$LOG_FILE"
-    exit 1
-fi
-
-# Set configuration directory and apply command based on the manager
-case "$manager" in
-    NetworkManager)
-        config_dir="/etc/NetworkManager"
-        apply_cmd="nmcli connection reload && systemctl restart NetworkManager"
-        ;;
-    ifupdown)
-        config_dir="/etc/network"
-        apply_cmd="ifdown -a && ifup -a"
-        ;;
-    systemd-networkd)
-        config_dir="/etc/systemd/network"
-        apply_cmd="systemctl restart systemd-networkd"
-        ;;
-    netctl)
-        config_dir="/etc/netctl"
-        apply_cmd="for profile in \$(netctl list | grep '^*' | cut -d' ' -f2); do netctl stop \$profile; netctl start \$profile; done"
-        ;;
-    netplan)
-        config_dir="/etc/netplan"
-        apply_cmd="netplan apply"
-        ;;
-esac
-
-# Create backup directory if it doesn’t exist
-mkdir -p "$BACKUP_DIR" || {
-    echo "$(date): ERROR: Failed to create backup directory $BACKUP_DIR" >> "$LOG_FILE"
-    exit 1
+# Function to create backups
+create_backup() {
+    local manager="$1"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    
+    case $manager in
+        NetworkManager)
+            cp -r /etc/NetworkManager/system-connections "$BACKUP_DIR/$timestamp_nm_backup"
+            ;;
+        netplan)
+            cp -r /etc/netplan "$BACKUP_DIR/$timestamp_netplan_backup"
+            ;;
+        systemd-networkd)
+            cp -r /etc/systemd/network "$BACKUP_DIR/$timestamp_systemd_backup"
+            ;;
+    esac
+    
+    echo "$(date) - Created backup for $manager" >> "$LOG_FILE"
 }
 
-# Check if backup exists; if not, create it
-if [ ! -d "$BACKUP_DIR/config" ]; then
-    echo "$(date): Creating initial backup of $config_dir to $BACKUP_DIR/config" >> "$LOG_FILE"
-    cp -a "$config_dir" "$BACKUP_DIR/config" || {
-        echo "$(date): ERROR: Failed to create backup of $config_dir" >> "$LOG_FILE"
-        exit 1
-    }
-else
-    # Compare current config with backup
-    diff_output=$(diff -r --brief "$config_dir" "$BACKUP_DIR/config")
-    if [ -n "$diff_output" ]; then
-        echo "$(date): Changes detected in $config_dir:" >> "$LOG_FILE"
-        echo "$diff_output" >> "$LOG_FILE"
-        echo "$(date): Reverting to backup" >> "$LOG_FILE"
-        
-        # Revert by synchronizing backup to config directory
-        rsync -a --delete "$BACKUP_DIR/config/" "$config_dir/" || {
-            echo "$(date): ERROR: Failed to revert $config_dir to backup" >> "$LOG_FILE"
-            exit 1
-        }
-        
-        echo "$(date): Applying configuration" >> "$LOG_FILE"
-        eval "$apply_cmd" || {
-            echo "$(date): ERROR: Failed to apply configuration with '$apply_cmd'" >> "$LOG_FILE"
-            exit 1
-        }
-        
-        echo "$(date): Revert completed" >> "$LOG_FILE"
+# Function to detect changes
+detect_changes() {
+    local manager="$1"
+    local current_hash=""
+    local backup_hash=""
+    
+    case $manager in
+        NetworkManager)
+            current_hash=$(find /etc/NetworkManager/system-connections -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+            backup_hash=$(find "$BACKUP_DIR" -name "*_nm_backup" -type d | sort | tail -n1 | xargs -I{} find {} -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+            ;;
+        netplan)
+            current_hash=$(find /etc/netplan -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+            backup_hash=$(find "$BACKUP_DIR" -name "*_netplan_backup" -type d | sort | tail -n1 | xargs -I{} find {} -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+            ;;
+        systemd-networkd)
+            current_hash=$(find /etc/systemd/network -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+            backup_hash=$(find "$BACKUP_DIR" -name "*_systemd_backup" -type d | sort | tail -n1 | xargs -I{} find {} -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+            ;;
+    esac
+    
+    if [ "$current_hash" != "$backup_hash" ]; then
+        echo "$(date) - Detected changes in $manager configuration" >> "$LOG_FILE"
+        return 0
     fi
-fi
+    return 1
+}
 
-exit 0
+# Function to revert changes
+revert_changes() {
+    local manager="$1"
+    local latest_backup=$(find "$BACKUP_DIR" -name "*_${manager,,}_backup" -type d | sort | tail -n1)
+    
+    case $manager in
+        NetworkManager)
+            rm -rf /etc/NetworkManager/system-connections
+            cp -r "$latest_backup" /etc/NetworkManager/system-connections
+            systemctl restart NetworkManager
+            ;;
+        netplan)
+            rm -rf /etc/netplan
+            cp -r "$latest_backup" /etc/netplan
+            netplan apply
+            ;;
+        systemd-networkd)
+            rm -rf /etc/systemd/network
+            cp -r "$latest_backup" /etc/systemd/network
+            systemctl restart systemd-networkd
+            ;;
+    esac
+    
+    echo "$(date) - Reverted $manager configuration to backup" >> "$LOG_FILE"
+}
+
+# Main function
+main() {
+    local manager=$(detect_interface_manager)
+    create_backup "$manager"
+    
+    while true; do
+        if detect_changes "$manager"; then
+            echo "$(date) - Attempting to revert unauthorized changes..." >> "$LOG_FILE"
+            revert_changes "$manager"
+            
+            # Log specific changes
+            diff -ru "$latest_backup" /etc/NetworkManager/system-connections >> "$LOG_FILE" 2>&1
+            
+            echo "$(date) - Changes reverted successfully" >> "$LOG_FILE"
+        fi
+        
+        sleep 60 # Check every minute
+    end
+}
+
+main
