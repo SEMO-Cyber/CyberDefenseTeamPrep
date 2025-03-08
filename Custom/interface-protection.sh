@@ -173,7 +173,6 @@ check_config_changes() {
                 if [ $? -ne 0 ]; then
                     log_message "Changes detected in $current_file"
                     changes_detected=true
-￼￼
 
                 fi
             else
