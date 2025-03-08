@@ -23,6 +23,11 @@ log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
+# Set environment variables for D-Bus (needed for nmcli in cron)
+if [ -z "$DBUS_SYSTEM_BUS_ADDRESS" ]; then
+    export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+fi
+
 # Detect network management tool
 detect_network_manager() {
     if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
@@ -70,23 +75,27 @@ backup_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
         netplan)
-            cp /etc/netplan/*.yaml "$BACKUP_DIR/"
+            cp /etc/netplan/*.yaml "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup Netplan configs"
             log_message "Backup created for interface $interface (Netplan)"
             ;;
         networkmanager)
-            nmcli con show "$interface" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$BACKUP_DIR/$interface.profile.backup"
-            log_message "Backup created for interface $interface (NetworkManager)"
+            nmcli con show "$interface" 2>> "$LOG_FILE" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$BACKUP_DIR/$interface.profile.backup"
+            if [ $? -ne 0 ]; then
+                log_message "Failed to backup NetworkManager config for $interface"
+            else
+                log_message "Backup created for interface $interface (NetworkManager)"
+            fi
             ;;
         systemd-networkd)
-            cp /etc/systemd/network/*.network "$BACKUP_DIR/"
+            cp /etc/systemd/network/*.network "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup systemd-networkd configs"
             log_message "Backup created for interface $interface (systemd-networkd)"
             ;;
         interfaces)
-            cp /etc/network/interfaces "$BACKUP_DIR/interfaces.backup"
+            cp /etc/network/interfaces "$BACKUP_DIR/interfaces.backup" 2>> "$LOG_FILE" || log_message "Failed to backup /etc/network/interfaces"
             log_message "Backup created for interface $interface (/etc/network/interfaces)"
             ;;
         network-scripts)
-            cp /etc/sysconfig/network-scripts/ifcfg-$interface "$BACKUP_DIR/ifcfg-$interface.backup"
+            cp /etc/sysconfig/network-scripts/ifcfg-$interface "$BACKUP_DIR/ifcfg-$interface.backup" 2>> "$LOG_FILE" || log_message "Failed to backup ifcfg-$interface"
             log_message "Backup created for interface $interface (/etc/sysconfig/network-scripts/)"
             ;;
     esac
@@ -121,7 +130,12 @@ check_changes() {
                 backup_config "$interface"
                 return 0
             fi
-            nmcli con show "$interface" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$temp_profile"
+            nmcli con show "$interface" 2>> "$LOG_FILE" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$temp_profile"
+            if [ $? -ne 0 ]; then
+                log_message "Failed to retrieve current NetworkManager config for $interface"
+                rm -f "$temp_profile"
+                return 0  # Skip this cycle if nmcli fails
+            fi
             if ! cmp -s "$temp_profile" "$backup_profile"; then
                 log_message "Changes detected in profile for interface $interface. The following lines show the differences:"
                 diff -u "$backup_profile" "$temp_profile" >> "$LOG_FILE" 2>&1
@@ -188,38 +202,38 @@ restore_config() {
     local interface="$1"
     case "$NETWORK_MANAGER" in
         netplan)
-            cp "$BACKUP_DIR"/*.yaml /etc/netplan/
-            netplan apply
+            cp "$BACKUP_DIR"/*.yaml /etc/netplan/ 2>> "$LOG_FILE" || log_message "Failed to restore Netplan configs"
+            netplan apply 2>> "$LOG_FILE" || log_message "Failed to apply Netplan configs"
             log_message "Configuration restored for interface $interface (Netplan)"
             ;;
         networkmanager)
-            nmcli con load "$BACKUP_DIR/$interface.profile.backup"
-            nmcli con down "$interface" 2>/dev/null || true
-            nmcli con up "$interface"
+            nmcli con load "$BACKUP_DIR/$interface.profile.backup" 2>> "$LOG_FILE" || log_message "Failed to load backup for $interface"
+            nmcli con down "$interface" 2>> "$LOG_FILE" || true
+            nmcli con up "$interface" 2>> "$LOG_FILE" || log_message "Failed to bring up $interface"
             log_message "Configuration restored for interface $interface (NetworkManager)"
             ;;
         systemd-networkd)
-            cp "$BACKUP_DIR"/*.network /etc/systemd/network/
-            systemctl restart systemd-networkd
+            cp "$BACKUP_DIR"/*.network /etc/systemd/network/ 2>> "$LOG_FILE" || log_message "Failed to restore systemd-networkd configs"
+            systemctl restart systemd-networkd 2>> "$LOG_FILE" || log_message "Failed to restart systemd-networkd"
             log_message "Configuration restored for interface $interface (systemd-networkd)"
             ;;
         interfaces)
-            cp "$BACKUP_DIR/interfaces.backup" /etc/network/interfaces
+            cp "$BACKUP_DIR/interfaces.backup" /etc/network/interfaces 2>> "$LOG_FILE" || log_message "Failed to restore /etc/network/interfaces"
             if command -v systemctl >/dev/null 2>&1; then
-                systemctl restart networking || log_message "Failed to restart networking service"
+                systemctl restart networking 2>> "$LOG_FILE" || log_message "Failed to restart networking service"
             elif command -v rc-service >/dev/null 2>&1; then
-                rc-service networking restart || log_message "Failed to restart networking service"
+                rc-service networking restart 2>> "$LOG_FILE" || log_message "Failed to restart networking service"
             else
                 log_message "Cannot restart networking service"
             fi
             log_message "Configuration restored for interface $interface (/etc/network/interfaces)"
             ;;
         network-scripts)
-            cp "$BACKUP_DIR/ifcfg-$interface.backup" /etc/sysconfig/network-scripts/ifcfg-$interface
+            cp "$BACKUP_DIR/ifcfg-$interface.backup" /etc/sysconfig/network-scripts/ifcfg-$interface 2>> "$LOG_FILE" || log_message "Failed to restore ifcfg-$interface"
             if command -v systemctl >/dev/null 2>&1; then
-                systemctl restart network || log_message "Failed to restart network service"
+                systemctl restart network 2>> "$LOG_FILE" || log_message "Failed to restart network service"
             elif command -v service >/dev/null 2>&1; then
-                service network restart || log_message "Failed to restart network service"
+                service network restart 2>> "$LOG_FILE" || log_message "Failed to restart network service"
             else
                 log_message "Cannot restart network service"
             fi
@@ -230,11 +244,8 @@ restore_config() {
 
 # Function to setup cronjob
 setup_cronjob() {
-    # Path to the script
     SCRIPT_PATH=$(realpath "$0")
-    # Cronjob command
     CRON_COMMAND="* * * * * $SCRIPT_PATH monitor"
-    # Add cronjob to root’s crontab
     (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
     log_message "Cronjob setup to run $SCRIPT_PATH monitor every minute"
 }
