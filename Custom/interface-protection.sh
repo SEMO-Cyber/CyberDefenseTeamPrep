@@ -56,64 +56,30 @@ get_service_name() {
 # Function to check if a service exists and is active
 check_and_start_service() {
     local service="$1"
-    if [ -z "$service" ]; then
-        log_message "No service name provided. Skipping."
-        return 1
-    fi
-
-    # Check if the service unit exists
+    # Check if the service exists
     if systemctl cat "$service" >/dev/null 2>&1; then
-        log_message "Service unit $service exists."
+        echo "Service $service exists."
     else
-        log_message "Service unit $service does not exist on the system."
+        echo "Service $service does not exist."
         return 1
     fi
 
-    # Get and log the current service status
-    local status_output
-    status_output=$(systemctl status "$service" 2>&1)
-    local is_active=$(systemctl is-active "$service" 2>/dev/null)
-    log_message "Service $service status: $is_active"
-    log_message "Full status output for $service:"
-    echo "$status_output" >> "$LOG_FILE"
-
-    # Check if the service is active or activating
-    if [ "$is_active" = "active" ]; then
-        log_message "Service $service is already active. No action needed."
-        return 0
-    elif [ "$is_active" = "activating" ]; then
-        log_message "Service $service is activating. Waiting for it to become active."
-        for i in {1..10}; do
-            if systemctl is-active --quiet "$service"; then
-                log_message "Service $service is now active after $i seconds."
-                return 0
-            fi
-            sleep 1
-        done
-        log_message "Service $service did not become active after 10 seconds."
+    # Check if it’s active
+    if systemctl is-active --quiet "$service"; then
+        echo "Service $service is already active."
     else
-        log_message "Service $service is not active (state: $is_active). Attempting to start it."
-        if systemctl start "$service" 2>>"$LOG_FILE"; then
-            # Wait for the service to become active
-            for i in {1..10}; do
-                if systemctl is-active --quiet "$service"; then
-                    log_message "Service $service started successfully and is now active after $i seconds."
-                    return 0
-                fi
-                sleep 1
-            done
-            log_message "Service $service started but did not become active after 10 seconds."
-            status_output=$(systemctl status "$service" 2>&1)
-            log_message "Updated status after start attempt:"
-            echo "$status_output" >> "$LOG_FILE"
-            return 1
+        echo "Service $service is not active. Starting it..."
+        systemctl start "$service"
+        # Wait briefly and verify
+        sleep 1
+        if systemctl is-active --quiet "$service"; then
+            echo "Service $service started successfully."
         else
-            log_message "Failed to start $service. Error: $(tail -n 1 "$LOG_FILE")"
+            echo "Service $service failed to start."
             return 1
         fi
     fi
 }
-
 # Function to check if a manager is active
 is_manager_active() {
     case "$1" in
