@@ -117,7 +117,7 @@ main() {
         fi
         
         sleep 60 # Check every minute
-    end
+    done
 }
 
 main
