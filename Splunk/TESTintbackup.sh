@@ -52,7 +52,7 @@ get_interfaces() {
             grep -h "ethernets:" /etc/netplan/*.yaml -A 10 | grep -oP '^\s+\K\w+' | sort -u
             ;;
         networkmanager)
-            nmcli -t -f NAME con show | grep -v '^lo$'
+            nmcli -t -f DEVICE con show | grep -v '^lo$'
             ;;
         systemd-networkd)
             networkctl list --no-legend | awk '{if ($NF == "configured") print $2}'
@@ -76,23 +76,19 @@ backup_config() {
     case "$NETWORK_MANAGER" in
         netplan)
             cp /etc/netplan/*.yaml "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup Netplan configs"
-            log_message "Backup created for interface $interface (Netplan)"
+            log_message "Backup created for Netplan configurations"
             ;;
         networkmanager)
-            nmcli con show "$interface" 2>> "$LOG_FILE" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$BACKUP_DIR/$interface.profile.backup"
-            if [ $? -ne 0 ]; then
-                log_message "Failed to backup NetworkManager config for $interface"
-            else
-                log_message "Backup created for interface $interface (NetworkManager)"
-            fi
+            cp /etc/NetworkManager/system-connections/*.nmconnection "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup NetworkManager connection files"
+            log_message "Backup created for NetworkManager connections"
             ;;
         systemd-networkd)
             cp /etc/systemd/network/*.network "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup systemd-networkd configs"
-            log_message "Backup created for interface $interface (systemd-networkd)"
+            log_message "Backup created for systemd-networkd configurations"
             ;;
         interfaces)
             cp /etc/network/interfaces "$BACKUP_DIR/interfaces.backup" 2>> "$LOG_FILE" || log_message "Failed to backup /etc/network/interfaces"
-            log_message "Backup created for interface $interface (/etc/network/interfaces)"
+            log_message "Backup created for /etc/network/interfaces"
             ;;
         network-scripts)
             cp /etc/sysconfig/network-scripts/ifcfg-$interface "$BACKUP_DIR/ifcfg-$interface.backup" 2>> "$LOG_FILE" || log_message "Failed to backup ifcfg-$interface"
@@ -109,69 +105,66 @@ check_changes() {
             for config_file in /etc/netplan/*.yaml; do
                 backup_copy="$BACKUP_DIR/$(basename "$config_file")"
                 if [ ! -f "$backup_copy" ]; then
-                    log_message "No backup found for $config_file. Creating initial backup..."
-                    backup_config "$interface"
-                    return 0
+                    log_message "No backup found for $config_file"
+                    return 1
                 fi
                 if ! cmp -s "$config_file" "$backup_copy"; then
-                    log_message "Changes detected in $config_file. The following lines show the differences:"
+                    log_message "Changes detected in $config_file. Differences:"
                     diff -u "$backup_copy" "$config_file" >> "$LOG_FILE" 2>&1
                     return 1
                 fi
             done
-            log_message "No changes detected in Netplan configs for $interface"
+            log_message "No changes detected in Netplan configs"
             return 0
             ;;
         networkmanager)
-            local backup_profile="$BACKUP_DIR/$interface.profile.backup"
-            local temp_profile="/tmp/$interface.profile.current"
-            if [ ! -f "$backup_profile" ]; then
-                log_message "No backup found for $interface. Creating initial backup..."
-                backup_config "$interface"
-                return 0
-            fi
-            nmcli con show "$interface" 2>> "$LOG_FILE" | grep -vE 'connection.timestamp|connection.uuid|GENERAL.STATE|IP4.ADDRESS|IP6.ADDRESS' > "$temp_profile"
-            if [ $? -ne 0 ]; then
-                log_message "Failed to retrieve current NetworkManager config for $interface"
-                rm -f "$temp_profile"
-                return 0  # Skip this cycle if nmcli fails
-            fi
-            if ! cmp -s "$temp_profile" "$backup_profile"; then
-                log_message "Changes detected in profile for interface $interface. The following lines show the differences:"
-                diff -u "$backup_profile" "$temp_profile" >> "$LOG_FILE" 2>&1
-                rm -f "$temp_profile"
-                return 1
-            fi
-            rm -f "$temp_profile"
-            log_message "No changes detected in NetworkManager config for $interface"
+            for backup_file in "$BACKUP_DIR"/*.nmconnection; do
+                local connection_name=$(basename "$backup_file" .nmconnection)
+                local current_file="/etc/NetworkManager/system-connections/$connection_name.nmconnection"
+                if [ ! -f "$current_file" ]; then
+                    log_message "Connection file $current_file not found"
+                    return 1
+                fi
+                if ! cmp -s "$current_file" "$backup_file"; then
+                    log_message "Changes detected in connection $connection_name. Differences:"
+                    diff -u "$backup_file" "$current_file" >> "$LOG_FILE" 2>&1
+                    return 1
+                fi
+            done
+            for current_file in /etc/NetworkManager/system-connections/*.nmconnection; do
+                local connection_name=$(basename "$current_file" .nmconnection)
+                if [ ! -f "$BACKUP_DIR/$connection_name.nmconnection" ]; then
+                    log_message "New connection detected: $connection_name"
+                    return 1
+                fi
+            done
+            log_message "No changes detected in NetworkManager connections"
             return 0
             ;;
         systemd-networkd)
             for config_file in /etc/systemd/network/*.network; do
                 backup_copy="$BACKUP_DIR/$(basename "$config_file")"
                 if [ ! -f "$backup_copy" ]; then
-                    log_message "No backup found for $config_file. Creating initial backup..."
-                    backup_config "$interface"
-                    return 0
+                    log_message "No backup found for $config_file"
+                    return 1
                 fi
                 if ! cmp -s "$config_file" "$backup_copy"; then
-                    log_message "Changes detected in $config_file. The following lines show the differences:"
+                    log_message "Changes detected in $config_file. Differences:"
                     diff -u "$backup_copy" "$config_file" >> "$LOG_FILE" 2>&1
                     return 1
                 fi
             done
-            log_message "No changes detected in systemd-networkd configs for $interface"
+            log_message "No changes detected in systemd-networkd configs"
             return 0
             ;;
         interfaces)
             local backup_file="$BACKUP_DIR/interfaces.backup"
             if [ ! -f "$backup_file" ]; then
-                log_message "No backup found for /etc/network/interfaces. Creating initial backup..."
-                backup_config "$interface"
-                return 0
+                log_message "No backup found for /etc/network/interfaces"
+                return 1
             fi
             if ! cmp -s /etc/network/interfaces "$backup_file"; then
-                log_message "Changes detected in /etc/network/interfaces. The following lines show the differences:"
+                log_message "Changes detected in /etc/network/interfaces. Differences:"
                 diff -u "$backup_file" /etc/network/interfaces >> "$LOG_FILE" 2>&1
                 return 1
             fi
@@ -182,12 +175,11 @@ check_changes() {
             local config_file="/etc/sysconfig/network-scripts/ifcfg-$interface"
             local backup_file="$BACKUP_DIR/ifcfg-$interface.backup"
             if [ ! -f "$backup_file" ]; then
-                log_message "No backup found for $config_file. Creating initial backup..."
-                backup_config "$interface"
-                return 0
+                log_message "No backup found for $config_file"
+                return 1
             fi
             if ! cmp -s "$config_file" "$backup_file"; then
-                log_message "Changes detected in $config_file. The following lines show the differences:"
+                log_message "Changes detected in $config_file. Differences:"
                 diff -u "$backup_file" "$config_file" >> "$LOG_FILE" 2>&1
                 return 1
             fi
@@ -204,18 +196,21 @@ restore_config() {
         netplan)
             cp "$BACKUP_DIR"/*.yaml /etc/netplan/ 2>> "$LOG_FILE" || log_message "Failed to restore Netplan configs"
             netplan apply 2>> "$LOG_FILE" || log_message "Failed to apply Netplan configs"
-            log_message "Configuration restored for interface $interface (Netplan)"
+            log_message "Configuration restored for Netplan"
             ;;
         networkmanager)
-            nmcli con load "$BACKUP_DIR/$interface.profile.backup" 2>> "$LOG_FILE" || log_message "Failed to load backup for $interface"
-            nmcli con down "$interface" 2>> "$LOG_FILE" || true
-            nmcli con up "$interface" 2>> "$LOG_FILE" || log_message "Failed to bring up $interface"
-            log_message "Configuration restored for interface $interface (NetworkManager)"
+            rm -f /etc/NetworkManager/system-connections/*.nmconnection 2>> "$LOG_FILE"
+            cp "$BACKUP_DIR"/*.nmconnection /etc/NetworkManager/system-connections/ 2>> "$LOG_FILE" || log_message "Failed to restore NetworkManager connection files"
+            nmcli con reload 2>> "$LOG_FILE" || log_message "Failed to reload NetworkManager connections"
+            for connection in $(nmcli -t -f NAME con show); do
+                nmcli con up "$connection" 2>> "$LOG_FILE" || log_message "Failed to bring up $connection"
+            done
+            log_message "Configuration restored for NetworkManager"
             ;;
         systemd-networkd)
             cp "$BACKUP_DIR"/*.network /etc/systemd/network/ 2>> "$LOG_FILE" || log_message "Failed to restore systemd-networkd configs"
             systemctl restart systemd-networkd 2>> "$LOG_FILE" || log_message "Failed to restart systemd-networkd"
-            log_message "Configuration restored for interface $interface (systemd-networkd)"
+            log_message "Configuration restored for systemd-networkd"
             ;;
         interfaces)
             cp "$BACKUP_DIR/interfaces.backup" /etc/network/interfaces 2>> "$LOG_FILE" || log_message "Failed to restore /etc/network/interfaces"
@@ -226,7 +221,7 @@ restore_config() {
             else
                 log_message "Cannot restart networking service"
             fi
-            log_message "Configuration restored for interface $interface (/etc/network/interfaces)"
+            log_message "Configuration restored for /etc/network/interfaces"
             ;;
         network-scripts)
             cp "$BACKUP_DIR/ifcfg-$interface.backup" /etc/sysconfig/network-scripts/ifcfg-$interface 2>> "$LOG_FILE" || log_message "Failed to restore ifcfg-$interface"
@@ -242,52 +237,141 @@ restore_config() {
     esac
 }
 
-# Function to setup cronjob
-setup_cronjob() {
-    SCRIPT_PATH=$(realpath "$0")
-    CRON_COMMAND="* * * * * $SCRIPT_PATH monitor"
-    (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
-    log_message "Cronjob setup to run $SCRIPT_PATH monitor every minute"
+# Function to ensure backups exist
+ensure_backups() {
+    local interfaces=($(get_interfaces))
+    case "$NETWORK_MANAGER" in
+        netplan)
+            if ! ls "$BACKUP_DIR"/*.yaml >/dev/null 2>&1; then
+                log_message "No Netplan backups found. Creating backups..."
+                backup_config ""
+            fi
+            ;;
+        networkmanager)
+            if ! ls "$BACKUP_DIR"/*.nmconnection >/dev/null 2>&1; then
+                log_message "No NetworkManager backups found. Creating backups..."
+                backup_config ""
+            fi
+            ;;
+        systemd-networkd)
+            if ! ls "$BACKUP_DIR"/*.network >/dev/null 2>&1; then
+                log_message "No systemd-networkd backups found. Creating backups..."
+                backup_config ""
+            fi
+            ;;
+        interfaces)
+            if [ ! -f "$BACKUP_DIR/interfaces.backup" ]; then
+                log_message "No /etc/network/interfaces backup found. Creating backup..."
+                backup_config ""
+            fi
+            ;;
+        network-scripts)
+            for interface in "${interfaces[@]}"; do
+                if [ ! -f "$BACKUP_DIR/ifcfg-$interface.backup" ]; then
+                    log_message "No backup found for $interface. Creating backup..."
+                    backup_config "$interface"
+                fi
+            done
+            ;;
+    esac
+}
+
+# Function to backup all interfaces
+backup_all() {
+    case "$NETWORK_MANAGER" in
+        netplan|networkmanager|systemd-networkd|interfaces)
+            backup_config ""
+            ;;
+        network-scripts)
+            local interfaces=($(get_interfaces))
+            for interface in "${interfaces[@]}"; do
+                backup_config "$interface"
+            done
+            ;;
+    esac
 }
 
 # Main logic
-if [ "$1" = "reset" ]; then
-    NETWORK_MANAGER=$(detect_network_manager)
-    if [ "$NETWORK_MANAGER" = "unknown" ]; then
-        log_message "Unsupported network management tool detected"
-        exit 1
-    fi
-    log_message "Resetting backups"
-    rm -rf "$BACKUP_DIR"/*
-    for interface in $(get_interfaces); do
-        backup_config "$interface"
-    done
-    log_message "Backup reset completed"
-    exit 0
-elif [ "$1" = "monitor" ]; then
-    NETWORK_MANAGER=$(detect_network_manager)
-    if [ "$NETWORK_MANAGER" = "unknown" ]; then
-        log_message "Unsupported network management tool detected"
-        exit 1
-    fi
-    for i in {1..3}; do
-        log_message "Starting monitoring cycle $i"
-        for interface in $(get_interfaces); do
-            if ! check_changes "$interface"; then
-                log_message "Restoring configuration for interface $interface"
-                restore_config "$interface"
-            fi
-        done
-        if [ "$i" -lt 3 ]; then
-            sleep 20
-        fi
-    done
-    log_message "Monitoring cycles completed"
-    exit 0
-elif [ "$1" = "--setup-cron" ]; then
-    setup_cronjob
-    exit 0
+if [ $# -eq 0 ]; then
+    ACTION="monitor"
 else
-    echo "Usage: $0 {reset|monitor|--setup-cron}"
+    ACTION="$1"
+fi
+
+NETWORK_MANAGER=$(detect_network_manager)
+if [ "$NETWORK_MANAGER" = "unknown" ]; then
+    log_message "Unsupported network management tool detected"
     exit 1
 fi
+
+case "$ACTION" in
+    reset)
+        log_message "Resetting backups"
+        rm -rf "$BACKUP_DIR"/*
+        backup_all
+        log_message "Backup reset completed"
+        ;;
+    backup)
+        backup_all
+        log_message "Backups created"
+        ;;
+    check)
+        ensure_backups
+        changes_detected=0
+        case "$NETWORK_MANAGER" in
+            netplan|networkmanager|systemd-networkd|interfaces)
+                if ! check_changes ""; then
+                    changes_detected=1
+                fi
+                ;;
+            network-scripts)
+                for interface in $(get_interfaces); do
+                    if ! check_changes "$interface"; then
+                        changes_detected=1
+                    fi
+                done
+                ;;
+        esac
+        if [ $changes_detected -eq 1 ]; then
+            log_message "Changes detected in configurations"
+        else
+            log_message "No changes detected in configurations"
+        fi
+        ;;
+    monitor)
+        log_message "Starting monitoring cycle"
+        ensure_backups
+        case "$NETWORK_MANAGER" in
+            netplan|networkmanager|systemd-networkd|interfaces)
+                if ! check_changes ""; then
+                    log_message "Restoring configuration"
+                    restore_config ""
+                fi
+                ;;
+            network-scripts)
+                for interface in $(get_interfaces); do
+                    if ! check_changes "$interface"; then
+                        log_message "Restoring configuration for interface $interface"
+                        restore_config "$interface"
+                    fi
+                done
+                ;;
+        esac
+        log_message "Monitoring cycle completed"
+        ;;
+    --setup-cron)
+        PRO_INT_DIR="/etc/pro-int"
+        mkdir -p "$PRO_INT_DIR"
+        SCRIPT_NAME=$(basename "$0")
+        cp "$0" "$PRO_INT_DIR/$SCRIPT_NAME"
+        chmod +x "$PRO_INT_DIR/$SCRIPT_NAME"
+        log_message "Script copied to $PRO_INT_DIR/$SCRIPT_NAME"
+        CRON_COMMAND="* * * * * $PRO_INT_DIR/$SCRIPT_NAME monitor"
+        (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
+        log_message "Cronjob created to run $PRO_INT_DIR/$SCRIPT_NAME monitor every minute"
+        ;;
+    *)
+        echo "Usage: $0 [backup|check|monitor|reset|--setup-cron]"
+        exit 1
+        ;;
+esac
