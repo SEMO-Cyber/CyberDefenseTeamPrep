@@ -81,7 +81,7 @@ esac
 # Set backup directory for this manager
 MANAGER_BACKUP_DIR="$BACKUP_DIR/$NETWORK_MANAGER"
 
-### Backup Configuration
+### Backup Configuration and Device States (for NetworkManager)
 backup_config() {
     # Remove existing backups and create fresh ones
     rm -rf "$MANAGER_BACKUP_DIR"
@@ -97,11 +97,18 @@ backup_config() {
             exit 1
         }
     fi
+    # For NetworkManager, also backup device states
+    if [ "$NETWORK_MANAGER" = "networkmanager" ]; then
+        nmcli -t -f DEVICE,IP4.ADDRESS device show > "$MANAGER_BACKUP_DIR/device_states.backup" || {
+            log_message "Failed to backup device states for NetworkManager"
+            exit 1
+        }
+    fi
     log_message "Backup created for $NETWORK_MANAGER"
 }
 
-### Check for Changes
-check_changes() {
+### Check for Changes in Configuration
+check_config_changes() {
     if [ ! -d "$MANAGER_BACKUP_DIR" ]; then
         log_message "No backup found for $NETWORK_MANAGER"
         return 1
@@ -129,6 +136,34 @@ check_changes() {
     fi
 }
 
+### Check for Changes in Device States (for NetworkManager)
+check_device_changes() {
+    if [ "$NETWORK_MANAGER" != "networkmanager" ]; then
+        return 0  # No device state check for other managers
+    fi
+    if [ ! -f "$MANAGER_BACKUP_DIR/device_states.backup" ]; then
+        log_message "No device state backup found for NetworkManager"
+        return 1
+    fi
+    nmcli -t -f DEVICE,IP4.ADDRESS device show > /tmp/current_device_states
+    diff /tmp/current_device_states "$MANAGER_BACKUP_DIR/device_states.backup" > /tmp/device_diff_output 2>&1
+    diff_status=$?
+    if [ $diff_status -eq 0 ]; then
+        log_message "No changes detected in device states for NetworkManager"
+        rm /tmp/current_device_states /tmp/device_diff_output
+        return 0
+    elif [ $diff_status -eq 1 ]; then
+        log_message "Changes detected in device states for NetworkManager:"
+        cat /tmp/device_diff_output >> "$LOG_FILE"
+        rm /tmp/current_device_states /tmp/device_diff_output
+        return 1
+    else
+        log_message "Error running diff for device states: $diff_status"
+        rm /tmp/current_device_states /tmp/device_diff_output
+        exit 1
+    fi
+}
+
 ### Restore Configuration
 restore_config() {
     if $IS_DIR; then
@@ -147,6 +182,10 @@ restore_config() {
     case "$NETWORK_MANAGER" in
         networkmanager)
             nmcli connection reload || log_message "Failed to reload NetworkManager"
+            # Reapply all connections to ensure device states are updated
+            for conn in $(nmcli -t -f NAME con show); do
+                nmcli con up "$conn" || log_message "Failed to bring up $conn"
+            done
             ;;
         netplan)
             netplan apply || log_message "Failed to apply Netplan"
@@ -182,9 +221,21 @@ conf_check() {
         log_message "No backup found for $NETWORK_MANAGER. Please run 'backup' first."
         exit 1
     fi
-    if ! check_changes; then
+    config_changed=false
+    device_changed=false
+    if ! check_config_changes; then
+        config_changed=true
+    fi
+    if [ "$NETWORK_MANAGER" = "networkmanager" ]; then
+        if ! check_device_changes; then
+            device_changed=true
+        fi
+    fi
+    if $config_changed || $device_changed; then
         log_message "Restoring configuration for $NETWORK_MANAGER"
         restore_config
+    else
+        log_message "No changes detected in configurations or device states"
     fi
 }
 
@@ -211,7 +262,7 @@ setup_cron() {
 display_usage() {
     echo "Usage: $0 [backup|check|conf-check|reset|--setup-cron]"
     echo "  backup: Delete existing backups and create new ones"
-    echo "  check: Manually check for changes in configurations"
+    echo "  check: Manually check for changes in configurations and device states"
     echo "  conf-check: Perform a single check-and-restore cycle"
     echo "  reset: Delete existing backups"
     echo "  --setup-cron: Setup cron job to run conf-check every minute"
@@ -233,7 +284,10 @@ case "$ACTION" in
         backup_config
         ;;
     check)
-        check_changes
+        check_config_changes
+        if [ "$NETWORK_MANAGER" = "networkmanager" ]; then
+            check_device_changes
+        fi
         ;;
     conf-check)
         conf_check
