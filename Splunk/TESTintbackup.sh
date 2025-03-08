@@ -135,30 +135,47 @@ check_config_changes() {
     local IS_DIR=$(get_is_dir "$manager")
     local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
 
+    # Check if backup directory exists
     if [ ! -d "$MANAGER_BACKUP_DIR" ]; then
         log_message "No backup found for $manager"
         return 1
     fi
+
     if [ "$IS_DIR" = "true" ]; then
-        diff -r "$CONFIG_PATH" "$MANAGER_BACKUP_DIR" > /tmp/diff_output 2>&1
-        diff_status=$?
+        local changes_detected=false
+        # Loop through each file in the backup directory
+        for backup_file in "$MANAGER_BACKUP_DIR"/*; do
+            # Skip if no files exist in backup (e.g., empty directory)
+            [ -e "$backup_file" ] || continue
+            local file_name=$(basename "$backup_file")
+            local current_file="$CONFIG_PATH/$file_name"
+            if [ -f "$current_file" ]; then
+                # Compare the current file with the backup file
+                diff "$current_file" "$backup_file" > /dev/null 2>&1
+                if [ $? -ne 0 ]; then
+                    log_message "Changes detected in $current_file"
+                    changes_detected=true
+                fi
+            else
+                # File exists in backup but not in current config
+                log_message "File $current_file is missing"
+                changes_detected=true
+            fi
+        done
+        if $changes_detected; then
+            return 1  # Changes detected, restoration needed
+        else
+            return 0  # No changes in backed-up files
+        fi
     else
-        diff "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" > /tmp/diff_output 2>&1
-        diff_status=$?
-    fi
-    if [ $diff_status -eq 0 ]; then
-        log_message "No changes detected in $manager configurations"
-        rm /tmp/diff_output
-        return 0
-    elif [ $diff_status -eq 1 ]; then
-        log_message "Changes detected in $manager configurations:"
-        cat /tmp/diff_output >> "$LOG_FILE"
-        rm /tmp/diff_output
-        return 1
-    else
-        log_message "Error running diff for $manager: $diff_status"
-        rm /tmp/diff_output
-        exit 1
+        # Handle single-file configurations (not applicable for network-scripts)
+        diff "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" > /dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            log_message "Changes detected in $CONFIG_PATH"
+            return 1
+        else
+            return 0
+        fi
     fi
 }
 
