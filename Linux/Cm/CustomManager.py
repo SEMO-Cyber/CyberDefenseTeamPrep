@@ -10,11 +10,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Define the paths for the config files and log files
-FS_CONFIG_FILE = 'fs.config'
-SERVICEUP_CONFIG_FILE = 'serviceup.config'
-MALICIOUSKEYS_CONFIG_FILE = 'maliciouskeys.config'
-MALICIOUSDIR_CONFIG_FILE = 'maliciousdir.config'
-BACKUP_CONFIG_FILE = 'backup.config'
+FS_CONFIG_FILE = './fs.config'
+SERVICEUP_CONFIG_FILE = './serviceup.config'
+MALICIOUSKEYS_CONFIG_FILE = './maliciouskeys.config'
+MALICIOUSDIR_CONFIG_FILE = './maliciousdir.config'
+BACKUP_CONFIG_FILE = './backup.config'
 
 INTEGRITY_LOG_FILE = '/var/log/integrity_monitor.log'
 SERVICE_INTERRUPT_LOG_FILE = '/var/log/service_interrupt.log'
