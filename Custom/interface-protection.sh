@@ -29,8 +29,8 @@ if [ -z "$DBUS_SYSTEM_BUS_ADDRESS" ]; then
     export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
 fi
 
-# List of possible network managers, with network-scripts before networkmanager
-managers=("netplan" "network-scripts" "networkmanager" "systemd-networkd" "interfaces")
+# List of possible network managers, restored to original order
+managers=("netplan" "networkmanager" "systemd-networkd" "interfaces" "network-scripts")
 
 # Function to get the service name for a manager
 get_service_name() {
@@ -224,7 +224,7 @@ check_device_changes() {
     fi
 }
 
-# Function to check and start service with delay
+# Function to check and start service with 5-second delay
 check_and_start_service() {
     local service="$1"
     if [ -z "$service" ]; then
@@ -250,7 +250,7 @@ check_and_start_service() {
     else
         log_message "Service $service is not active (state: $is_active). Attempting to start it."
         systemctl start "$service" 2>>"$LOG_FILE"
-        sleep 5  # Give the service 5 seconds to start
+        sleep 5  # Wait 5 seconds after starting the service
         is_active=$(systemctl is-active "$service" 2>/dev/null)
         log_message "Service $service status after start attempt: $is_active"
         if [ "$is_active" = "active" ]; then
@@ -261,7 +261,7 @@ check_and_start_service() {
     fi
 }
 
-# Restore Configuration with delay
+# Restore Configuration with 5-second delay after service restart
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
