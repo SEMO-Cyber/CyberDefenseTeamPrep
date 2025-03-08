@@ -1,142 +1,133 @@
-#!/bin/bash
-
-# Exit on errors
-set -e
-
-# Ensure the script is run as root
-if [ "$(id -u)" != "0"]; then
-    echo "This script must be run as root" >&2
-    exit 1
-fi
-
-# Directories and log file
-BACKUP_DIR="/etc/BacServices/interface-protection"
-LOG_FILE="/var/log/interface-protection.log"
-
-# Create directories if they don’t exist
-mkdir -p "$BACKUP_DIR"
-
-# Log messages with timestamp
-log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
-}
-
-# Set D-Bus environment for nmcli (needed in cron/non-interactive shells)
-export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
-
-# Get NetworkManager connections
-get_interfaces() {
-    nmcli -t -f NAME con show | grep -v '^lo$'
-}
-
-# Backup configuration
+# **Backup configuration**
 backup_config() {
-    for conn in $(get_interfaces); do
-        nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$BACKUP_DIR/$conn.fields.backup" 2>> "$LOG_FILE" || log_message "Failed to backup fields for $conn"
-    done
-    log_message "Backup created for NetworkManager connections"
+    local interface="$1"
+    case "$NETWORK_MANAGER" in
+        networkmanager)
+            # Backup the full .nmconnection files for restoration
+            cp /etc/NetworkManager/system-connections/*.nmconnection "$BACKUP_DIR/" 2>> "$LOG_FILE" || {
+                log_message "Failed to backup NetworkManager connection files"
+                return 1
+            }
+            
+            # Backup specific stable fields for change detection
+            for conn in $(nmcli -t -f NAME con show); do
+                local backup_file="$BACKUP_DIR/$conn.fields.backup"
+                nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$backup_file" 2>> "$LOG_FILE" || {
+                    log_message "Failed to backup fields for $conn"
+                    continue
+                }
+                # Ensure proper permissions
+                chmod 600 "$backup_file" 2>> "$LOG_FILE" || log_message "Failed to set permissions on $backup_file"
+            done
+            log_message "Backup created for NetworkManager connections"
+            ;;
+    esac
 }
 
-# Check for changes
+# **Check for changes and log them**
 check_changes() {
-    local changes_detected=0
-    for conn in $(get_interfaces); do
-        local backup_fields="$BACKUP_DIR/$conn.fields.backup"
-        local temp_fields="/tmp/$conn.fields.current"
-        if [ ! -f "$backup_fields" ]; then
-            log_message "No backup found for connection $conn"
-            changes_detected=1
-            continue
-        fi
-        nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
-        if [ $? -ne 0 ]; then
-            log_message "Failed to get current fields for $conn"
-            rm -f "$temp_fields"
-            continue
-        fi
-        if ! cmp -s "$temp_fields" "$backup_fields"; then
-            log_message "Changes detected in connection $conn. Differences:"
-            diff -u "$backup_fields" "$temp_fields" >> "$LOG_FILE" 2>&1
-            changes_detected=1
-        fi
-        rm -f "$temp_fields"
-    done
-    if [ $changes_detected -eq 0 ]; then
-        log_message "No changes detected in NetworkManager connections"
-        return 0
-    else
-        return 1
-    fi
+    local interface="$1"
+    case "$NETWORK_MANAGER" in
+        networkmanager)
+            local changes_detected=0
+            local active_connections=$(nmcli -t -f NAME con show)
+            
+            # Check for deleted connections
+            for backup_file in "$BACKUP_DIR"/*.fields.backup; do
+                local conn=$(basename "$backup_file" .fields.backup)
+                if ! echo "$active_connections" | grep -q "^$conn$"; then
+                    log_message "Connection $conn has been deleted"
+                    changes_detected=1
+                fi
+            done
+            
+            # Check for modified connections
+            for conn in $active_connections; do
+                local backup_fields="$BACKUP_DIR/$conn.fields.backup"
+                local temp_fields="/tmp/$conn.fields.current"
+                
+                if [ ! -f "$backup_fields" ]; then
+                    log_message "No backup found for connection $conn"
+                    changes_detected=1
+                    continue
+                fi
+                
+                nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
+                if [ $? -ne 0 ]; then
+                    log_message "Failed to get current fields for $conn (connection may not exist)"
+                    rm -f "$temp_fields"
+                    changes_detected=1
+                    continue
+                fi
+                
+                if ! cmp -s "$temp_fields" "$backup_fields"; then
+                    log_message "Changes detected in connection $conn. Differences:"
+                    diff -u "$backup_fields" "$temp_fields" >> "$LOG_FILE" 2>&1
+                    changes_detected=1
+                fi
+                
+                rm -f "$temp_fields"
+            done
+            
+            # Check for new connections
+            for current_file in /etc/NetworkManager/system-connections/*.nmconnection; do
+                [ -f "$current_file" ] || continue
+                local connection_name=$(basename "$current_file" .nmconnection)
+                if [ ! -f "$BACKUP_DIR/$connection_name.nmconnection" ]; then
+                    log_message "New connection detected: $connection_name"
+                    changes_detected=1
+                fi
+            done
+            
+            if [ $changes_detected -eq 0 ]; then
+                log_message "No changes detected in NetworkManager connections"
+                return 0
+            else
+                return 1
+            fi
+            ;;
+    esac
 }
 
-# Restore configuration
+# **Restore configuration**
 restore_config() {
-    for conn in $(get_interfaces); do
-        local backup_fields="$BACKUP_DIR/$conn.fields.backup"
-        if [ -f "$backup_fields" ]; then
-            # Bring connection down to ensure changes apply
-            nmcli con down "$conn" 2>> "$LOG_FILE" || log_message "Failed to bring down $conn"
-            # Restore each field
-            while IFS=':' read -r field value; do
-                case "$field" in
-                    connection.id) ;; # Skip
-                    connection.type)
-                        nmcli con mod "$conn" connection.type "$value" 2>> "$LOG_FILE"
-                        [ $? -ne 0 ] && log_message "Failed to set connection.type to $value for $conn"
-                        ;;
-                    connection.interface-name)
-                        nmcli con mod "$conn" connection.interface-name "$value" 2>> "$LOG_FILE"
-                        [ $? -ne 0 ] && log_message "Failed to set connection.interface-name to $value for $conn"
-                        ;;
-                    ipv4.method)
-                        nmcli con mod "$conn" ipv4.method "$value" 2>> "$LOG_FILE"
-                        [ $? -ne 0 ] && log_message "Failed to set ipv4.method to $value for $conn"
-                        ;;
-                    ipv4.addresses)
-                        nmcli con mod "$conn" ipv4.addresses "$value" 2>> "$LOG_FILE"
-                        [ $? -ne 0 ] && log_message "Failed to set ipv4.addresses to $value for $conn"
-                        ;;
-                    ipv4.gateway)
-                        nmcli con mod "$conn" ipv4.gateway "$value" 2>> "$LOG_FILE"
-                        [ $? -ne 0 ] && log_message "Failed to set ipv4.gateway to $value for $conn"
-                        ;;
-                    ipv4.dns)
-                        nmcli con mod "$conn" ipv4.dns "$value" 2>> "$LOG_FILE"
-                        [ $? -ne 0 ] && log_message "Failed to set ipv4.dns to $value for $conn"
-                        ;;
-                esac
-            done < "$backup_fields"
-            # Bring connection up to apply changes
-            nmcli con up "$conn" 2>> "$LOG_FILE" || log_message "Failed to bring up $conn after restoration"
-            log_message "Restored configuration for $conn"
-        fi
-    done
+    local interface="$1"
+    case "$NETWORK_MANAGER" in
+        networkmanager)
+            # Remove all existing .nmconnection files to ensure a clean state
+            rm -f /etc/NetworkManager/system-connections/*.nmconnection 2>> "$LOG_FILE" || {
+                log_message "Failed to clear existing NetworkManager connections"
+                return 1
+            }
+            
+            # Copy backup .nmconnection files to the system directory
+            cp "$BACKUP_DIR"/*.nmconnection /etc/NetworkManager/system-connections/ 2>> "$LOG_FILE" || {
+                log_message "Failed to restore NetworkManager connection files"
+                return 1
+            }
+            
+            # Ensure proper permissions
+            chmod 600 /etc/NetworkManager/system-connections/*.nmconnection 2>> "$LOG_FILE" || {
+                log_message "Failed to set permissions on restored connections"
+                return 1
+            }
+            
+            # Reload NetworkManager to recognize the new configuration files
+            nmcli connection reload 2>> "$LOG_FILE" || {
+                log_message "Failed to reload NetworkManager connections"
+                return 1
+            }
+            
+            # Bring up all connections to ensure they are active
+            for connection in $(nmcli -t -f NAME con show); do
+                nmcli con up "$connection" 2>> "$LOG_FILE" || {
+                    log_message "Failed to bring up $connection"
+                    continue
+                }
+            done
+            
+            log_message "Configuration restored for NetworkManager"
+            return 0
+            ;;
+    esac
 }
-
-# Ensure backups exist
-ensure_backups() {
-    if ! ls "$BACKUP_DIR"/*.fields.backup >/dev/null 2>&1; then
-        log_message "No backups found. Creating backups..."
-        backup_config
-    fi
-}
-
-# Main logic
-case "$1" in
-    backup)
-        rm -rf "$BACKUP_DIR"/*
-        backup_config
-        ;;
-    conf-check)
-        ensure_backups
-        if ! check_changes; then
-            log_message "Changes detected, restoring configuration"
-            restore_config
-        fi
-        log_message "Conf-check cycle completed"
-        ;;
-    *)
-        echo "Usage: $0 [backup|conf-check]"
-        exit 1
-        ;;
-esac
