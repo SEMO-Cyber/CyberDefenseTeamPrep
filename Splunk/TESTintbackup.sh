@@ -204,10 +204,12 @@ restore_config() {
         if [ "$(ls -A "$MANAGER_BACKUP_DIR")" ]; then
             cp -r "$MANAGER_BACKUP_DIR"/* "$CONFIG_PATH/" || {
                 log_message "Failed to restore $CONFIG_PATH for $manager"
+                echo "Failed to restore $CONFIG_PATH for $manager"
                 exit 1
             }
         else
             log_message "Backup directory $MANAGER_BACKUP_DIR is empty for $manager, no files to restore"
+            echo "Backup directory $MANAGER_BACKUP_DIR is empty for $manager, no files to restore"
         fi
     else
         cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
@@ -217,27 +219,33 @@ restore_config() {
     fi
     case "$manager" in
         networkmanager)
-            nmcli connection reload || log_message "Failed to reload NetworkManager"
-            # If network-scripts is also active, skip NetworkManager-specific restoration
-            if is_manager_active "network-scripts"; then
-                log_message "Network-scripts detected, skipping NetworkManager device state restoration"
-            else
-                # Restore device states from backup if available
-                if [ -f "$MANAGER_BACKUP_DIR/device_states.backup" ]; then
-                    while IFS=':' read -r key value; do
-                        if [[ "$key" =~ ^GENERAL\.DEVICE ]]; then
-                            device="$value"
-                        elif [[ "$key" =~ ^IP4\.ADDRESS\[1\] ]]; then
-                            ip_addr="$value"
-                            nmcli con mod "$device" ipv4.addresses "$ip_addr" ipv4.method manual || log_message "Failed to restore IP for $device"
-                        fi
-                    done < "$MANAGER_BACKUP_DIR/device_states.backup"
-                    nmcli con up "$device" || log_message "Failed to bring up $device"
+            # Reload NetworkManager to recognize restored files
+            nmcli connection reload || echo "Failed to reload NetworkManager"
+
+            # Restore device state from backup
+            if [ -f "$MANAGER_BACKUP_DIR/device_states.backup" ]; then
+                while IFS=':' read -r key value; do
+                    if [[ "$key" =~ ^GENERAL\.DEVICE ]]; then
+                        device="$value"
+                    elif [[ "$key" =~ ^IP4\.ADDRESS\[1\] ]]; then
+                        ip_addr="$value"
+                    elif [[ "$key" =~ ^IP4\.GATEWAY ]]; then
+                        gateway="$value"
+                    fi
+                done < "$MANAGER_BACKUP_DIR/device_states.backup"
+
+                if [ -n "$device" ] && [ -n "$ip_addr" ] && [ -n "$gateway" ]; then
+                    # Delete the existing connection to clear misconfigurations
+                    nmcli connection delete "$device" || echo "Failed to delete connection for $device"
+                    # Create a new connection with backed-up settings
+                    nmcli connection add type ethernet ifname "$device" con-name "$device" \
+                        ipv4.method manual ipv4.addresses "$ip_addr" ipv4.gateway "$gateway"
+                    nmcli connection up "$device" || echo "Failed to bring up $device"
                 else
-                    for conn in $(nmcli -t -f NAME con show); do
-                        nmcli con up "$conn" || log_message "Failed to bring up $conn"
-                    done
+                    echo "Missing device, IP, or gateway in backup"
                 fi
+            else
+                echo "No device state backup found"
             fi
             ;;
         netplan)
