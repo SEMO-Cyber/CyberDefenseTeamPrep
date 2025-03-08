@@ -298,7 +298,7 @@ restore_config() {
                 exit 1
             }
             sleep 5  # Delay after restart
-            for device in $(nmcli -t -f DEVICE device show | grep -v lo); do
+            for device in $(nmcli -t -f GENERAL.DEVICE device show | grep -v lo); do
                 nmcli device reapply "$device" || {
                     log_message "Warning: Failed to reapply configuration for $device"
                     echo "Warning: Failed to reapply configuration for $device"
