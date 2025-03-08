@@ -32,6 +32,27 @@ fi
 # List of possible network managers
 managers=("netplan" "networkmanager" "systemd-networkd" "interfaces" "network-scripts")
 
+# Function to get the service name for a manager
+get_service_name() {
+    case "$1" in
+        networkmanager)
+            echo "NetworkManager"
+            ;;
+        systemd-networkd)
+            echo "systemd-networkd"
+            ;;
+        interfaces)
+            echo "networking"
+            ;;
+        network-scripts)
+            echo "network"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
 # Function to check if a manager is active
 is_manager_active() {
     case "$1" in
@@ -135,7 +156,6 @@ check_config_changes() {
     local IS_DIR=$(get_is_dir "$manager")
     local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
 
-    # Check if backup directory exists
     if [ ! -d "$MANAGER_BACKUP_DIR" ]; then
         log_message "No backup found for $manager"
         return 1
@@ -143,32 +163,27 @@ check_config_changes() {
 
     if [ "$IS_DIR" = "true" ]; then
         local changes_detected=false
-        # Loop through each file in the backup directory
         for backup_file in "$MANAGER_BACKUP_DIR"/*; do
-            # Skip if no files exist in backup (e.g., empty directory)
             [ -e "$backup_file" ] || continue
             local file_name=$(basename "$backup_file")
             local current_file="$CONFIG_PATH/$file_name"
             if [ -f "$current_file" ]; then
-                # Compare the current file with the backup file
                 diff "$current_file" "$backup_file" > /dev/null 2>&1
                 if [ $? -ne 0 ]; then
                     log_message "Changes detected in $current_file"
                     changes_detected=true
                 fi
             else
-                # File exists in backup but not in current config
                 log_message "File $current_file is missing"
                 changes_detected=true
             fi
         done
         if $changes_detected; then
-            return 1  # Changes detected, restoration needed
+            return 1
         else
-            return 0  # No changes in backed-up files
+            return 0
         fi
     else
-        # Handle single-file configurations (not applicable for network-scripts)
         diff "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" > /dev/null 2>&1
         if [ $? -ne 0 ]; then
             log_message "Changes detected in $CONFIG_PATH"
@@ -224,7 +239,6 @@ restore_config() {
                 echo "Failed to restore $CONFIG_PATH for $manager"
                 exit 1
             }
-            # Set correct permissions for NetworkManager files
             if [ "$manager" = "networkmanager" ]; then
                 chown root:root "$CONFIG_PATH"/*
                 chmod 600 "$CONFIG_PATH"/*
@@ -241,15 +255,12 @@ restore_config() {
     fi
     case "$manager" in
         networkmanager)
-            # Restart NetworkManager to load restored configurations
             systemctl restart NetworkManager || {
                 log_message "Failed to restart NetworkManager"
                 echo "Failed to restart NetworkManager"
                 exit 1
             }
-            # Wait briefly for NetworkManager to stabilize
             sleep 5
-            # Reapply configuration to all devices (excluding loopback)
             for device in $(nmcli -t -f DEVICE device show | grep -v lo); do
                 nmcli device reapply "$device" || {
                     log_message "Warning: Failed to reapply configuration for $device"
@@ -257,7 +268,6 @@ restore_config() {
                 }
             done
             log_message "NetworkManager configuration restored and reapplied"
-            # Log current device states for verification
             log_message "Device states after restoration:"
             nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS,GENERAL.STATE device show >> "$LOG_FILE"
             ;;
@@ -340,6 +350,13 @@ elif [ "$ACTION" = "check" ]; then
     done
 elif [ "$ACTION" = "conf-check" ]; then
     for manager in "${managers[@]}"; do
+        service_name=$(get_service_name "$manager")
+        if [ -n "$service_name" ]; then
+            if ! systemctl is-active --quiet "$service_name"; then
+                log_message "Service $service_name is not active. Attempting to start it."
+                systemctl start "$service_name" || log_message "Failed to start $service_name"
+            fi
+        fi
         if is_manager_active "$manager"; then
             config_changed=false
             device_changed=false
@@ -357,6 +374,8 @@ elif [ "$ACTION" = "conf-check" ]; then
             else
                 log_message "No changes detected for $manager"
             fi
+        else
+            log_message "Manager $manager is not active. Skipping checks."
         fi
     done
 elif [ "$ACTION" = "reset" ]; then
