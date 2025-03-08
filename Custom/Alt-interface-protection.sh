@@ -52,6 +52,32 @@ if ! command -v inotifywait > /dev/null; then
     log_message "inotify-tools installed successfully."
 fi
 
+# Install rsync if not present
+if ! command -v rsync > /dev/null; then
+    log_message "rsync not found, installing rsync..."
+    if command -v apt-get > /dev/null; then
+        apt-get update && apt-get install -y rsync
+    elif command -v dnf > /dev/null; then
+        dnf install -y rsync
+    elif command -v yum > /dev/null; then
+        yum install -y rsync
+    elif command -v pacman > /dev/null; then
+        pacman -S --noconfirm rsync
+    elif command -v zypper > /dev/null; then
+        zypper install -y rsync
+    elif command -v apk > /dev/null; then
+        apk add --no-cache rsync
+    else
+        log_message "No supported package manager found. Please install rsync manually."
+        exit 1
+    fi
+    if ! command -v rsync > /dev/null; then
+        log_message "Failed to install rsync. Please install it manually."
+        exit 1
+    fi
+    log_message "rsync installed successfully."
+fi
+
 # Detect active network managers
 detect_managers() {
     local managers=()
@@ -144,7 +170,7 @@ backup_config() {
     log_message "Backup created for $manager"
 }
 
-# Restore configuration
+# Restore configuration with rsync
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -155,9 +181,8 @@ restore_config() {
     touch "$LOCK_FILE"
 
     if [ "$IS_DIR" = "true" ]; then
-        rm -rf "$CONFIG_PATH"/*
-        cp -rf "$MANAGER_BACKUP_DIR"/* "$CONFIG_PATH/" || {
-            log_message "Failed to restore $CONFIG_PATH for $manager"
+        rsync -a --delete "$MANAGER_BACKUP_DIR/" "$CONFIG_PATH/" || {
+            log_message "Failed to restore $CONFIG_PATH for $manager using rsync"
             rm -f "$LOCK_FILE"
             exit 1
         }
