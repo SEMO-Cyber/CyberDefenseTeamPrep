@@ -105,10 +105,14 @@ backup_config() {
     rm -rf "$MANAGER_BACKUP_DIR"
     mkdir -p "$MANAGER_BACKUP_DIR"
     if [ "$IS_DIR" = "true" ]; then
-        cp -r "$CONFIG_PATH"/* "$MANAGER_BACKUP_DIR/" || {
-            log_message "Failed to backup $CONFIG_PATH for $manager"
-            exit 1
-        }
+        if [ "$(ls -A "$CONFIG_PATH")" ]; then
+            cp -r "$CONFIG_PATH"/* "$MANAGER_BACKUP_DIR/" || {
+                log_message "Failed to backup $CONFIG_PATH for $manager"
+                exit 1
+            }
+        else
+            log_message "Configuration directory $CONFIG_PATH is empty for $manager, no files to backup"
+        fi
     else
         cp "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" || {
             log_message "Failed to backup $CONFIG_PATH for $manager"
@@ -197,10 +201,14 @@ restore_config() {
 
     if [ "$IS_DIR" = "true" ]; then
         rm -rf "$CONFIG_PATH"/*
-        cp -r "$MANAGER_BACKUP_DIR"/* "$CONFIG_PATH/" || {
-            log_message "Failed to restore $CONFIG_PATH for $manager"
-            exit 1
-        }
+        if [ "$(ls -A "$MANAGER_BACKUP_DIR")" ]; then
+            cp -r "$MANAGER_BACKUP_DIR"/* "$CONFIG_PATH/" || {
+                log_message "Failed to restore $CONFIG_PATH for $manager"
+                exit 1
+            }
+        else
+            log_message "Backup directory $MANAGER_BACKUP_DIR is empty for $manager, no files to restore"
+        fi
     else
         cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
             log_message "Failed to restore $CONFIG_PATH for $manager"
