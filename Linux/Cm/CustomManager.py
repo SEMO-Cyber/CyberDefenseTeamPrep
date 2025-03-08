@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 import shutil
 import re
+import threading
 
 # Config and Log paths
 CONFIG_PATH = './cm.config'
@@ -22,6 +23,12 @@ def load_config():
     else:
         print("Config file does not exist!")
         exit(1)
+
+# Save the updated config back to the cm.config file
+def save_config(config):
+    with open(CONFIG_PATH, 'w') as config_file:
+        json.dump(config, config_file, indent=4)
+    logging.info(f"Config updated and saved to {CONFIG_PATH}")
 
 # Setup basic logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -97,8 +104,7 @@ def restore_backup(backup_file, restore_path):
 def edit_config(config, section, new_data):
     if section in config:
         config[section] = new_data
-        with open(CONFIG_PATH, 'w') as config_file:
-            json.dump(config, config_file, indent=4)
+        save_config(config)
         logging.info(f"Updated {section} in config.")
     else:
         logging.warning(f"Section {section} not found in config.")
@@ -109,8 +115,7 @@ def add_service(config, service_name):
         config['serviceup_config'] = []
     if service_name not in config['serviceup_config']:
         config['serviceup_config'].append(service_name)
-        with open(CONFIG_PATH, 'w') as config_file:
-            json.dump(config, config_file, indent=4)
+        save_config(config)
         logging.info(f"Added service {service_name} to serviceup_config.")
 
 # Function to search for malicious keywords in the files
@@ -184,7 +189,8 @@ def menu():
         
         elif choice == "5":
             section = input("Enter the config section to modify (e.g., 'serviceup_config', 'fs_config'): ")
-            new_data = input("Enter the new data (in JSON format): ")
+            print("Enter the new data in JSON format (example: {'key': 'value'}): ")
+            new_data = input("Enter the new data: ")
             try:
                 new_data = json.loads(new_data)
                 edit_config(config, section, new_data)
