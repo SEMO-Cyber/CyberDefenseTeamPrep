@@ -79,11 +79,9 @@ backup_config() {
             log_message "Backup created for Netplan configurations"
             ;;
         networkmanager)
-            # Backup the full .nmconnection files for restoration
-            cp /etc/NetworkManager/system-connections/*.nmconnection "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup NetworkManager connection files"
-            # Backup specific stable fields for change detection
+            # Backup only specific fields for each connection
             for conn in $(nmcli -t -f NAME con show); do
-                nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$BACKUP_DIR/$conn.fields.backup" 2>> "$LOG_FILE" || log_message "Failed to backup fields for $conn"
+                nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$BACKUP_DIR/$conn.fields.backup" 2>> "$LOG_FILE" || log_message "Failed to backup fields for $conn"
             done
             log_message "Backup created for NetworkManager connections"
             ;;
@@ -132,7 +130,7 @@ check_changes() {
                     changes_detected=1
                     continue
                 fi
-                nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
+                nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
                 if [ $? -ne 0 ]; then
                     log_message "Failed to get current fields for $conn (connection may not exist)"
                     rm -f "$temp_fields"
@@ -146,11 +144,9 @@ check_changes() {
                 rm -f "$temp_fields"
             done
             # Check for new connections not in backup
-            for current_file in /etc/NetworkManager/system-connections/*.nmconnection; do
-                [ -f "$current_file" ] || continue
-                local connection_name=$(basename "$current_file" .nmconnection)
-                if [ ! -f "$BACKUP_DIR/$connection_name.nmconnection" ]; then
-                    log_message "New connection detected: $connection_name"
+            for conn in $(nmcli -t -f NAME con show); do
+                if [ ! -f "$BACKUP_DIR/$conn.fields.backup" ]; then
+                    log_message "New connection detected: $conn"
                     changes_detected=1
                 fi
             done
@@ -219,17 +215,40 @@ restore_config() {
             log_message "Configuration restored for Netplan"
             ;;
         networkmanager)
-            # Remove all existing .nmconnection files to ensure a clean state
-            rm -f /etc/NetworkManager/system-connections/*.nmconnection 2>> "$LOG_FILE" || log_message "Failed to clear existing NetworkManager connections"
-            # Copy backup .nmconnection files to the system directory
-            cp "$BACKUP_DIR"/*.nmconnection /etc/NetworkManager/system-connections/ 2>> "$LOG_FILE" || log_message "Failed to restore NetworkManager connection files"
-            # Reload NetworkManager to recognize the new configuration files
-            nmcli connection reload 2>> "$LOG_FILE" || log_message "Failed to reload NetworkManager connections"
-            # Bring up all connections to ensure they are active
-            for connection in $(nmcli -t -f NAME con show); do
-                nmcli con up "$connection" 2>> "$LOG_FILE" || log_message "Failed to bring up $connection"
+            for conn in $(nmcli -t -f NAME con show); do
+                local backup_fields="$BACKUP_DIR/$conn.fields.backup"
+                if [ -f "$backup_fields" ]; then
+                    # Parse and restore each field from the backup
+                    while IFS=':' read -r field value; do
+                        case "$field" in
+                            connection.id)
+                                # Skip, as this is the connection name itself
+                                ;;
+                            connection.type)
+                                nmcli con mod "$conn" connection.type "$value" 2>> "$LOG_FILE" || log_message "Failed to restore connection.type for $conn"
+                                ;;
+                            connection.interface-name)
+                                nmcli con mod "$conn" connection.interface-name "$value" 2>> "$LOG_FILE" || log_message "Failed to restore connection.interface-name for $conn"
+                                ;;
+                            ipv4.method)
+                                nmcli con mod "$conn" ipv4.method "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.method for $conn"
+                                ;;
+                            ipv4.addresses)
+                                nmcli con mod "$conn" ipv4.addresses "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.addresses for $conn"
+                                ;;
+                            ipv4.gateway)
+                                nmcli con mod "$conn" ipv4.gateway "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.gateway for $conn"
+                                ;;
+                            ipv4.dns)
+                                nmcli con mod "$conn" ipv4.dns "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.dns for $conn"
+                                ;;
+                        esac
+                    done < "$backup_fields"
+                    # Apply the changes
+                    nmcli con up "$conn" 2>> "$LOG_FILE" || log_message "Failed to bring up $conn after restoration"
+                fi
             done
-            log_message "Configuration restored for NetworkManager"
+            log_message "Configuration restored for NetworkManager using specific fields"
             ;;
         systemd-networkd)
             cp "$BACKUP_DIR"/*.network /etc/systemd/network/ 2>> "$LOG_FILE" || log_message "Failed to restore systemd-networkd configs"
@@ -272,7 +291,7 @@ ensure_backups() {
             fi
             ;;
         networkmanager)
-            if ! ls "$BACKUP_DIR"/*.nmconnection >/dev/null 2>&1; then
+            if ! ls "$BACKUP_DIR"/*.fields.backup >/dev/null 2>&1; then
                 log_message "No NetworkManager backups found. Creating backups..."
                 backup_config ""
             fi
