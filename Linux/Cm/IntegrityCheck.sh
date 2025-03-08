@@ -10,11 +10,11 @@ set_immutable() {
         if [ -e "$path" ]; then
             if [ -d "$path" ]; then
                 # Set the directory to be immutable
-                sudo chattr +i -d "$path"
+                sudo chattr +i -d $path
                 
             elif [ -f "$path" ]; then
                 # Set the file to be immutable
-                sudo chattr +i "$path"
+                sudo chattr +i $path
             fi
         else
             #echo "$(date): Warning - Path $path does not exist."  # Console warning if the path doesn't exist
