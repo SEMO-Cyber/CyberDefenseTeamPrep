@@ -99,7 +99,7 @@ backup_config() {
     fi
     # For NetworkManager, also backup device states
     if [ "$NETWORK_MANAGER" = "networkmanager" ]; then
-        nmcli -t -f DEVICE,IP4.ADDRESS device show > "$MANAGER_BACKUP_DIR/device_states.backup" || {
+        nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS device show > "$MANAGER_BACKUP_DIR/device_states.backup" || {
             log_message "Failed to backup device states for NetworkManager"
             exit 1
         }
@@ -145,7 +145,7 @@ check_device_changes() {
         log_message "No device state backup found for NetworkManager"
         return 1
     fi
-    nmcli -t -f DEVICE,IP4.ADDRESS device show > /tmp/current_device_states
+    nmcli -t -f GENERAL.DEVICE,IP4.ADDRESS device show > /tmp/current_device_states
     diff /tmp/current_device_states "$MANAGER_BACKUP_DIR/device_states.backup" > /tmp/device_diff_output 2>&1
     diff_status=$?
     if [ $diff_status -eq 0 ]; then
