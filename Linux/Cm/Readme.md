@@ -76,3 +76,7 @@ BackupHandler.sh
 ConfigManager.sh
     - it gives the access to modify and view the current configs of IntegrityCheck.sh and ServiceManager.sh if modify something it will kill the subprocess of corresponding bash and runs it again.
     - exit option
+
+
+
+if you running this CustomManager.sh for the first time make sure you run the CreateConfigAndLogs.sh to generate the all configs and the logs .
