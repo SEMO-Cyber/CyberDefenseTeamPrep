@@ -52,7 +52,7 @@ get_interfaces() {
             grep -h "ethernets:" /etc/netplan/*.yaml -A 10 | grep -oP '^\s+\K\w+' | sort -u
             ;;
         networkmanager)
-            nmcli -t -f DEVICE con show | grep -v '^lo$'
+            nmcli -t -f NAME con show | grep -v '^lo$'
             ;;
         systemd-networkd)
             networkctl list --no-legend | awk '{if ($NF == "configured") print $2}'
@@ -79,7 +79,12 @@ backup_config() {
             log_message "Backup created for Netplan configurations"
             ;;
         networkmanager)
+            # Backup the full .nmconnection files for restoration
             cp /etc/NetworkManager/system-connections/*.nmconnection "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup NetworkManager connection files"
+            # Backup specific stable fields for change detection
+            for conn in $(nmcli -t -f NAME con show); do
+                nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$BACKUP_DIR/$conn.fields.backup" 2>> "$LOG_FILE" || log_message "Failed to backup fields for $conn"
+            done
             log_message "Backup created for NetworkManager connections"
             ;;
         systemd-networkd)
@@ -119,19 +124,28 @@ check_changes() {
             ;;
         networkmanager)
             local changes_detected=0
-            for backup_file in "$BACKUP_DIR"/*.nmconnection; do
-                [ -f "$backup_file" ] || continue
-                local connection_name=$(basename "$backup_file" .nmconnection)
-                local current_file="/etc/NetworkManager/system-connections/$connection_name.nmconnection"
-                if [ ! -f "$current_file" ]; then
-                    log_message "Connection file $current_file not found"
+            for conn in $(nmcli -t -f NAME con show); do
+                local backup_fields="$BACKUP_DIR/$conn.fields.backup"
+                local temp_fields="/tmp/$conn.fields.current"
+                if [ ! -f "$backup_fields" ]; then
+                    log_message "No backup found for connection $conn"
                     changes_detected=1
-                elif ! cmp -s "$current_file" "$backup_file"; then
-                    log_message "Changes detected in connection $connection_name. Differences:"
-                    diff -u "$backup_file" "$current_file" >> "$LOG_FILE" 2>&1
+                    continue
+                fi
+                nmcli -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
+                if [ $? -ne 0 ]; then
+                    log_message "Failed to get current fields for $conn (connection may not exist)"
+                    rm -f "$temp_fields"
+                    continue
+                fi
+                if ! cmp -s "$temp_fields" "$backup_fields"; then
+                    log_message "Changes detected in connection $conn. Differences:"
+                    diff -u "$backup_fields" "$temp_fields" >> "$LOG_FILE" 2>&1
                     changes_detected=1
                 fi
+                rm -f "$temp_fields"
             done
+            # Check for new connections not in backup
             for current_file in /etc/NetworkManager/system-connections/*.nmconnection; do
                 [ -f "$current_file" ] || continue
                 local connection_name=$(basename "$current_file" .nmconnection)
