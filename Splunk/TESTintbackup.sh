@@ -219,7 +219,7 @@ restore_config() {
     if [ "$IS_DIR" = "true" ]; then
         rm -rf "$CONFIG_PATH"/*
         if [ "$(ls -A "$MANAGER_BACKUP_DIR")" ]; then
-            cp -rf"$MANAGER_BACKUP_DIR"/* "$CONFIG_PATH/" || {
+            cp -rf "$MANAGER_BACKUP_DIR"/* "$CONFIG_PATH/" || {
                 log_message "Failed to restore $CONFIG_PATH for $manager"
                 echo "Failed to restore $CONFIG_PATH for $manager"
                 exit 1
