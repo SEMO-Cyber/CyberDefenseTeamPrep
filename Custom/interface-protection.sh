@@ -53,6 +53,25 @@ get_service_name() {
     esac
 }
 
+# Function to check if a service exists and is active
+check_and_start_service() {
+    local service="$1"
+    if [ -n "$service" ]; then
+        if ! systemctl list-units --type=service | grep -q "$service\.service"; then
+            log_message "Service unit $service.service does not exist. Skipping."
+            return 1
+        fi
+        if ! systemctl is-active --quiet "$service"; then
+            log_message "Service $service is not active. Attempting to start it."
+            if ! systemctl start "$service" 2>>"$LOG_FILE"; then
+                log_message "Failed to start $service: $(cat "$LOG_FILE" | tail -n 1)"
+            fi
+            # Brief delay to allow service to start
+            sleep 2
+        fi
+    fi
+}
+
 # Function to check if a manager is active
 is_manager_active() {
     case "$1" in
@@ -352,9 +371,15 @@ elif [ "$ACTION" = "conf-check" ]; then
     for manager in "${managers[@]}"; do
         service_name=$(get_service_name "$manager")
         if [ -n "$service_name" ]; then
-            if ! systemctl is-active --quiet "$service_name"; then
+            if ! systemctl list-units --type=service | grep -q "$service_name\.service"; then
+                log_message "Service unit $service_name.service does not exist. Skipping."
+            elif ! systemctl is-active --quiet "$service_name"; then
                 log_message "Service $service_name is not active. Attempting to start it."
-                systemctl start "$service_name" || log_message "Failed to start $service_name"
+                if ! systemctl start "$service_name" 2>>"$LOG_FILE"; then
+                    log_message "Failed to start $service_name: $(tail -n 1 "$LOG_FILE")"
+                else
+                    sleep 2  # Allow service to stabilize
+                fi
             fi
         fi
         if is_manager_active "$manager"; then
