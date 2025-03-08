@@ -10,7 +10,7 @@ check_immutable() {
         if [ -e "$path" ]; then
             if [ -d "$path" ]; then
                 # Check if the directory is immutable
-                if ! lsattr "$path" | grep -q 'i'; then
+                if ! lsattr -d "$path" | grep -q 'i'; then
                     chattr +i "$path"
                     echo "$(date): Warning - Directory $path is not immutable, setting it to immutable."  # Console warning
                     echo "$(date): Directory $path is not immutable, setting it to immutable." >> "$LOG_FILE"
