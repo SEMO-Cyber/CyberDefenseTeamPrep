@@ -291,18 +291,30 @@ backup_all() {
     esac
 }
 
-# Main logic
-if [ $# -eq 0 ]; then
-    ACTION="monitor"
-else
-    ACTION="$1"
-fi
+# Function to display usage
+display_usage() {
+    echo "Usage: $0 [backup|check|conf-check|reset|--setup-cron]"
+    echo "  backup: Create backups for all interfaces"
+    echo "  check: Manually check for changes in configurations"
+    echo "  conf-check: Perform a single check-and-restore cycle"
+    echo "  reset: Delete existing backups and create new ones"
+    echo "  --setup-cron: Setup cronjob to run conf-check every minute"
+}
 
+# Main logic
 NETWORK_MANAGER=$(detect_network_manager)
 if [ "$NETWORK_MANAGER" = "unknown" ]; then
     log_message "Unsupported network management tool detected"
     exit 1
 fi
+
+if [ $# -eq 0 ]; then
+    ensure_backups
+    display_usage
+    exit 0
+fi
+
+ACTION="$1"
 
 case "$ACTION" in
     reset)
@@ -338,8 +350,8 @@ case "$ACTION" in
             log_message "No changes detected in configurations"
         fi
         ;;
-    monitor)
-        log_message "Starting monitoring cycle"
+    conf-check)
+        log_message "Starting configuration check cycle"
         ensure_backups
         case "$NETWORK_MANAGER" in
             netplan|networkmanager|systemd-networkd|interfaces)
@@ -357,7 +369,7 @@ case "$ACTION" in
                 done
                 ;;
         esac
-        log_message "Monitoring cycle completed"
+        log_message "Configuration check cycle completed"
         ;;
     --setup-cron)
         PRO_INT_DIR="/etc/pro-int"
@@ -366,12 +378,13 @@ case "$ACTION" in
         cp "$0" "$PRO_INT_DIR/$SCRIPT_NAME"
         chmod +x "$PRO_INT_DIR/$SCRIPT_NAME"
         log_message "Script copied to $PRO_INT_DIR/$SCRIPT_NAME"
-        CRON_COMMAND="* * * * * $PRO_INT_DIR/$SCRIPT_NAME monitor"
+        CRON_COMMAND="* * * * * $PRO_INT_DIR/$SCRIPT_NAME conf-check"
         (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
-        log_message "Cronjob created to run $PRO_INT_DIR/$SCRIPT_NAME monitor every minute"
+        log_message "Cronjob created to run $PRO_INT_DIR/$SCRIPT_NAME conf-check every minute"
         ;;
     *)
-        echo "Usage: $0 [backup|check|monitor|reset|--setup-cron]"
+        echo "Options: $ACTION"
+        display_usage
         exit 1
         ;;
 esac
