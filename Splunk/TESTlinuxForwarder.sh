@@ -20,7 +20,7 @@ SPLUNK_BUILD="64e843ea36b1"
 SPLUNK_PACKAGE_TGZ="splunkforwarder-${SPLUNK_VERSION}-${SPLUNK_BUILD}-Linux-x86_64.tgz"
 SPLUNK_DOWNLOAD_URL="https://download.splunk.com/products/universalforwarder/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PACKAGE_TGZ}"
 INSTALL_DIR="/opt/splunkforwarder"
-INDEXER_IP="192.168.1.105"
+INDEXER_IP="192.168.1.90"
 RECEIVER_PORT="9997"
 ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="Changeme1!"  # Replace with a secure password
@@ -165,7 +165,6 @@ sourcetype = cron
 index = main
 sourecetype = secure
 
-
 #These are logs for custom programs. 
 [monitor:///var/log/file-integrity-alert.log]
 index = main
@@ -178,6 +177,10 @@ sourcetype = file_integrity
 [monitor:///var/log/custom_manager.log]
 index = main
 sourcetype = custom
+
+[monitor:///var/log/interface-protection.log]
+index = main
+sourcetype = cusom
 
 #Test log
 [monitor:///tmp/test.log]
@@ -247,6 +250,10 @@ sourcetype = file_integrity
 index = main
 sourcetype = custom
 
+[monitor:///var/log/interface-protection.log]
+index = main
+sourcetype = cusom
+
 #Test log
 [monitor:///tmp/test.log]
 index = main
@@ -294,6 +301,10 @@ sourcetype = file_integrity
 [monitor:///var/log/custom_manager.log]
 index = main
 sourcetype = custom
+
+[monitor:///var/log/interface-protection.log]
+index = main
+sourcetype = cusom
 
 #Test log
 [monitor:///tmp/test.log]
@@ -344,6 +355,10 @@ sourcetype = file_integrity
 [monitor:///var/log/custom_manager.log]
 index = main
 sourcetype = custom
+
+[monitor:///var/log/interface-protection.log]
+index = main
+sourcetype = cusom
 
 #Test log
 [monitor:///tmp/test.log]
