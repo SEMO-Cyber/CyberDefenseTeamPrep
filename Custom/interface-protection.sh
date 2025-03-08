@@ -30,7 +30,7 @@ if [ -z "$DBUS_SYSTEM_BUS_ADDRESS" ]; then
 fi
 
 # List of possible network managers, restored to original order
-managers=("netplan" "networkmanager" "systemd-networkd" "interfaces" "network-scripts")
+managers=("netplan" "networkmanager" "network-scripts" "systemd-networkd" "interfaces")
 
 # Function to get the service name for a manager
 get_service_name() {
@@ -38,15 +38,16 @@ get_service_name() {
         networkmanager)
             echo "NetworkManager"
             ;;
+        network-scripts)
+            echo "network"
+            ;;
         systemd-networkd)
             echo "systemd-networkd"
             ;;
         interfaces)
             echo "networking"
             ;;
-        network-scripts)
-            echo "network"
-            ;;
+        
         *)
             echo ""
             ;;
@@ -62,14 +63,14 @@ is_manager_active() {
         networkmanager)
             systemctl is-active NetworkManager >/dev/null 2>&1
             ;;
+        network-scripts)
+            [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1
+            ;;
         systemd-networkd)
             systemctl is-active systemd-networkd >/dev/null 2>&1 && [ -d /etc/systemd/network ] && ls /etc/systemd/network/*.network >/dev/null 2>&1
             ;;
         interfaces)
             [ -f /etc/network/interfaces ]
-            ;;
-        network-scripts)
-            [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1
             ;;
         *)
             return 1
@@ -86,14 +87,14 @@ get_config_path() {
         networkmanager)
             echo "/etc/NetworkManager/system-connections"
             ;;
+        network-scripts)
+            echo "/etc/sysconfig/network-scripts"
+            ;;
         systemd-networkd)
             echo "/etc/systemd/network"
             ;;
         interfaces)
             echo "/etc/network/interfaces"
-            ;;
-        network-scripts)
-            echo "/etc/sysconfig/network-scripts"
             ;;
         *)
             echo ""
@@ -172,6 +173,8 @@ check_config_changes() {
                 if [ $? -ne 0 ]; then
                     log_message "Changes detected in $current_file"
                     changes_detected=true
+￼￼
+
                 fi
             else
                 log_message "File $current_file is missing"
