@@ -297,13 +297,15 @@ restore_config() {
 setup_cron() {
     PRO_INT_DIR="/etc/pro-int"
     mkdir -p "$PRO_INT_DIR"
-    #SCRIPT_NAME=$(basename "$0")
     SCRIPT_NAME="interface-protection.sh"
-    cp "$0" "$PRO_INT_DIR/$SCRIPT_NAME"
+    cp "$(readlink -f "$0")" "$PRO_INT_DIR/$SCRIPT_NAME"
     chmod +x "$PRO_INT_DIR/$SCRIPT_NAME"
     log_message "Script copied to $PRO_INT_DIR/$SCRIPT_NAME"
     CRON_COMMAND="* * * * * $PRO_INT_DIR/$SCRIPT_NAME conf-check"
-    (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
+    if ! (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -; then
+        log_message "Failed to set crontab"
+        exit 1
+    fi
     log_message "Cron job created to run $PRO_INT_DIR/$SCRIPT_NAME conf-check every minute"
 }
 
