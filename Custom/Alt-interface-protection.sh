@@ -53,20 +53,18 @@ if ! command -v inotifywait > /dev/null; then
     log_message "inotify-tools installed successfully."
 fi
 
-# Function to detect the active network manager
-detect_manager() {
-    if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
-        echo "netplan"
-    elif systemctl is-active NetworkManager >/dev/null 2>&1; then
-        echo "networkmanager"
-    elif systemctl is-active systemd-networkd >/dev/null 2>&1 && [ -d /etc/systemd/network ] && ls /etc/systemd/network/*.network >/dev/null 2>&1; then
-        echo "systemd-networkd"
-    elif [ -f /etc/network/interfaces ]; then
-        echo "interfaces"
-    elif [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1; then
-        echo "network-scripts"
-    else
+# Function to detect all active network managers
+detect_managers() {
+    local managers=()
+    [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1 && managers+=("netplan")
+    systemctl is-active NetworkManager >/dev/null 2>&1 && managers+=("networkmanager")
+    systemctl is-active systemd-networkd >/dev/null 2>&1 && [ -d /etc/systemd/network ] && ls /etc/systemd/network/*.network >/dev/null 2>&1 && managers+=("systemd-networkd")
+    [ -f /etc/network/interfaces ] && managers+=("interfaces")
+    [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1 && managers+=("network-scripts")
+    if [ ${#managers[@]} -eq 0 ]; then
         echo "unknown"
+    else
+        echo "${managers[@]}"
     fi
 }
 
@@ -194,7 +192,7 @@ monitor_config() {
 
     if [ "$IS_DIR" = "true" ]; then
         inotifywait -m -r -e modify,create,delete "$CONFIG_PATH" | while read -r line; do
-            log_message "Change detected: $line"
+            log_message "Change detected in $manager: $line"
             # Debounce: wait for DEBOUNCE_TIME seconds without further events
             last_event_time=$(date +%s)
             while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
@@ -204,23 +202,25 @@ monitor_config() {
         done
     else
         inotifywait -m -e modify "$CONFIG_PATH" | while read -r line; do
-            log_message "Change detected: $line"
+            log_message "Change detected in $manager: $line"
             restore_config "$manager"
         done
     fi
 }
 
 # Main Logic
-manager=$(detect_manager)
+managers=($(detect_managers))
 
-if [ "$manager" = "unknown" ]; then
-    log_message "Unknown network manager, cannot proceed"
+if [ "${managers[0]}" = "unknown" ]; then
+    log_message "No active network managers detected, cannot proceed"
     exit 1
 fi
 
-# Backup the current configuration
-backup_config "$manager"
+# Backup and monitor all detected managers
+for manager in "${managers[@]}"; do
+    log_message "Detected active manager: $manager"
+    backup_config "$manager"
+    monitor_config "$manager" &
+done
 
-# Start monitoring
-monitor_config "$manager" &
-log_message "Started monitoring for $manager"
+log_message "Started monitoring for all detected managers: ${managers[*]}"
