@@ -4,432 +4,139 @@
 set -e
 
 # Ensure the script is run as root
-if [ "$(id -u)" != "0" ]; then
+if [ "$(id -u)" != "0"]; then
     echo "This script must be run as root" >&2
     exit 1
 fi
 
-# Backup directory and log file
-BAC_SERVICES_DIR="/etc/BacServices"
-BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
+# Directories and log file
+BACKUP_DIR="/etc/BacServices/interface-protection"
 LOG_FILE="/var/log/interface-protection.log"
 
 # Create directories if they don’t exist
-mkdir -p "$BAC_SERVICES_DIR"
 mkdir -p "$BACKUP_DIR"
 
-# Function to log messages with timestamp
+# Log messages with timestamp
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
-# Set environment variables for D-Bus (needed for nmcli in cron)
-if [ -z "$DBUS_SYSTEM_BUS_ADDRESS" ]; then
-    export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
-fi
+# Set D-Bus environment for nmcli (needed in cron/non-interactive shells)
+export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
 
-# **Detect network management tool**
-detect_network_manager() {
-    if [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1; then
-        echo "netplan"
-    elif systemctl is-active NetworkManager >/dev/null 2>&1; then
-        echo "networkmanager"
-    elif systemctl is-active systemd-networkd >/dev/null 2>&1 && [ -d /etc/systemd/network ] && ls /etc/systemd/network/*.network >/dev/null 2>&1; then
-        echo "systemd-networkd"
-    elif [ -f /etc/network/interfaces ]; then
-        echo "interfaces"
-    elif [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1; then
-        echo "network-scripts"
+# Get NetworkManager connections
+get_interfaces() {
+    nmcli -t -f NAME con show | grep -v '^lo$'
+}
+
+# Backup configuration
+backup_config() {
+    for conn in $(get_interfaces); do
+        nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$BACKUP_DIR/$conn.fields.backup" 2>> "$LOG_FILE" || log_message "Failed to backup fields for $conn"
+    done
+    log_message "Backup created for NetworkManager connections"
+}
+
+# Check for changes
+check_changes() {
+    local changes_detected=0
+    for conn in $(get_interfaces); do
+        local backup_fields="$BACKUP_DIR/$conn.fields.backup"
+        local temp_fields="/tmp/$conn.fields.current"
+        if [ ! -f "$backup_fields" ]; then
+            log_message "No backup found for connection $conn"
+            changes_detected=1
+            continue
+        fi
+        nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
+        if [ $? -ne 0 ]; then
+            log_message "Failed to get current fields for $conn"
+            rm -f "$temp_fields"
+            continue
+        fi
+        if ! cmp -s "$temp_fields" "$backup_fields"; then
+            log_message "Changes detected in connection $conn. Differences:"
+            diff -u "$backup_fields" "$temp_fields" >> "$LOG_FILE" 2>&1
+            changes_detected=1
+        fi
+        rm -f "$temp_fields"
+    done
+    if [ $changes_detected -eq 0 ]; then
+        log_message "No changes detected in NetworkManager connections"
+        return 0
     else
-        echo "unknown"
+        return 1
     fi
 }
 
-# **Get list of interfaces**
-get_interfaces() {
-    case "$NETWORK_MANAGER" in
-        netplan)
-            grep -h "ethernets:" /etc/netplan/*.yaml -A 10 | grep -oP '^\s+\K\w+' | sort -u
-            ;;
-        networkmanager)
-            nmcli -t -f NAME con show | grep -v '^lo$'
-            ;;
-        systemd-networkd)
-            networkctl list --no-legend | awk '{if ($NF == "configured") print $2}'
-            ;;
-        interfaces)
-            grep -oP '^\s*iface\s+\K\w+' /etc/network/interfaces | grep -v 'lo'
-            ;;
-        network-scripts)
-            ls /etc/sysconfig/network-scripts/ifcfg-* | sed 's/.*ifcfg-//'
-            ;;
-        *)
-            echo "Cannot determine interfaces" >&2
-            exit 1
-            ;;
-    esac
-}
-
-# **Backup configuration**
-backup_config() {
-    local interface="$1"
-    case "$NETWORK_MANAGER" in
-        netplan)
-            cp /etc/netplan/*.yaml "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup Netplan configs"
-            log_message "Backup created for Netplan configurations"
-            ;;
-        networkmanager)
-            # Backup only specific fields for each connection
-            for conn in $(nmcli -t -f NAME con show); do
-                nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$BACKUP_DIR/$conn.fields.backup" 2>> "$LOG_FILE" || log_message "Failed to backup fields for $conn"
-            done
-            log_message "Backup created for NetworkManager connections"
-            ;;
-        systemd-networkd)
-            cp /etc/systemd/network/*.network "$BACKUP_DIR/" 2>> "$LOG_FILE" || log_message "Failed to backup systemd-networkd configs"
-            log_message "Backup created for systemd-networkd configurations"
-            ;;
-        interfaces)
-            cp /etc/network/interfaces "$BACKUP_DIR/interfaces.backup" 2>> "$LOG_FILE" || log_message "Failed to backup /etc/network/interfaces"
-            log_message "Backup created for /etc/network/interfaces"
-            ;;
-        network-scripts)
-            cp /etc/sysconfig/network-scripts/ifcfg-$interface "$BACKUP_DIR/ifcfg-$interface.backup" 2>> "$LOG_FILE" || log_message "Failed to backup ifcfg-$interface"
-            log_message "Backup created for interface $interface (/etc/sysconfig/network-scripts/)"
-            ;;
-    esac
-}
-
-# **Check for changes and log them**
-check_changes() {
-    local interface="$1"
-    case "$NETWORK_MANAGER" in
-        netplan)
-            for config_file in /etc/netplan/*.yaml; do
-                backup_copy="$BACKUP_DIR/$(basename "$config_file")"
-                if [ ! -f "$backup_copy" ]; then
-                    log_message "No backup found for $config_file"
-                    return 1
-                fi
-                if ! cmp -s "$config_file" "$backup_copy"; then
-                    log_message "Changes detected in $config_file. Differences:"
-                    diff -u "$backup_copy" "$config_file" >> "$LOG_FILE" 2>&1
-                    return 1
-                fi
-            done
-            log_message "No changes detected in Netplan configs"
-            return 0
-            ;;
-        networkmanager)
-            local changes_detected=0
-            for conn in $(nmcli -t -f NAME con show); do
-                local backup_fields="$BACKUP_DIR/$conn.fields.backup"
-                local temp_fields="/tmp/$conn.fields.current"
-                if [ ! -f "$backup_fields" ]; then
-                    log_message "No backup found for connection $conn"
-                    changes_detected=1
-                    continue
-                fi
-                nmcli -t -f connection.id,connection.type,connection.interface-name,ipv4.method,ipv4.addresses,ipv4.gateway,ipv4.dns con show "$conn" > "$temp_fields" 2>> "$LOG_FILE"
-                if [ $? -ne 0 ]; then
-                    log_message "Failed to get current fields for $conn (connection may not exist)"
-                    rm -f "$temp_fields"
-                    continue
-                fi
-                if ! cmp -s "$temp_fields" "$backup_fields"; then
-                    log_message "Changes detected in connection $conn. Differences:"
-                    diff -u "$backup_fields" "$temp_fields" >> "$LOG_FILE" 2>&1
-                    changes_detected=1
-                fi
-                rm -f "$temp_fields"
-            done
-            # Check for new connections not in backup
-            for conn in $(nmcli -t -f NAME con show); do
-                if [ ! -f "$BACKUP_DIR/$conn.fields.backup" ]; then
-                    log_message "New connection detected: $conn"
-                    changes_detected=1
-                fi
-            done
-            if [ $changes_detected -eq 0 ]; then
-                log_message "No changes detected in NetworkManager connections"
-                return 0
-            else
-                return 1
-            fi
-            ;;
-        systemd-networkd)
-            for config_file in /etc/systemd/network/*.network; do
-                backup_copy="$BACKUP_DIR/$(basename "$config_file")"
-                if [ ! -f "$backup_copy" ]; then
-                    log_message "No backup found for $config_file"
-                    return 1
-                fi
-                if ! cmp -s "$config_file" "$backup_copy"; then
-                    log_message "Changes detected in $config_file. Differences:"
-                    diff -u "$backup_copy" "$config_file" >> "$LOG_FILE" 2>&1
-                    return 1
-                fi
-            done
-            log_message "No changes detected in systemd-networkd configs"
-            return 0
-            ;;
-        interfaces)
-            local backup_file="$BACKUP_DIR/interfaces.backup"
-            if [ ! -f "$backup_file" ]; then
-                log_message "No backup found for /etc/network/interfaces"
-                return 1
-            fi
-            if ! cmp -s /etc/network/interfaces "$backup_file"; then
-                log_message "Changes detected in /etc/network/interfaces. Differences:"
-                diff -u "$backup_file" /etc/network/interfaces >> "$LOG_FILE" 2>&1
-                return 1
-            fi
-            log_message "No changes detected in /etc/network/interfaces"
-            return 0
-            ;;
-        network-scripts)
-            local config_file="/etc/sysconfig/network-scripts/ifcfg-$interface"
-            local backup_file="$BACKUP_DIR/ifcfg-$interface.backup"
-            if [ ! -f "$backup_file" ]; then
-                log_message "No backup found for $config_file"
-                return 1
-            fi
-            if ! cmp -s "$config_file" "$backup_file"; then
-                log_message "Changes detected in $config_file. Differences:"
-                diff -u "$backup_file" "$config_file" >> "$LOG_FILE" 2>&1
-                return 1
-            fi
-            log_message "No changes detected in $config_file"
-            return 0
-            ;;
-    esac
-}
-
-# **Restore configuration**
+# Restore configuration
 restore_config() {
-    local interface="$1"
-    case "$NETWORK_MANAGER" in
-        netplan)
-            cp "$BACKUP_DIR"/*.yaml /etc/netplan/ 2>> "$LOG_FILE" || log_message "Failed to restore Netplan configs"
-            netplan apply 2>> "$LOG_FILE" || log_message "Failed to apply Netplan configs"
-            log_message "Configuration restored for Netplan"
-            ;;
-        networkmanager)
-            for conn in $(nmcli -t -f NAME con show); do
-                local backup_fields="$BACKUP_DIR/$conn.fields.backup"
-                if [ -f "$backup_fields" ]; then
-                    # Parse and restore each field from the backup
-                    while IFS=':' read -r field value; do
-                        case "$field" in
-                            connection.id)
-                                # Skip, as this is the connection name itself
-                                ;;
-                            connection.type)
-                                nmcli con mod "$conn" connection.type "$value" 2>> "$LOG_FILE" || log_message "Failed to restore connection.type for $conn"
-                                ;;
-                            connection.interface-name)
-                                nmcli con mod "$conn" connection.interface-name "$value" 2>> "$LOG_FILE" || log_message "Failed to restore connection.interface-name for $conn"
-                                ;;
-                            ipv4.method)
-                                nmcli con mod "$conn" ipv4.method "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.method for $conn"
-                                ;;
-                            ipv4.addresses)
-                                nmcli con mod "$conn" ipv4.addresses "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.addresses for $conn"
-                                ;;
-                            ipv4.gateway)
-                                nmcli con mod "$conn" ipv4.gateway "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.gateway for $conn"
-                                ;;
-                            ipv4.dns)
-                                nmcli con mod "$conn" ipv4.dns "$value" 2>> "$LOG_FILE" || log_message "Failed to restore ipv4.dns for $conn"
-                                ;;
-                        esac
-                    done < "$backup_fields"
-                    # Apply the changes
-                    nmcli con up "$conn" 2>> "$LOG_FILE" || log_message "Failed to bring up $conn after restoration"
-                fi
-            done
-            log_message "Configuration restored for NetworkManager using specific fields"
-            ;;
-        systemd-networkd)
-            cp "$BACKUP_DIR"/*.network /etc/systemd/network/ 2>> "$LOG_FILE" || log_message "Failed to restore systemd-networkd configs"
-            systemctl restart systemd-networkd 2>> "$LOG_FILE" || log_message "Failed to restart systemd-networkd"
-            log_message "Configuration restored for systemd-networkd"
-            ;;
-        interfaces)
-            cp "$BACKUP_DIR/interfaces.backup" /etc/network/interfaces 2>> "$LOG_FILE" || log_message "Failed to restore /etc/network/interfaces"
-            if command -v systemctl >/dev/null 2>&1; then
-                systemctl restart networking 2>> "$LOG_FILE" || log_message "Failed to restart networking service"
-            elif command -v rc-service >/dev/null 2>&1; then
-                rc-service networking restart 2>> "$LOG_FILE" || log_message "Failed to restart networking service"
-            else
-                log_message "Cannot restart networking service"
-            fi
-            log_message "Configuration restored for /etc/network/interfaces"
-            ;;
-        network-scripts)
-            cp "$BACKUP_DIR/ifcfg-$interface.backup" /etc/sysconfig/network-scripts/ifcfg-$interface 2>> "$LOG_FILE" || log_message "Failed to restore ifcfg-$interface"
-            if command -v systemctl >/dev/null 2>&1; then
-                systemctl restart network 2>> "$LOG_FILE" || log_message "Failed to restart network service"
-            elif command -v service >/dev/null 2>&1; then
-                service network restart 2>> "$LOG_FILE" || log_message "Failed to restart network service"
-            else
-                log_message "Cannot restart network service"
-            fi
-            log_message "Configuration restored for interface $interface (/etc/sysconfig/network-scripts/)"
-            ;;
-    esac
-}
-
-# **Ensure backups exist**
-ensure_backups() {
-    local interfaces=($(get_interfaces))
-    case "$NETWORK_MANAGER" in
-        netplan)
-            if ! ls "$BACKUP_DIR"/*.yaml >/dev/null 2>&1; then
-                log_message "No Netplan backups found. Creating backups..."
-                backup_config ""
-            fi
-            ;;
-        networkmanager)
-            if ! ls "$BACKUP_DIR"/*.fields.backup >/dev/null 2>&1; then
-                log_message "No NetworkManager backups found. Creating backups..."
-                backup_config ""
-            fi
-            ;;
-        systemd-networkd)
-            if ! ls "$BACKUP_DIR"/*.network >/dev/null 2>&1; then
-                log_message "No systemd-networkd backups found. Creating backups..."
-                backup_config ""
-            fi
-            ;;
-        interfaces)
-            if [ ! -f "$BACKUP_DIR/interfaces.backup" ]; then
-                log_message "No /etc/network/interfaces backup found. Creating backup..."
-                backup_config ""
-            fi
-            ;;
-        network-scripts)
-            for interface in "${interfaces[@]}"; do
-                if [ ! -f "$BACKUP_DIR/ifcfg-$interface.backup" ]; then
-                    log_message "No backup found for $interface. Creating backup..."
-                    backup_config "$interface"
-                fi
-            done
-            ;;
-    esac
-}
-
-# **Backup all interfaces**
-backup_all() {
-    case "$NETWORK_MANAGER" in
-        netplan|networkmanager|systemd-networkd|interfaces)
-            backup_config ""
-            ;;
-        network-scripts)
-            local interfaces=($(get_interfaces))
-            for interface in "${interfaces[@]}"; do
-                backup_config "$interface"
-            done
-            ;;
-    esac
-}
-
-# **Display usage**
-display_usage() {
-    echo "Usage: $0 [backup|check|conf-check|reset|--setup-cron]"
-    echo "  backup: Delete existing backups and create new ones"
-    echo "  check: Manually check for changes in configurations"
-    echo "  conf-check: Perform a single check-and-restore cycle"
-    echo "  reset: Delete existing backups"
-    echo "  --setup-cron: Setup cronjob to run conf-check every minute"
-}
-
-# **Main logic**
-NETWORK_MANAGER=$(detect_network_manager)
-if [ "$NETWORK_MANAGER" = "unknown" ]; then
-    log_message "Unsupported network management tool detected"
-    exit 1
-fi
-
-if [ $# -eq 0 ]; then
-    ensure_backups
-    display_usage
-    exit 0
-fi
-
-ACTION="$1"
-
-case "$ACTION" in
-    reset)
-        log_message "Deleting existing backups"
-        rm -rf "$BACKUP_DIR"/*
-        log_message "Backups deleted"
-        ;;
-    backup)
-        log_message "Deleting existing backups"
-        rm -rf "$BACKUP_DIR"/*
-        log_message "Creating new backups"
-        backup_all
-        log_message "Backups created"
-        ;;
-    check)
-        ensure_backups
-        changes_detected=0
-        case "$NETWORK_MANAGER" in
-            netplan|networkmanager|systemd-networkd|interfaces)
-                if ! check_changes ""; then
-                    changes_detected=1
-                fi
-                ;;
-            network-scripts)
-                for interface in $(get_interfaces); do
-                    if ! check_changes "$interface"; then
-                        changes_detected=1
-                    fi
-                done
-                ;;
-        esac
-        if [ $changes_detected -eq 1 ]; then
-            log_message "Changes detected in configurations"
-        else
-            log_message "No changes detected in configurations"
+    for conn in $(get_interfaces); do
+        local backup_fields="$BACKUP_DIR/$conn.fields.backup"
+        if [ -f "$backup_fields" ]; then
+            # Bring connection down to ensure changes apply
+            nmcli con down "$conn" 2>> "$LOG_FILE" || log_message "Failed to bring down $conn"
+            # Restore each field
+            while IFS=':' read -r field value; do
+                case "$field" in
+                    connection.id) ;; # Skip
+                    connection.type)
+                        nmcli con mod "$conn" connection.type "$value" 2>> "$LOG_FILE"
+                        [ $? -ne 0 ] && log_message "Failed to set connection.type to $value for $conn"
+                        ;;
+                    connection.interface-name)
+                        nmcli con mod "$conn" connection.interface-name "$value" 2>> "$LOG_FILE"
+                        [ $? -ne 0 ] && log_message "Failed to set connection.interface-name to $value for $conn"
+                        ;;
+                    ipv4.method)
+                        nmcli con mod "$conn" ipv4.method "$value" 2>> "$LOG_FILE"
+                        [ $? -ne 0 ] && log_message "Failed to set ipv4.method to $value for $conn"
+                        ;;
+                    ipv4.addresses)
+                        nmcli con mod "$conn" ipv4.addresses "$value" 2>> "$LOG_FILE"
+                        [ $? -ne 0 ] && log_message "Failed to set ipv4.addresses to $value for $conn"
+                        ;;
+                    ipv4.gateway)
+                        nmcli con mod "$conn" ipv4.gateway "$value" 2>> "$LOG_FILE"
+                        [ $? -ne 0 ] && log_message "Failed to set ipv4.gateway to $value for $conn"
+                        ;;
+                    ipv4.dns)
+                        nmcli con mod "$conn" ipv4.dns "$value" 2>> "$LOG_FILE"
+                        [ $? -ne 0 ] && log_message "Failed to set ipv4.dns to $value for $conn"
+                        ;;
+                esac
+            done < "$backup_fields"
+            # Bring connection up to apply changes
+            nmcli con up "$conn" 2>> "$LOG_FILE" || log_message "Failed to bring up $conn after restoration"
+            log_message "Restored configuration for $conn"
         fi
+    done
+}
+
+# Ensure backups exist
+ensure_backups() {
+    if ! ls "$BACKUP_DIR"/*.fields.backup >/dev/null 2>&1; then
+        log_message "No backups found. Creating backups..."
+        backup_config
+    fi
+}
+
+# Main logic
+case "$1" in
+    backup)
+        rm -rf "$BACKUP_DIR"/*
+        backup_config
         ;;
     conf-check)
-        log_message "Starting configuration check cycle"
         ensure_backups
-        case "$NETWORK_MANAGER" in
-            netplan|networkmanager|systemd-networkd|interfaces)
-                if ! check_changes ""; then
-                    log_message "Restoring configuration"
-                    restore_config ""
-                fi
-                ;;
-            network-scripts)
-                for interface in $(get_interfaces); do
-                    if ! check_changes "$interface"; then
-                        log_message "Restoring configuration for interface $interface"
-                        restore_config "$interface"
-                    fi
-                done
-                ;;
-        esac
-        log_message "Configuration check cycle completed"
-        ;;
-    --setup-cron)
-        PRO_INT_DIR="/etc/pro-int"
-        mkdir -p "$PRO_INT_DIR"
-        SCRIPT_NAME=$(basename "$0")
-        cp "$0" "$PRO_INT_DIR/$SCRIPT_NAME"
-        chmod +x "$PRO_INT_DIR/$SCRIPT_NAME"
-        log_message "Script copied to $PRO_INT_DIR/$SCRIPT_NAME"
-        CRON_COMMAND="* * * * * $PRO_INT_DIR/$SCRIPT_NAME conf-check"
-        (crontab -l 2>/dev/null; echo "$CRON_COMMAND") | crontab -
-        log_message "Cronjob created to run $PRO_INT_DIR/$SCRIPT_NAME conf-check every minute"
+        if ! check_changes; then
+            log_message "Changes detected, restoring configuration"
+            restore_config
+        fi
+        log_message "Conf-check cycle completed"
         ;;
     *)
-        echo "Invalid argument: $ACTION"
-        display_usage
+        echo "Usage: $0 [backup|conf-check]"
         exit 1
         ;;
 esac
