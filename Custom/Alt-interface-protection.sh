@@ -3,244 +3,105 @@
 # Exit on errors
 set -e
 
-# Ensure the script is run as root
+# Ensure script runs as root
 if [ "$(id -u)" != "0" ]; then
     echo "This script must be run as root" >&2
     exit 1
 fi
 
-# Define directories and files
-BAC_SERVICES_DIR="/etc/BacServices"
-BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
+# Define paths and constants
 LOG_FILE="/var/log/interface-protection.log"
-DEBOUNCE_TIME=5  # seconds to wait after last event
+LOCK_FILE="/tmp/restore_lock"
+BACKUP_DIR="/etc/BacServices/interface-protection"
+NETWORK_SCRIPTS_DIR="/etc/sysconfig/network-scripts"
+DEBOUNCE_TIME=5  # Seconds to debounce events
+RESTORE_TIMEOUT=10  # Seconds to ignore events post-restore
 
-# Create directories if they don’t exist
-mkdir -p "$BAC_SERVICES_DIR"
-mkdir -p "$BACKUP_DIR"
+# Create necessary directories and files
+mkdir -p "$BACKUP_DIR/network-scripts"
 touch "$LOG_FILE"
 
-# Function to log messages with timestamp
+# Log function with timestamp
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
     echo "$1"
 }
 
-# Install inotify-tools if not present
+# Install inotify-tools if missing
 if ! command -v inotifywait >/dev/null; then
-    log_message "inotifywait not found, installing inotify-tools..."
-    if command -v apt-get >/dev/null; then
-        apt-get update && apt-get install -y inotify-tools
-    elif command -v dnf >/dev/null; then
-        dnf install -y inotify-tools
-    elif command -v yum >/dev/null; then
-        yum install -y inotify-tools
-    elif command -v pacman >/dev/null; then
-        pacman -S --noconfirm inotify-tools
-    elif command -v zypper >/dev/null; then
-        zypper install -y inotify-tools
-    elif command -v apk >/dev/null; then
-        apk add --no-cache inotify-tools
-    else
-        log_message "No supported package manager found. Please install inotify-tools manually."
+    log_message "Installing inotify-tools..."
+    yum install -y inotify-tools || {
+        log_message "Failed to install inotify-tools"
         exit 1
-    fi
-    if ! command -v inotifywait >/dev/null; then
-        log_message "Failed to install inotify-tools. Please install it manually."
-        exit 1
-    fi
-    log_message "inotify-tools installed successfully."
+    }
+    log_message "inotify-tools installed successfully"
 fi
 
-# Install rsync if not present
-if ! command -v rsync >/dev/null; then
-    log_message "rsync not found, installing rsync..."
-    if command -v apt-get >/dev/null; then
-        apt-get update && apt-get install -y rsync
-    elif command -v dnf >/dev/null; then
-        dnf install -y rsync
-    elif command -v yum >/dev/null; then
-        yum install -y rsync
-    elif command -v pacman >/dev/null; then
-        pacman -S --noconfirm rsync
-    elif command -v zypper >/dev/null; then
-        zypper install -y rsync
-    elif command -v apk >/dev/null; then
-        apk add --no-cache rsync
-    else
-        log_message "No supported package manager found. Please install rsync manually."
-        exit 1
-    fi
-    if ! command -v rsync >/dev/null; then
-        log_message "Failed to install rsync. Please install it manually."
-        exit 1
-    fi
-    log_message "rsync installed successfully."
-fi
-
-# Detect active network managers
-detect_managers() {
-    local managers=()
-    [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1 && managers+=("netplan")
-    systemctl is-active NetworkManager >/dev/null 2>&1 && managers+=("networkmanager")
-    systemctl is-active systemd-networkd >/dev/null 2>&1 && [ -d /etc/systemd/network ] && ls /etc/systemd/network/*.network >/dev/null 2>&1 && managers+=("systemd-networkd")
-    [ -f /etc/network/interfaces ] && managers+=("interfaces")
-    [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1 && managers+=("network-scripts")
-    if [ ${#managers[@]} -eq 0 ]; then
-        echo "unknown"
-    else
-        echo "${managers[@]}"
-    fi
-}
-
-# Get configuration path for a manager
-get_config_path() {
-    case "$1" in
-        netplan) echo "/etc/netplan" ;;
-        networkmanager) echo "/etc/NetworkManager/system-connections" ;;
-        systemd-networkd) echo "/etc/systemd/network" ;;
-        interfaces) echo "/etc/network/interfaces" ;;
-        network-scripts) echo "/etc/sysconfig/network-scripts" ;;
-        *) echo "" ;;
-    esac
-}
-
-# Check if config is a directory
-get_is_dir() {
-    case "$1" in
-        netplan|networkmanager|systemd-networkd|network-scripts) echo true ;;
-        interfaces) echo false ;;
-        *) echo false ;;
-    esac
-}
-
-# Restart a service
-restart_service() {
-    local service="$1"
-    if command -v systemctl >/dev/null 2>&1 && systemctl list-units --type=service | grep -q "$service.service"; then
-        systemctl restart "$service" || log_message "Failed to restart $service with systemctl"
-    elif command -v service >/dev/null 2>&1 && [ -f "/etc/init.d/$service" ]; then
-        service "$service" restart || log_message "Failed to restart $service with service"
-    else
-        log_message "Cannot restart $service: no suitable command found"
-    fi
-}
-
-# Apply configuration
-apply_config() {
-    local manager="$1"
-    case "$manager" in
-        netplan) netplan apply || log_message "Failed to apply netplan" ;;
-        networkmanager)
-            restart_service "NetworkManager"
-            for device in $(nmcli -t -f GENERAL.DEVICE device show | cut -d':' -f2 | grep -v lo); do
-                nmcli device reapply "$device" || log_message "Warning: Failed to reapply $device"
-            done
-            ;;
-        systemd-networkd) restart_service "systemd-networkd" ;;
-        interfaces) restart_service "networking" ;;
-        network-scripts) restart_service "network" ;;
-    esac
-}
-
-# Backup configuration
+# Backup network-scripts
 backup_config() {
-    local manager="$1"
-    local CONFIG_PATH=$(get_config_path "$manager")
-    local IS_DIR=$(get_is_dir "$manager")
-    local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
-
-    rm -rf "$MANAGER_BACKUP_DIR"
-    mkdir -p "$MANAGER_BACKUP_DIR"
-    if [ "$IS_DIR" = "true" ]; then
-        if [ "$(ls -A "$CONFIG_PATH")" ]; then
-            cp -r "$CONFIG_PATH"/* "$MANAGER_BACKUP_DIR/" || {
-                log_message "Failed to backup $CONFIG_PATH for $manager"
-                exit 1
-            }
-        else
-            log_message "Configuration directory $CONFIG_PATH is empty for $manager"
-        fi
-    else
-        cp "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" || {
-            log_message "Failed to backup $CONFIG_PATH for $manager"
-            exit 1
-        }
-    fi
-    log_message "Backup created for $manager"
+    log_message "Creating backup for network-scripts"
+    cp -r "$NETWORK_SCRIPTS_DIR"/* "$BACKUP_DIR/network-scripts/" || {
+        log_message "Backup failed"
+        exit 1
+    }
 }
 
-# Restore configuration
+# Restore configuration atomically
 restore_config() {
-    local manager="$1"
-    local CONFIG_PATH=$(get_config_path "$manager")
-    local IS_DIR=$(get_is_dir "$manager")
-    local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
-
-    if [ "$IS_DIR" = "true" ]; then
-        mkdir -p "$CONFIG_PATH"
-        rsync -a --delete --checksum "$MANAGER_BACKUP_DIR/" "$CONFIG_PATH/" || {
-            log_message "Failed to restore $CONFIG_PATH for $manager using rsync"
-            exit 1
-        }
-    else
-        cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
-            log_message "Failed to restore $CONFIG_PATH for $manager"
-            exit 1
-        }
-    fi
-    log_message "Configuration restored for $manager"
-    apply_config "$manager"
+    log_message "Restoring configuration for network-scripts"
+    touch "$LOCK_FILE"
+    echo "$(date +%s)" > "$LOCK_FILE"
+    
+    # Atomic restore: move existing dir aside, sync backup, clean up
+    TEMP_DIR="/tmp/network_scripts_temp"
+    mv "$NETWORK_SCRIPTS_DIR" "$TEMP_DIR"
+    cp -r "$BACKUP_DIR/network-scripts"/* "$NETWORK_SCRIPTS_DIR/" || {
+        log_message "Restore failed, reverting"
+        mv "$TEMP_DIR" "$NETWORK_SCRIPTS_DIR"
+        rm -f "$LOCK_FILE"
+        exit 1
+    }
+    rm -rf "$TEMP_DIR"
+    
+    log_message "Configuration restored, restarting network"
+    systemctl restart network || log_message "Network restart failed"
+    rm -f "$LOCK_FILE"
 }
 
-# Monitor configuration changes
+# Monitor changes
 monitor_config() {
-    local manager="$1"
-    local CONFIG_PATH=$(get_config_path "$manager")
-    local IS_DIR=$(get_is_dir "$manager")
-    local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
-
+    log_message "Monitoring network-scripts"
     while true; do
-        if [ "$IS_DIR" = "true" ]; then
-            while inotifywait -r -e modify,create,delete --timeout "$DEBOUNCE_TIME" "$CONFIG_PATH" >/dev/null; do
-                log_message "Event detected in $manager directory, waiting for debounce"
-            done
-            if ! diff -r "$MANAGER_BACKUP_DIR" "$CONFIG_PATH" >/dev/null 2>&1; then
-                log_message "Differences detected for $manager:"
-                diff -r "$MANAGER_BACKUP_DIR" "$CONFIG_PATH" >> "$LOG_FILE" 2>/dev/null || echo " (diff output unavailable)" >> "$LOG_FILE"
-                restore_config "$manager"
-            else
-                log_message "No significant changes in $manager after debounce"
+        # Wait for events with debounce
+        while inotifywait -r -e modify,create,delete --timeout "$DEBOUNCE_TIME" "$NETWORK_SCRIPTS_DIR" >/dev/null; do
+            log_message "Event detected, debouncing"
+        done
+        
+        # Check if recent restore occurred
+        if [ -f "$LOCK_FILE" ]; then
+            restore_time=$(cat "$LOCK_FILE")
+            current_time=$(date +%s)
+            if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
+                log_message "Ignoring event due to recent restore"
+                continue
             fi
+        fi
+        
+        # Compare with backup
+        if ! diff -r "$BACKUP_DIR/network-scripts" "$NETWORK_SCRIPTS_DIR" >/dev/null 2>&1; then
+            log_message "Differences detected in network-scripts:"
+            diff -r "$BACKUP_DIR/network-scripts" "$NETWORK_SCRIPTS_DIR" >> "$LOG_FILE" 2>/dev/null || echo " (diff output unavailable)" >> "$LOG_FILE"
+            restore_config
         else
-            while inotifywait -e modify --timeout "$DEBOUNCE_TIME" "$CONFIG_PATH" >/dev/null; do
-                log_message "Event detected in $manager file, waiting for debounce"
-            done
-            if ! cmp -s "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH"; then
-                log_message "Differences detected for $manager:"
-                diff "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" >> "$LOG_FILE" 2>/dev/null || echo " (diff output unavailable)" >> "$LOG_FILE"
-                restore_config "$manager"
-            else
-                log_message "No significant changes in $manager after debounce"
-            fi
+            log_message "No significant changes after debounce"
         fi
     done
 }
 
-# Main logic
-managers=($(detect_managers))
-if [ "${managers[0]}" = "unknown" ]; then
-    log_message "No active network managers detected"
-    exit 1
-fi
-
-for manager in "${managers[@]}"; do
-    log_message "Detected active manager: $manager"
-    backup_config "$manager"
-    monitor_config "$manager" &
-done
-
-log_message "Monitoring started for: ${managers[*]}"
+# Main execution
+log_message "Starting script"
+backup_config
+monitor_config &
 
 # Keep script running
 wait
