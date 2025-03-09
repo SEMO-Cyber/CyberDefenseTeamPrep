@@ -276,8 +276,8 @@ restore_config() {
             rm -f "$LOCK_FILE"
             return
         fi
-        # For directories, restore only changed files (placeholder for now, see monitor_config)
-        log_message "Directory restoration triggered for $manager (specific files to be handled in monitor)"
+        # For directories, we'll handle file-specific restoration in monitor_config
+        log_message "Directory restoration triggered for $manager (specific files handled in monitoring)"
     else
         cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
             log_message "Failed to restore $CONFIG_PATH for $manager"
