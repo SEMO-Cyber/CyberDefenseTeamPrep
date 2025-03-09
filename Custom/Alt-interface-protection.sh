@@ -15,8 +15,8 @@ BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
 LOG_FILE="/var/log/interface-protection.log"
 LOCK_FILE="/tmp/interface_protection_lock"
 PID_FILE="/var/run/interface-protection.pid"
-DEBOUNCE_TIME=5  # seconds to wait after last event
-RESTORE_TIMEOUT=10  # seconds to ignore events post-restore
+DEBOUNCE_TIME=${DEBOUNCE_TIME:-5}  # Seconds to wait after last event (configurable)
+RESTORE_TIMEOUT=${RESTORE_TIMEOUT:-10}  # Seconds to ignore events post-restore (configurable)
 
 # Create directories if they don’t exist
 mkdir -p "$BAC_SERVICES_DIR"
@@ -95,6 +95,8 @@ case "$1" in
         # This is the daemon mode
         echo $$ > "$PID_FILE"
         log_message "Script started with PID $$"
+        # Trap to clean up PID and lock files on exit
+        trap 'rm -f "$PID_FILE" "$LOCK_FILE"' EXIT
         ;;
     *)
         echo "Usage: $0 {start|stop|status}"
@@ -105,31 +107,10 @@ esac
 # If not daemon mode, exit after starting
 [ "$1" != "daemon" ] && exit 0
 
-# Check if inotifywait is installed, install if necessary
+# Check if inotifywait is installed, exit if not
 if ! command -v inotifywait > /dev/null; then
-    log_message "inotifywait not found, attempting to install inotify-tools..."
-    if command -v apt-get > /dev/null; then
-        apt-get update
-        apt-get install -y inotify-tools
-    elif command -v dnf > /dev/null; then
-        dnf install -y inotify-tools
-    elif command -v yum > /dev/null; then
-        yum install -y inotify-tools
-    elif command -v pacman > /dev/null; then
-        pacman -S --noconfirm inotify-tools
-    elif command -v zypper > /dev/null; then
-        zypper install -y inotify-tools
-    elif command -v apk > /dev/null; then
-        apk add --no-cache inotify-tools
-    else
-        log_message "No supported package manager found. Please install inotify-tools manually."
-        exit 1
-    fi
-    if ! command -v inotifywait > /dev/null; then
-        log_message "Failed to install inotify-tools. Please install it manually."
-        exit 1
-    fi
-    log_message "inotify-tools installed successfully."
+    log_message "inotifywait not found. Please install inotify-tools manually."
+    exit 1
 fi
 
 # Function to detect all active network managers
@@ -215,7 +196,7 @@ apply_config() {
     esac
 }
 
-# Backup Configuration
+# Backup Configuration with permissions preserved
 backup_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -235,7 +216,7 @@ backup_config() {
             return
         fi
         if [ "$(ls -A "$CONFIG_PATH")" ]; then
-            cp -r "$CONFIG_PATH"/* "$MANAGER_BACKUP_DIR/" || {
+            cp -r -p "$CONFIG_PATH"/* "$MANAGER_BACKUP_DIR/" || {
                 log_message "Failed to backup $CONFIG_PATH for $manager"
                 exit 1
             }
@@ -247,7 +228,7 @@ backup_config() {
             log_message "Configuration file $CONFIG_PATH does not exist for $manager, skipping"
             return
         fi
-        cp "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" || {
+        cp -p "$CONFIG_PATH" "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" || {
             log_message "Failed to backup $CONFIG_PATH for $manager"
             exit 1
         }
@@ -255,7 +236,7 @@ backup_config() {
     log_message "Backup created for $manager"
 }
 
-# Restore a specific file or directory with Lock
+# Restore a specific file or directory with Lock and permissions preserved
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -266,7 +247,6 @@ restore_config() {
         log_message "Configuration path $CONFIG_PATH does not exist for $manager, cannot restore"
         return
     fi
-    }
 
     touch "$LOCK_FILE"
     echo "$(date +%s)" > "$LOCK_FILE"
@@ -277,16 +257,22 @@ restore_config() {
             rm -f "$LOCK_FILE"
             return
         fi
-        # For directories, we'll handle file-specific restoration in monitor_config
+        # For directories, specific file restoration is handled in monitor_config
         log_message "Directory restoration triggered for $manager (specific files handled in monitoring)"
     else
-        cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
-            log_message "Failed to restore $CONFIG_PATH for $manager"
-            rm -f "$LOCK_FILE"
-        }
+        local backup_file="$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")"
+        if [ -f "$backup_file" ]; then
+            cp -p "$backup_file" "$CONFIG_PATH" || {
+                log_message "Failed to restore $CONFIG_PATH for $manager"
+                rm -f "$LOCK_FILE"
+                return
+            }
+            log_message "Restored $CONFIG_PATH for $manager"
+            apply_config "$manager"
+        else
+            log_message "No backup found for $CONFIG_PATH, cannot restore"
+        fi
     fi
-    log_message "Configuration restored for $manager"
-    apply_config "$manager"
     rm -f "$LOCK_FILE"
 }
 
@@ -300,7 +286,6 @@ monitor_config() {
         log_message "Configuration path $CONFIG_PATH does not exist for $manager, cannot monitor"
         return
     fi
-    }
 
     if [ "$IS_DIR" = "true" ]; then
         if [ ! -d "$CONFIG_PATH" ]; then
@@ -323,25 +308,50 @@ monitor_config() {
             while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
                 inotifywait -q -t 1 "$CONFIG_PATH" || break
             done
-            # Restore only the affected file
-            if [ -n "$file" ] && [ -e "$full_path" ]; then
-                relative_path="${full_path#$CONFIG_PATH/}"
-                backup_file="$BACKUP_DIR/$manager/$relative_path"
-                if [ -f "$backup_file" ]; then
-                    touch "$LOCK_FILE"
-                    cp "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
-                    rm -f "$LOCK_FILE"
-                    log_message "Restored $full_path for $manager"
-                    apply_config "$manager"
-                else
-                    log_message "No backup found for $full_path"
-                fi
-            else
-                log_message "Skipping invalid event or file: $event $file"
-            fi
+            # Handle events separately
+            case "$event" in
+                CREATE)
+                    relative_path="${full_path#$CONFIG_PATH/}"
+                    backup_file="$BACKUP_DIR/$manager/$relative_path"
+                    if [ -f "$backup_file" ]; then
+                        touch "$LOCK_FILE"
+                        cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                        rm -f "$LOCK_FILE"
+                        log_message "Restored $full_path for $manager"
+                    else
+                        log_message "New file $full_path detected without backup, deleting"
+                        rm -f "$full_path"
+                    fi
+                    ;;
+                MODIFY)
+                    relative_path="${full_path#$CONFIG_PATH/}"
+                    backup_file="$BACKUP_DIR/$manager/$relative_path"
+                    if [ -f "$backup_file" ]; then
+                        touch "$LOCK_FILE"
+                        cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                        rm -f "$LOCK_FILE"
+                        log_message "Restored $full_path for $manager"
+                    else
+                        log_message "No backup found for $full_path, cannot restore"
+                    fi
+                    ;;
+                DELETE)
+                    relative_path="${full_path#$CONFIG_PATH/}"
+                    backup_file="$BACKUP_DIR/$manager/$relative_path"
+                    if [ -f "$backup_file" ]; then
+                        touch "$LOCK_FILE"
+                        cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                        rm -f "$LOCK_FILE"
+                        log_message "Restored $full_path for $manager"
+                    else
+                        log_message "No backup found for deleted file $full_path, cannot restore"
+                    fi
+                    ;;
+            esac
+            apply_config "$manager"
         done
     else
-        inotifywait -m -e modify "$CONFIG_PATH" | while read -r line; do
+        inotifywait -m -e modify,delete "$CONFIG_PATH" | while read -r line; do
             log_message "Change detected in $manager: $line"
             if [ -f "$LOCK_FILE" ]; then
                 restore_time=$(cat "$LOCK_FILE")
