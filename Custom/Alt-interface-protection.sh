@@ -425,7 +425,7 @@ monitor_config() {
                 restore_time=$(cat "$LOCK_FILE")
                 current_time=$(date +%s)
                 if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
-                    log_message "Ignoring event due to recent restore: $event $file"
+                    # Silently ignore the event without logging
                     continue
                 fi
             fi
@@ -443,7 +443,6 @@ monitor_config() {
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
-                        # Wait for cooldown period before removing lock file
                         sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
@@ -456,7 +455,6 @@ monitor_config() {
                     relative_path="${full_path#$CONFIG_PATH/}"
                     backup_file="$BACKUP_DIR/$manager/$relative_path"
                     if [ -f "$backup_file" ]; then
-                        # Log the differences before restoring
                         if [ -f "$full_path" ]; then
                             diff_output=$(diff "$full_path" "$backup_file" 2>/dev/null || true)
                             if [ -n "$diff_output" ]; then
@@ -470,7 +468,6 @@ monitor_config() {
                         fi
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
-                        # Wait for cooldown period before removing lock file
                         sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
@@ -484,7 +481,6 @@ monitor_config() {
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
-                        # Wait for cooldown period before removing lock file
                         sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
@@ -502,11 +498,10 @@ monitor_config() {
                 restore_time=$(cat "$LOCK_FILE")
                 current_time=$(date +%s)
                 if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
-                    log_message "Ignoring event due to recent restore"
+                    # Silently ignore the event without logging
                     continue
                 fi
             fi
-            # Log differences before restoration for file-based configs
             local backup_file="$BACKUP_DIR/$manager/$(basename "$CONFIG_PATH")"
             if [ -f "$backup_file" ] && [ -f "$CONFIG_PATH" ]; then
                 diff_output=$(diff "$CONFIG_PATH" "$backup_file" 2>/dev/null || true)
