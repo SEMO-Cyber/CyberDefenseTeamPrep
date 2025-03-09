@@ -18,10 +18,13 @@ PID_FILE="/var/run/interface-protection.pid"
 DEBOUNCE_TIME=${DEBOUNCE_TIME:-5}  # Seconds to wait after last event (configurable)
 RESTORE_TIMEOUT=${RESTORE_TIMEOUT:-10}  # Seconds to ignore events post-restore (configurable)
 RESTORATION_COOLDOWN_TIME=${RESTORATION_COOLDOWN_TIME:-5}  # Seconds for cooldown after restoration (configurable)
+PRO_INT_DIR="/etc/pro-int"
+PRO_INT_SCRIPT="$PRO_INT_DIR/interface-protection.sh"
 
 # Create directories if they don’t exist
 mkdir -p "$BAC_SERVICES_DIR"
 mkdir -p "$BACKUP_DIR"
+mkdir -p "$PRO_INT_DIR"
 
 # Function to log messages to file (no console output)
 log_message() {
@@ -77,10 +80,87 @@ status_script() {
     exit 0
 }
 
+# Function to set up the script to run on reboot
+setup_cronjob() {
+    # Copy the script to /etc/pro-int
+    cp -p "$0" "$PRO_INT_SCRIPT" || {
+        log_message "Failed to copy script to $PRO_INT_SCRIPT"
+        echo "Failed to copy script to $PRO_INT_SCRIPT"
+        exit 1
+    }
+    chmod +x "$PRO_INT_SCRIPT"
+
+    # Check if cron is installed, install if not
+    if ! command -v crontab > /dev/null; then
+        log_message "cron not found, attempting to install..."
+        echo "Installing cron..."
+        if command -v apt-get > /dev/null; then
+            apt-get update && apt-get install -y cron || {
+                log_message "Failed to install cron using apt-get. Please install manually."
+                echo "Failed to install cron. Please run: sudo apt-get install cron"
+                exit 1
+            }
+        elif command -v dnf > /dev/null; then
+            dnf install -y cronie || {
+                log_message "Failed to install cronie using dnf. Please install manually."
+                echo "Failed to install cronie. Please run: sudo dnf install cronie"
+                exit 1
+            }
+        elif command -v yum > /dev/null; then
+            yum install -y cronie || {
+                log_message "Failed to install cronie using yum. Please install manually."
+                echo "Failed to install cronie. Please run: sudo yum install cronie"
+                exit 1
+            }
+        elif command -v pacman > /dev/null; then
+            pacman -S --noconfirm cronie || {
+                log_message "Failed to install cronie using pacman. Please install manually."
+                echo "Failed to install cronie. Please run: sudo pacman -S cronie"
+                exit 1
+            }
+        elif command -v apk > /dev/null; then
+            apk add --no-cache busybox-initscripts cron || {
+                log_message "Failed to install cron using apk. Please install manually."
+                echo "Failed to install cron. Please run: apk add busybox-initscripts cron"
+                exit 1
+            }
+        else
+            log_message "No supported package manager found for cron installation. Please install cron manually."
+            echo "No supported package manager found. Please install cron manually for your system."
+            exit 1
+        fi
+        log_message "cron installed successfully."
+        echo "cron installed successfully."
+    fi
+
+    # Enable and start cron service
+    if command -v systemctl > /dev/null; then
+        systemctl enable cron > /dev/null 2>&1 || log_message "Failed to enable cron service with systemctl"
+        systemctl start cron > /dev/null 2>&1 || log_message "Failed to start cron service with systemctl"
+    elif command -v service > /dev/null; then
+        service cron start > /dev/null 2>&1 || log_message "Failed to start cron service with service"
+    else
+        log_message "No systemctl or service command found, skipping cron service start"
+    fi
+
+    # Set up cronjob to run on reboot
+    (crontab -l 2>/dev/null | grep -v "$PRO_INT_SCRIPT"; echo "@reboot /bin/bash $PRO_INT_SCRIPT start") | crontab - || {
+        log_message "Failed to set up cronjob for $PRO_INT_SCRIPT"
+        echo "Failed to set up cronjob for $PRO_INT_SCRIPT"
+        exit 1
+    }
+    log_message "Cronjob set up to run $PRO_INT_SCRIPT on reboot"
+    echo "Cronjob set up to run $PRO_INT_SCRIPT on reboot"
+}
+
 # Handle command-line arguments
 case "$1" in
     start)
         check_running
+        # Set up cronjob on first start
+        if [ ! -f "$PRO_INT_SCRIPT" ]; then
+            setup_cronjob
+        fi
         # Start the daemon in the background
         exec setsid "$0" daemon >> "$LOG_FILE" 2>&1 &
         echo "Started monitoring (PID: $!). Check $LOG_FILE for details."
@@ -203,7 +283,7 @@ restart_service() {
         else
             log_message "Service $service not found with systemctl, skipping restart"
         fi
-    elif command -v service >/dev/null 2>&1; then
+    elif command -v service >/dev/null; then
         if [ -f "/etc/init.d/$service" ]; then
             service "$service" restart || log_message "Failed to restart $service with service"
         else
@@ -323,7 +403,7 @@ restore_config() {
     rm -f "$LOCK_FILE"
 }
 
-# Monitor Configuration Changes with inotifywait
+# Monitor Configuration Changes with inotifywait and detailed diff logging
 monitor_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -376,6 +456,18 @@ monitor_config() {
                     relative_path="${full_path#$CONFIG_PATH/}"
                     backup_file="$BACKUP_DIR/$manager/$relative_path"
                     if [ -f "$backup_file" ]; then
+                        # Log the differences before restoring
+                        if [ -f "$full_path" ]; then
+                            diff_output=$(diff "$full_path" "$backup_file" 2>/dev/null || true)
+                            if [ -n "$diff_output" ]; then
+                                log_message "Differences detected in $full_path before restoration:"
+                                while IFS= read -r line; do
+                                    log_message "  $line"
+                                done <<< "$diff_output"
+                            else
+                                log_message "No differences detected in $full_path (possible permissions or metadata change)"
+                            fi
+                        fi
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
                         # Wait for cooldown period before removing lock file
@@ -412,6 +504,19 @@ monitor_config() {
                 if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
                     log_message "Ignoring event due to recent restore"
                     continue
+                fi
+            fi
+            # Log differences before restoration for file-based configs
+            local backup_file="$BACKUP_DIR/$manager/$(basename "$CONFIG_PATH")"
+            if [ -f "$backup_file" ] && [ -f "$CONFIG_PATH" ]; then
+                diff_output=$(diff "$CONFIG_PATH" "$backup_file" 2>/dev/null || true)
+                if [ -n "$diff_output" ]; then
+                    log_message "Differences detected in $CONFIG_PATH before restoration:"
+                    while IFS= read -r line; do
+                        log_message "  $line"
+                    done <<< "$diff_output"
+                else
+                    log_message "No differences detected in $CONFIG_PATH (possible permissions or metadata change)"
                 fi
             fi
             restore_config "$manager"
