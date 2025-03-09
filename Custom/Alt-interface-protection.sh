@@ -9,7 +9,7 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-# Define directories and log file
+# Define directories and files
 BAC_SERVICES_DIR="/etc/BacServices"
 BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
 LOG_FILE="/var/log/interface-protection.log"
@@ -255,7 +255,7 @@ backup_config() {
     log_message "Backup created for $manager"
 }
 
-# Restore Configuration with Lock
+# Restore a specific file or directory with Lock
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -265,7 +265,7 @@ restore_config() {
     if [ ! -e "$CONFIG_PATH" ]; then
         log_message "Configuration path $CONFIG_PATH does not exist for $manager, cannot restore"
         return
-    fi
+    }
 
     touch "$LOCK_FILE"
     echo "$(date +%s)" > "$LOCK_FILE"
@@ -276,11 +276,8 @@ restore_config() {
             rm -f "$LOCK_FILE"
             return
         fi
-        rsync -a --delete "$MANAGER_BACKUP_DIR/" "$CONFIG_PATH/" || {
-            log_message "Failed to restore $CONFIG_PATH for $manager"
-            rm -f "$LOCK_FILE"
-            return
-        }
+        # For directories, restore only changed files (placeholder for now, see monitor_config)
+        log_message "Directory restoration triggered for $manager (specific files to be handled in monitor)"
     else
         cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
             log_message "Failed to restore $CONFIG_PATH for $manager"
@@ -302,28 +299,45 @@ monitor_config() {
     if [ ! -e "$CONFIG_PATH" ]; then
         log_message "Configuration path $CONFIG_PATH does not exist for $manager, cannot monitor"
         return
-    fi
+    }
 
     if [ "$IS_DIR" = "true" ]; then
         if [ ! -d "$CONFIG_PATH" ]; then
             log_message "Configuration path $CONFIG_PATH is not a directory for $manager, cannot monitor"
             return
         fi
-        inotifywait -m -r -e modify,create,delete "$CONFIG_PATH" | while read -r line; do
-            log_message "Change detected in $manager: $line"
+        inotifywait -m -r -e modify,create,delete "$CONFIG_PATH" | while read -r directory event file; do
+            full_path="$directory$file"
             if [ -f "$LOCK_FILE" ]; then
                 restore_time=$(cat "$LOCK_FILE")
                 current_time=$(date +%s)
                 if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
-                    log_message "Ignoring event due to recent restore"
+                    log_message "Ignoring event due to recent restore: $event $file"
                     continue
                 fi
             fi
+            log_message "Change detected in $manager: $event $file"
+            # Debounce
             last_event_time=$(date +%s)
             while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
                 inotifywait -q -t 1 "$CONFIG_PATH" || break
             done
-            restore_config "$manager"
+            # Restore only the affected file
+            if [ -n "$file" ] && [ -e "$full_path" ]; then
+                relative_path="${full_path#$CONFIG_PATH/}"
+                backup_file="$BACKUP_DIR/$manager/$relative_path"
+                if [ -f "$backup_file" ]; then
+                    touch "$LOCK_FILE"
+                    cp "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                    rm -f "$LOCK_FILE"
+                    log_message "Restored $full_path for $manager"
+                    apply_config "$manager"
+                else
+                    log_message "No backup found for $full_path"
+                fi
+            else
+                log_message "Skipping invalid event or file: $event $file"
+            fi
         done
     else
         inotifywait -m -e modify "$CONFIG_PATH" | while read -r line; do
