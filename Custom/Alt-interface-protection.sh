@@ -108,10 +108,54 @@ esac
 # If not daemon mode, exit after starting
 [ "$1" != "daemon" ] && exit 0
 
-# Check if inotifywait is installed, exit if not
+# Check and install inotify-tools if not present (fully automated)
 if ! command -v inotifywait > /dev/null; then
-    log_message "inotifywait not found. Please install inotify-tools manually."
-    exit 1
+    log_message "inotifywait not found, attempting to install inotify-tools..."
+    echo "Installing inotify-tools..."
+
+    # Detect package manager and install inotify-tools
+    if command -v apt-get > /dev/null; then
+        # Debian/Ubuntu
+        apt-get update && apt-get install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using apt-get. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo apt-get install inotify-tools"
+            exit 1
+        }
+    elif command -v dnf > /dev/null; then
+        # Fedora
+        dnf install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using dnf. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo dnf install inotify-tools"
+            exit 1
+        }
+    elif command -v yum > /dev/null; then
+        # CentOS
+        yum install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using yum. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo yum install inotify-tools"
+            exit 1
+        }
+    elif command -v pacman > /dev/null; then
+        # Arch Linux
+        pacman -S --noconfirm inotify-tools || {
+            log_message "Failed to install inotify-tools using pacman. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo pacman -S inotify-tools"
+            exit 1
+        }
+    elif command -v apk > /dev/null; then
+        # Alpine Linux
+        apk add --no-cache inotify-tools || {
+            log_message "Failed to install inotify-tools using apk. Please install manually."
+            echo "Failed to install inotify-tools. Please run: apk add inotify-tools"
+            exit 1
+        }
+    else
+        log_message "No supported package manager found (apt-get, dnf, yum, pacman, apk). Please install inotify-tools manually."
+        echo "No supported package manager found. Please install inotify-tools manually for your system."
+        exit 1
+    fi
+    log_message "inotify-tools installed successfully."
+    echo "inotify-tools installed successfully."
 fi
 
 # Function to detect all active network managers
