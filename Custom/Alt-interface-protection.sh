@@ -299,6 +299,7 @@ monitor_config() {
     if [ ! -e "$CONFIG_PATH" ]; then
         log_message "Configuration path $CONFIG_PATH does not exist for $manager, cannot monitor"
         return
+    fi
     }
 
     if [ "$IS_DIR" = "true" ]; then
