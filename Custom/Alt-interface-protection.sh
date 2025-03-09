@@ -14,6 +14,7 @@ BAC_SERVICES_DIR="/etc/BacServices"
 BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
 LOG_FILE="/var/log/interface-protection.log"
 LOCK_FILE="/tmp/interface_protection_lock"
+PID_FILE="/var/run/interface-protection.pid"
 DEBOUNCE_TIME=5  # seconds to wait after last event
 RESTORE_TIMEOUT=10  # seconds to ignore events post-restore
 
@@ -21,11 +22,88 @@ RESTORE_TIMEOUT=10  # seconds to ignore events post-restore
 mkdir -p "$BAC_SERVICES_DIR"
 mkdir -p "$BACKUP_DIR"
 
-# Function to log messages with timestamp to file and console
+# Function to log messages to file (no console output)
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
-    echo "$1"
 }
+
+# Function to check if the script is already running
+check_running() {
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo "Script is already running with PID $pid"
+            exit 1
+        else
+            rm -f "$PID_FILE"
+        fi
+    fi
+}
+
+# Function to stop the script
+stop_script() {
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            kill "$pid"
+            log_message "Script stopped (PID: $pid)"
+            echo "Script stopped (PID: $pid)"
+            rm -f "$PID_FILE"
+            rm -f "$LOCK_FILE"
+        else
+            echo "No running process found for PID $pid"
+            rm -f "$PID_FILE"
+        fi
+    else
+        echo "Script is not running (no PID file found)"
+    fi
+    exit 0
+}
+
+# Function to check the status of the script
+status_script() {
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo "Script is running with PID $pid"
+        else
+            echo "Script is not running (stale PID file found)"
+            rm -f "$PID_FILE"
+        fi
+    else
+        echo "Script is not running"
+    fi
+    exit 0
+}
+
+# Handle command-line arguments
+case "$1" in
+    start)
+        check_running
+        # Start the daemon in the background
+        exec setsid "$0" daemon >> "$LOG_FILE" 2>&1 &
+        echo "Started monitoring (PID: $!). Check $LOG_FILE for details."
+        exit 0
+        ;;
+    stop)
+        stop_script
+        ;;
+    status)
+        status_script
+        ;;
+    daemon)
+        # This is the daemon mode
+        echo $$ > "$PID_FILE"
+        log_message "Script started with PID $$"
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status}"
+        exit 1
+        ;;
+esac
+
+# If not daemon mode, exit after starting
+[ "$1" != "daemon" ] && exit 0
 
 # Check if inotifywait is installed, install if necessary
 if ! command -v inotifywait > /dev/null; then
@@ -189,7 +267,6 @@ restore_config() {
         return
     fi
 
-    # Create lock to prevent self-triggering
     touch "$LOCK_FILE"
     echo "$(date +%s)" > "$LOCK_FILE"
 
@@ -234,7 +311,6 @@ monitor_config() {
         fi
         inotifywait -m -r -e modify,create,delete "$CONFIG_PATH" | while read -r line; do
             log_message "Change detected in $manager: $line"
-            # Check lock file
             if [ -f "$LOCK_FILE" ]; then
                 restore_time=$(cat "$LOCK_FILE")
                 current_time=$(date +%s)
@@ -243,7 +319,6 @@ monitor_config() {
                     continue
                 fi
             fi
-            # Debounce
             last_event_time=$(date +%s)
             while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
                 inotifywait -q -t 1 "$CONFIG_PATH" || break
