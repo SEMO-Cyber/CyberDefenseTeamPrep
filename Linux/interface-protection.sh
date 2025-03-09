@@ -283,7 +283,7 @@ get_config_path() {
         netplan) echo "/etc/netplan" ;;
         networkmanager)
             plugin=$(get_nm_plugin)
-            if [ "$plugin" = "ifcfg-rh"; then
+            if [ "$plugin" = "ifcfg-rh" ]; then
                 echo "/etc/sysconfig/network-scripts"
             else
                 echo "/etc/NetworkManager/system-connections"
