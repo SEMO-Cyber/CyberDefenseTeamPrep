@@ -193,45 +193,47 @@ if ! command -v inotifywait > /dev/null; then
     log_message "inotifywait not found, attempting to install inotify-tools..."
     echo "Installing inotify-tools..."
 
-    # Detect package manager and install inotify-tools
     if command -v apt-get > /dev/null; then
-        # Debian/Ubuntu
-        apt-get update && apt-get install -y inotify-tools || {
+        apt-get install -y inotify-tools || {
             log_message "Failed to install inotify-tools using apt-get. Please install manually."
             echo "Failed to install inotify-tools. Please run: sudo apt-get install inotify-tools"
             exit 1
         }
     elif command -v dnf > /dev/null; then
-        # Fedora
+        # Oracle Linux, Fedora, etc.
+        if ! dnf repolist | grep -q epel; then
+            dnf install -y epel-release || {
+                log_message "Failed to install epel-release. Please install manually."
+                echo "Failed to install epel-release. Please run: sudo dnf install epel-release"
+                exit 1
+            }
+        fi
         dnf install -y inotify-tools || {
             log_message "Failed to install inotify-tools using dnf. Please install manually."
             echo "Failed to install inotify-tools. Please run: sudo dnf install inotify-tools"
             exit 1
         }
     elif command -v yum > /dev/null; then
-        # CentOS
         yum install -y inotify-tools || {
             log_message "Failed to install inotify-tools using yum. Please install manually."
             echo "Failed to install inotify-tools. Please run: sudo yum install inotify-tools"
             exit 1
         }
     elif command -v pacman > /dev/null; then
-        # Arch Linux
         pacman -S --noconfirm inotify-tools || {
             log_message "Failed to install inotify-tools using pacman. Please install manually."
             echo "Failed to install inotify-tools. Please run: sudo pacman -S inotify-tools"
             exit 1
         }
     elif command -v apk > /dev/null; then
-        # Alpine Linux
         apk add --no-cache inotify-tools || {
             log_message "Failed to install inotify-tools using apk. Please install manually."
             echo "Failed to install inotify-tools. Please run: apk add inotify-tools"
             exit 1
         }
     else
-        log_message "No supported package manager found (apt-get, dnf, yum, pacman, apk). Please install inotify-tools manually."
-        echo "No supported package manager found. Please install inotify-tools manually for your system."
+        log_message "No supported package manager found. Please install inotify-tools manually."
+        echo "No supported package manager found. Please install inotify-tools manually."
         exit 1
     fi
     log_message "inotify-tools installed successfully."
@@ -270,7 +272,56 @@ get_is_dir() {
     case "$1" in
         netplan|networkmanager|systemd-networkd|network-scripts) echo true ;;
         interfaces) echo false ;;
-        *) echo false ;;
+        *) echo false ;;if ! command -v inotifywait > /dev/null; then
+    log_message "inotifywait not found, attempting to install inotify-tools..."
+    echo "Installing inotify-tools..."
+
+    if command -v apt-get > /dev/null; then
+        apt-get update && apt-get install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using apt-get. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo apt-get install inotify-tools"
+            exit 1
+        }
+    elif command -v dnf > /dev/null; then
+        # Oracle Linux, Fedora, etc.
+        if ! dnf repolist | grep -q epel; then
+            dnf install -y epel-release || {
+                log_message "Failed to install epel-release. Please install manually."
+                echo "Failed to install epel-release. Please run: sudo dnf install epel-release"
+                exit 1
+            }
+        fi
+        dnf install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using dnf. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo dnf install inotify-tools"
+            exit 1
+        }
+    elif command -v yum > /dev/null; then
+        yum install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using yum. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo yum install inotify-tools"
+            exit 1
+        }
+    elif command -v pacman > /dev/null; then
+        pacman -S --noconfirm inotify-tools || {
+            log_message "Failed to install inotify-tools using pacman. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo pacman -S inotify-tools"
+            exit 1
+        }
+    elif command -v apk > /dev/null; then
+        apk add --no-cache inotify-tools || {
+            log_message "Failed to install inotify-tools using apk. Please install manually."
+            echo "Failed to install inotify-tools. Please run: apk add inotify-tools"
+            exit 1
+        }
+    else
+        log_message "No supported package manager found. Please install inotify-tools manually."
+        echo "No supported package manager found. Please install inotify-tools manually."
+        exit 1
+    fi
+    log_message "inotify-tools installed successfully."
+    echo "inotify-tools installed successfully."
+fi
     esac
 }
 
@@ -294,7 +345,56 @@ restart_service() {
     fi
 }
 
-# Function to apply configurations based on the manager
+# Function to apply configurations based on the managerif ! command -v inotifywait > /dev/null; then
+    log_message "inotifywait not found, attempting to install inotify-tools..."
+    echo "Installing inotify-tools..."
+
+    if command -v apt-get > /dev/null; then
+        apt-get update && apt-get install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using apt-get. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo apt-get install inotify-tools"
+            exit 1
+        }
+    elif command -v dnf > /dev/null; then
+        # Oracle Linux, Fedora, etc.
+        if ! dnf repolist | grep -q epel; then
+            dnf install -y epel-release || {
+                log_message "Failed to install epel-release. Please install manually."
+                echo "Failed to install epel-release. Please run: sudo dnf install epel-release"
+                exit 1
+            }
+        fi
+        dnf install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using dnf. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo dnf install inotify-tools"
+            exit 1
+        }
+    elif command -v yum > /dev/null; then
+        yum install -y inotify-tools || {
+            log_message "Failed to install inotify-tools using yum. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo yum install inotify-tools"
+            exit 1
+        }
+    elif command -v pacman > /dev/null; then
+        pacman -S --noconfirm inotify-tools || {
+            log_message "Failed to install inotify-tools using pacman. Please install manually."
+            echo "Failed to install inotify-tools. Please run: sudo pacman -S inotify-tools"
+            exit 1
+        }
+    elif command -v apk > /dev/null; then
+        apk add --no-cache inotify-tools || {
+            log_message "Failed to install inotify-tools using apk. Please install manually."
+            echo "Failed to install inotify-tools. Please run: apk add inotify-tools"
+            exit 1
+        }
+    else
+        log_message "No supported package manager found. Please install inotify-tools manually."
+        echo "No supported package manager found. Please install inotify-tools manually."
+        exit 1
+    fi
+    log_message "inotify-tools installed successfully."
+    echo "inotify-tools installed successfully."
+fi
 apply_config() {
     local manager="$1"
     case "$manager" in
@@ -425,7 +525,6 @@ monitor_config() {
                 restore_time=$(cat "$LOCK_FILE")
                 current_time=$(date +%s)
                 if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
-                    # Silently ignore the event without logging
                     continue
                 fi
             fi
@@ -435,13 +534,14 @@ monitor_config() {
             while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
                 inotifywait -q -t 1 "$CONFIG_PATH" || break
             done
-            # Handle events separately
+            # Handle events
             case "$event" in
                 CREATE)
                     relative_path="${full_path#$CONFIG_PATH/}"
                     backup_file="$BACKUP_DIR/$manager/$relative_path"
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
+                        echo "$(date +%s)" > "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
                         sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
@@ -454,25 +554,27 @@ monitor_config() {
                 MODIFY)
                     relative_path="${full_path#$CONFIG_PATH/}"
                     backup_file="$BACKUP_DIR/$manager/$relative_path"
-                    if [ -f "$backup_file" ]; then
-                        if [ -f "$full_path" ]; then
-                            diff_output=$(diff "$full_path" "$backup_file" 2>/dev/null || true)
-                            if [ -n "$diff_output" ]; then
-                                log_message "Differences detected in $full_path before restoration:"
-                                while IFS= read -r line; do
-                                    log_message "  $line"
-                                done <<< "$diff_output"
-                            else
-                                log_message "No differences detected in $full_path (possible permissions or metadata change)"
-                            fi
+                    if [ -f "$backup_file" ] && [ -f "$full_path" ]; then
+                        # Check if the file matches the backup to avoid self-triggered loops
+                        if cmp -s "$full_path" "$backup_file"; then
+                            log_message "No actual content change in $full_path, skipping restoration"
+                            continue
+                        fi
+                        diff_output=$(diff "$full_path" "$backup_file" 2>/dev/null || true)
+                        if [ -n "$diff_output" ]; then
+                            log_message "Differences detected in $full_path before restoration:"
+                            while IFS= read -r line; do
+                                log_message "  $line"
+                            done <<< "$diff_output"
                         fi
                         touch "$LOCK_FILE"
+                        echo "$(date +%s)" > "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
                         sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
                     else
-                        log_message "No backup found for $full_path, cannot restore"
+                        log_message "No backup or file missing for $full_path, cannot restore"
                     fi
                     ;;
                 DELETE)
@@ -480,6 +582,7 @@ monitor_config() {
                     backup_file="$BACKUP_DIR/$manager/$relative_path"
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
+                        echo "$(date +%s)" > "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
                         sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
@@ -498,20 +601,21 @@ monitor_config() {
                 restore_time=$(cat "$LOCK_FILE")
                 current_time=$(date +%s)
                 if [ $((current_time - restore_time)) -lt "$RESTORE_TIMEOUT" ]; then
-                    # Silently ignore the event without logging
                     continue
                 fi
             fi
             local backup_file="$BACKUP_DIR/$manager/$(basename "$CONFIG_PATH")"
             if [ -f "$backup_file" ] && [ -f "$CONFIG_PATH" ]; then
+                if cmp -s "$CONFIG_PATH" "$backup_file"; then
+                    log_message "No actual content change in $CONFIG_PATH, skipping restoration"
+                    continue
+                fi
                 diff_output=$(diff "$CONFIG_PATH" "$backup_file" 2>/dev/null || true)
                 if [ -n "$diff_output" ]; then
                     log_message "Differences detected in $CONFIG_PATH before restoration:"
                     while IFS= read -r line; do
                         log_message "  $line"
                     done <<< "$diff_output"
-                else
-                    log_message "No differences detected in $CONFIG_PATH (possible permissions or metadata change)"
                 fi
             fi
             restore_config "$manager"
