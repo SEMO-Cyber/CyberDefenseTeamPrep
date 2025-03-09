@@ -265,6 +265,7 @@ restore_config() {
     if [ ! -e "$CONFIG_PATH" ]; then
         log_message "Configuration path $CONFIG_PATH does not exist for $manager, cannot restore"
         return
+    fi
     }
 
     touch "$LOCK_FILE"
