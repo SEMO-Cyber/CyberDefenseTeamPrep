@@ -17,6 +17,7 @@ LOCK_FILE="/tmp/interface_protection_lock"
 PID_FILE="/var/run/interface-protection.pid"
 DEBOUNCE_TIME=${DEBOUNCE_TIME:-5}  # Seconds to wait after last event (configurable)
 RESTORE_TIMEOUT=${RESTORE_TIMEOUT:-10}  # Seconds to ignore events post-restore (configurable)
+RESTORATION_COOLDOWN_TIME=${RESTORATION_COOLDOWN_TIME:-5}  # Seconds for cooldown after restoration (configurable)
 
 # Create directories if they don’t exist
 mkdir -p "$BAC_SERVICES_DIR"
@@ -236,7 +237,7 @@ backup_config() {
     log_message "Backup created for $manager"
 }
 
-# Restore a specific file or directory with Lock and permissions preserved
+# Restore a specific file or directory with Lock, permissions preserved, and cooldown
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
@@ -269,6 +270,8 @@ restore_config() {
             }
             log_message "Restored $CONFIG_PATH for $manager"
             apply_config "$manager"
+            # Wait for cooldown period before removing lock file
+            sleep "$RESTORATION_COOLDOWN_TIME"
         else
             log_message "No backup found for $CONFIG_PATH, cannot restore"
         fi
@@ -316,6 +319,8 @@ monitor_config() {
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                        # Wait for cooldown period before removing lock file
+                        sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
                     else
@@ -329,6 +334,8 @@ monitor_config() {
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                        # Wait for cooldown period before removing lock file
+                        sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
                     else
@@ -341,6 +348,8 @@ monitor_config() {
                     if [ -f "$backup_file" ]; then
                         touch "$LOCK_FILE"
                         cp -p "$backup_file" "$full_path" || log_message "Failed to restore $full_path"
+                        # Wait for cooldown period before removing lock file
+                        sleep "$RESTORATION_COOLDOWN_TIME"
                         rm -f "$LOCK_FILE"
                         log_message "Restored $full_path for $manager"
                     else
