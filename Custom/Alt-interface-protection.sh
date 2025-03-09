@@ -15,7 +15,7 @@ LOCK_FILE="/tmp/restore_lock"
 BACKUP_DIR="/etc/BacServices/interface-protection"
 NETWORK_SCRIPTS_DIR="/etc/sysconfig/network-scripts"
 DEBOUNCE_TIME=5  # Seconds to debounce events
-RESTORE_TIMEOUT=10  # Seconds to ignore events post-restore
+RESTORE_TIMEOUT=15  # Seconds to ignore events post-restore
 
 # Create necessary directories and files
 mkdir -p "$BACKUP_DIR/network-scripts"
@@ -40,14 +40,22 @@ fi
 # Backup network-scripts
 backup_config() {
     log_message "Creating backup for network-scripts"
-    cp -r "$NETWORK_SCRIPTS_DIR"/* "$BACKUP_DIR/network-scripts/" || {
-        log_message "Backup failed"
-        exit 1
-    }
+    if [ -d "$NETWORK_SCRIPTS_DIR" ]; then
+        cp -r "$NETWORK_SCRIPTS_DIR"/* "$BACKUP_DIR/network-scripts/" || {
+            log_message "Backup failed"
+            exit 1
+        }
+    else
+        log_message "Directory $NETWORK_SCRIPTS_DIR does not exist, skipping backup"
+    fi
 }
 
 # Restore configuration atomically
 restore_config() {
+    if [ ! -d "$NETWORK_SCRIPTS_DIR" ]; then
+        log_message "Target directory $NETWORK_SCRIPTS_DIR does not exist, cannot restore"
+        return 1
+    fi
     log_message "Restoring configuration for network-scripts"
     touch "$LOCK_FILE"
     echo "$(date +%s)" > "$LOCK_FILE"
@@ -59,7 +67,7 @@ restore_config() {
         log_message "Restore failed, reverting"
         mv "$TEMP_DIR" "$NETWORK_SCRIPTS_DIR"
         rm -f "$LOCK_FILE"
-        exit 1
+        return 1
     }
     rm -rf "$TEMP_DIR"
     
@@ -88,12 +96,16 @@ monitor_config() {
         fi
         
         # Compare with backup
-        if ! diff -r "$BACKUP_DIR/network-scripts" "$NETWORK_SCRIPTS_DIR" >/dev/null 2>&1; then
-            log_message "Differences detected in network-scripts:"
-            diff -r "$BACKUP_DIR/network-scripts" "$NETWORK_SCRIPTS_DIR" >> "$LOG_FILE" 2>/dev/null || echo " (diff output unavailable)" >> "$LOG_FILE"
-            restore_config
+        if [ -d "$NETWORK_SCRIPTS_DIR" ] && [ -d "$BACKUP_DIR/network-scripts" ]; then
+            if ! diff -r "$BACKUP_DIR/network-scripts" "$NETWORK_SCRIPTS_DIR" >/dev/null 2>&1; then
+                log_message "Differences detected in network-scripts:"
+                diff -r "$BACKUP_DIR/network-scripts" "$NETWORK_SCRIPTS_DIR" >> "$LOG_FILE" 2>> "$LOG_FILE" || echo " (diff output unavailable)" >> "$LOG_FILE"
+                restore_config
+            else
+                log_message "No significant changes after debounce"
+            fi
         else
-            log_message "No significant changes after debounce"
+            log_message "Cannot compare: directories missing"
         fi
     done
 }
