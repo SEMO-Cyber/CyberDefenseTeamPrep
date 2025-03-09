@@ -13,12 +13,12 @@ fi
 BAC_SERVICES_DIR="/etc/BacServices"
 BACKUP_DIR="$BAC_SERVICES_DIR/interface-protection"
 LOG_FILE="/var/log/interface-protection.log"
-LOCK_FILE="/tmp/restore_lock"
 DEBOUNCE_TIME=5  # seconds to wait after last event
 
 # Create directories if they don’t exist
 mkdir -p "$BAC_SERVICES_DIR"
 mkdir -p "$BACKUP_DIR"
+touch "$LOG_FILE"
 
 # Function to log messages with timestamp
 log_message() {
@@ -27,25 +27,25 @@ log_message() {
 }
 
 # Install inotify-tools if not present
-if ! command -v inotifywait > /dev/null; then
+if ! command -v inotifywait >/dev/null; then
     log_message "inotifywait not found, installing inotify-tools..."
-    if command -v apt-get > /dev/null; then
+    if command -v apt-get >/dev/null; then
         apt-get update && apt-get install -y inotify-tools
-    elif command -v dnf > /dev/null; then
+    elif command -v dnf >/dev/null; then
         dnf install -y inotify-tools
-    elif command -v yum > /dev/null; then
+    elif command -v yum >/dev/null; then
         yum install -y inotify-tools
-    elif command -v pacman > /dev/null; then
+    elif command -v pacman >/dev/null; then
         pacman -S --noconfirm inotify-tools
-    elif command -v zypper > /dev/null; then
+    elif command -v zypper >/dev/null; then
         zypper install -y inotify-tools
-    elif command -v apk > /dev/null; then
+    elif command -v apk >/dev/null; then
         apk add --no-cache inotify-tools
     else
         log_message "No supported package manager found. Please install inotify-tools manually."
         exit 1
     fi
-    if ! command -v inotifywait > /dev/null; then
+    if ! command -v inotifywait >/dev/null; then
         log_message "Failed to install inotify-tools. Please install it manually."
         exit 1
     fi
@@ -53,25 +53,25 @@ if ! command -v inotifywait > /dev/null; then
 fi
 
 # Install rsync if not present
-if ! command -v rsync > /dev/null; then
+if ! command -v rsync >/dev/null; then
     log_message "rsync not found, installing rsync..."
-    if command -v apt-get > /dev/null; then
+    if command -v apt-get >/dev/null; then
         apt-get update && apt-get install -y rsync
-    elif command -v dnf > /dev/null; then
+    elif command -v dnf >/dev/null; then
         dnf install -y rsync
-    elif command -v yum > /dev/null; then
+    elif command -v yum >/dev/null; then
         yum install -y rsync
-    elif command -v pacman > /dev/null; then
+    elif command -v pacman >/dev/null; then
         pacman -S --noconfirm rsync
-    elif command -v zypper > /dev/null; then
+    elif command -v zypper >/dev/null; then
         zypper install -y rsync
-    elif command -v apk > /dev/null; then
+    elif command -v apk >/dev/null; then
         apk add --no-cache rsync
     else
         log_message "No supported package manager found. Please install rsync manually."
         exit 1
     fi
-    if ! command -v rsync > /dev/null; then
+    if ! command -v rsync >/dev/null; then
         log_message "Failed to install rsync. Please install it manually."
         exit 1
     fi
@@ -170,34 +170,27 @@ backup_config() {
     log_message "Backup created for $manager"
 }
 
-# Restore configuration with rsync
+# Restore configuration
 restore_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
     local IS_DIR=$(get_is_dir "$manager")
     local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
 
-    # Create lock file to prevent event loop
-    touch "$LOCK_FILE"
-
     if [ "$IS_DIR" = "true" ]; then
-        rsync -a --delete "$MANAGER_BACKUP_DIR/" "$CONFIG_PATH/" || {
+        mkdir -p "$CONFIG_PATH"
+        rsync -a --delete --checksum "$MANAGER_BACKUP_DIR/" "$CONFIG_PATH/" || {
             log_message "Failed to restore $CONFIG_PATH for $manager using rsync"
-            rm -f "$LOCK_FILE"
             exit 1
         }
     else
         cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
             log_message "Failed to restore $CONFIG_PATH for $manager"
-            rm -f "$LOCK_FILE"
             exit 1
         }
     fi
     log_message "Configuration restored for $manager"
     apply_config "$manager"
-
-    # Remove lock file
-    rm -f "$LOCK_FILE"
 }
 
 # Monitor configuration changes
@@ -205,31 +198,33 @@ monitor_config() {
     local manager="$1"
     local CONFIG_PATH=$(get_config_path "$manager")
     local IS_DIR=$(get_is_dir "$manager")
+    local MANAGER_BACKUP_DIR="$BACKUP_DIR/$manager"
 
-    if [ "$IS_DIR" = "true" ]; then
-        inotifywait -m -r -e modify,create,delete "$CONFIG_PATH" | while read -r line; do
-            if [ -f "$LOCK_FILE" ]; then
-                continue  # Skip if restoring
-            fi
-            log_message "Change detected in $manager: $line"
-            # Debounce: wait for no events
-            last_event_time=$(date +%s)
-            while [ $(date +%s) -lt $(($last_event_time + $DEBOUNCE_TIME)) ]; do
-                inotifywait -q -t 1 "$CONFIG_PATH" || break
+    while true; do
+        if [ "$IS_DIR" = "true" ]; then
+            while inotifywait -r -e modify,create,delete --timeout "$DEBOUNCE_TIME" "$CONFIG_PATH" >/dev/null; do
+                log_message "Event detected in $manager directory, waiting for debounce"
             done
-            if [ ! -f "$LOCK_FILE" ]; then
+            if ! diff -r "$MANAGER_BACKUP_DIR" "$CONFIG_PATH" >/dev/null 2>&1; then
+                log_message "Differences detected for $manager:"
+                diff -r "$MANAGER_BACKUP_DIR" "$CONFIG_PATH" >> "$LOG_FILE" 2>/dev/null || echo " (diff output unavailable)" >> "$LOG_FILE"
                 restore_config "$manager"
+            else
+                log_message "No significant changes in $manager after debounce"
             fi
-        done
-    else
-        inotifywait -m -e modify "$CONFIG_PATH" | while read -r line; do
-            if [ -f "$LOCK_FILE" ]; then
-                continue  # Skip if restoring
+        else
+            while inotifywait -e modify --timeout "$DEBOUNCE_TIME" "$CONFIG_PATH" >/dev/null; do
+                log_message "Event detected in $manager file, waiting for debounce"
+            done
+            if ! cmp -s "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH"; then
+                log_message "Differences detected for $manager:"
+                diff "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" >> "$LOG_FILE" 2>/dev/null || echo " (diff output unavailable)" >> "$LOG_FILE"
+                restore_config "$manager"
+            else
+                log_message "No significant changes in $manager after debounce"
             fi
-            log_message "Change detected in $manager: $line"
-            restore_config "$manager"
-        done
-    fi
+        fi
+    done
 }
 
 # Main logic
@@ -246,3 +241,6 @@ for manager in "${managers[@]}"; do
 done
 
 log_message "Monitoring started for: ${managers[*]}"
+
+# Keep script running
+wait
