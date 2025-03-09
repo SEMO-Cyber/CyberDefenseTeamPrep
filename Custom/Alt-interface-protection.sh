@@ -272,7 +272,8 @@ get_is_dir() {
     case "$1" in
         netplan|networkmanager|systemd-networkd|network-scripts) echo true ;;
         interfaces) echo false ;;
-        *) echo false ;;if ! command -v inotifywait > /dev/null; then
+        *) echo false ;;
+        if ! command -v inotifywait > /dev/null; then
     log_message "inotifywait not found, attempting to install inotify-tools..."
     echo "Installing inotify-tools..."
 
