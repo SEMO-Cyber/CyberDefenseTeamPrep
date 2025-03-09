@@ -240,14 +240,36 @@ if ! command -v inotifywait > /dev/null; then
     echo "inotify-tools installed successfully."
 fi
 
+# Function to determine the NetworkManager plugin
+get_nm_plugin() {
+    if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
+        plugin=$(grep -E "^\s*plugins=" /etc/NetworkManager/NetworkManager.conf | sed 's/.*=//')
+        if echo "$plugin" | grep -q "ifcfg-rh"; then
+            echo "ifcfg-rh"
+        elif echo "$plugin" | grep -q "keyfile"; then
+            echo "keyfile"
+        else
+            echo "keyfile"  # Default to keyfile if not specified
+        fi
+    else
+        echo "keyfile"  # Assume keyfile if config file doesn't exist
+    fi
+}
+
 # Function to detect all active network managers
 detect_managers() {
     local managers=()
     [ -d /etc/netplan ] && ls /etc/netplan/*.yaml >/dev/null 2>&1 && managers+=("netplan")
-    systemctl is-active NetworkManager >/dev/null 2>&1 && managers+=("networkmanager")
+    if systemctl is-active NetworkManager >/dev/null 2>&1; then
+        managers+=("networkmanager")
+    fi
     systemctl is-active systemd-networkd >/dev/null 2>&1 && [ -d /etc/systemd/network ] && ls /etc/systemd/network/*.network >/dev/null 2>&1 && managers+=("systemd-networkd")
     [ -f /etc/network/interfaces ] && managers+=("interfaces")
-    [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1 && managers+=("network-scripts")
+    if [ -d /etc/sysconfig/network-scripts ] && ls /etc/sysconfig/network-scripts/ifcfg-* >/dev/null 2>&1; then
+        if ! systemctl is-active NetworkManager >/dev/null 2>&1 || [ "$(get_nm_plugin)" != "ifcfg-rh" ]; then
+            managers+=("network-scripts")
+        fi
+    fi
     if [ ${#managers[@]} -eq 0 ]; then
         echo "unknown"
     else
@@ -259,7 +281,14 @@ detect_managers() {
 get_config_path() {
     case "$1" in
         netplan) echo "/etc/netplan" ;;
-        networkmanager) echo "/etc/NetworkManager/system-connections" ;;
+        networkmanager)
+            plugin=$(get_nm_plugin)
+            if [ "$plugin" = "ifcfg-rh"; then
+                echo "/etc/sysconfig/network-scripts"
+            else
+                echo "/etc/NetworkManager/system-connections"
+            fi
+            ;;
         systemd-networkd) echo "/etc/systemd/network" ;;
         interfaces) echo "/etc/network/interfaces" ;;
         network-scripts) echo "/etc/sysconfig/network-scripts" ;;
