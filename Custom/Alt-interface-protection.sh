@@ -283,7 +283,6 @@ restore_config() {
         cp "$MANAGER_BACKUP_DIR/$(basename "$CONFIG_PATH")" "$CONFIG_PATH" || {
             log_message "Failed to restore $CONFIG_PATH for $manager"
             rm -f "$LOCK_FILE"
-            return
         }
     fi
     log_message "Configuration restored for $manager"
