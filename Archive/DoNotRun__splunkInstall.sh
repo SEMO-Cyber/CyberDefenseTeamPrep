@@ -8,30 +8,59 @@
 # Samuel Brucker 2024-2025
 
 # Define variables
-SPLUNK_URL="https://download.splunk.com/products/splunk/releases/9.3.2/linux/splunk-9.3.2-d8bb32809498.x86_64.rpm"
-SPLUNK_RPM="splunk-9.3.2-d8bb32809498.x86_64.rpm"
+SPLUNK_VERSION="9.3.2"
+SPLUNK_BUILD="d8bb32809498"
 SPLUNK_PASS="Changeme1!"
 
-
-# Install prerequisites
-echo "Installing prerequisites..."
-dnf install -y libxcrypt-compat
-if [ $? -ne 0 ]; then
-    echo "Failed to install prerequisites. Exiting."
+# Detect package manager
+if which dnf >/dev/null 2>&1; then
+    DISTRO="rhel"
+    PKG_MANAGER="dnf"
+elif which yum >/dev/null 2>&1; then
+    DISTRO="rhel"
+    PKG_MANAGER="yum"
+elif which apt >/dev/null 2>&1; then
+    DISTRO="debian"
+    PKG_MANAGER="apt"
+else
+    echo "Unsupported distribution. No compatible package manager found (dnf, yum, or apt)."
     exit 1
 fi
 
-# Download the Splunk RPM package
-echo "Downloading Splunk RPM package..."
-wget -O $SPLUNK_RPM $SPLUNK_URL
+# Set Splunk package and URL based on distribution
+if [ "$DISTRO" = "rhel" ]; then
+    SPLUNK_PKG="splunk-${SPLUNK_VERSION}-${SPLUNK_BUILD}.x86_64.rpm"
+    SPLUNK_URL="https://download.splunk.com/products/splunk/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PKG}"
+elif [ "$DISTRO" = "debian" ]; then
+    SPLUNK_PKG="splunk-${SPLUNK_VERSION}-${SPLUNK_BUILD}-linux-amd64.deb"
+    SPLUNK_URL="https://download.splunk.com/products/splunk/releases/${SPLUNK_VERSION}/linux/${SPLUNK_PKG}"
+fi
+
+# Install prerequisites for RHEL-based systems
+if [ "$DISTRO" = "rhel" ]; then
+    echo "Installing prerequisites..."
+    sudo $PKG_MANAGER install -y libxcrypt-compat
+    if [ $? -ne 0 ]; then
+        echo "Failed to install prerequisites. Exiting."
+        exit 1
+    fi
+fi
+
+# Download the Splunk package
+echo "Downloading Splunk package..."
+wget -O $SPLUNK_PKG $SPLUNK_URL
 if [ $? -ne 0 ]; then
-    echo "Failed to download Splunk RPM package. Exiting."
+    echo "Failed to download Splunk package. Exiting."
     exit 1
 fi
 
-# Install the Splunk RPM package
+# Install the Splunk package
 echo "Installing Splunk..."
-sudo dnf localinstall -y $SPLUNK_RPM
+if [ "$DISTRO" = "rhel" ]; then
+    sudo $PKG_MANAGER localinstall -y $SPLUNK_PKG
+elif [ "$DISTRO" = "debian" ]; then
+    sudo $PKG_MANAGER install -y ./$SPLUNK_PKG
+fi
 if [ $? -ne 0 ]; then
     echo "Failed to install Splunk. Exiting."
     exit 1
@@ -53,7 +82,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Change admin password. See the $SPLUNK_PASS variable at line 12.
+# Change admin password
 echo "Setting admin password..."
 sudo /opt/splunk/bin/splunk edit user admin -password $SPLUNK_PASS -auth admin:changeme
 if [ $? -ne 0 ]; then
@@ -69,7 +98,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Configure Splunk to receive logs on ports 9997 and 514.
+# Configure Splunk to receive logs on ports 9997 and 514
 echo "Configuring Splunk ports..."
 sudo /opt/splunk/bin/splunk add udp 514 -auth admin:$SPLUNK_PASS
 sudo /opt/splunk/bin/splunk add tcp 9997 -auth admin:$SPLUNK_PASS
