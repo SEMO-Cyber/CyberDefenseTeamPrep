@@ -7,6 +7,7 @@
 #
 # Samuel Brucker 2024-2025
 
+
 # Define variables
 SPLUNK_VERSION="9.3.2"
 SPLUNK_BUILD="d8bb32809498"
@@ -66,6 +67,18 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Create user-seed.conf to set admin credentials
+echo "Creating user-seed.conf for admin account..."
+sudo mkdir -p /opt/splunk/etc/system/local
+cat > /opt/splunk/etc/system/local/user-seed.conf <<EOF
+[user_info]
+USERNAME = admin
+PASSWORD = Changeme1!
+EOF
+
+sudo chown splunk:splunk /opt/splunk/etc/system/local/user-seed.conf
+sudo chmod 600 /opt/splunk/etc/system/local/user-seed.conf
+
 # Start Splunk and accept license
 echo "Starting Splunk and accepting license..."
 sudo /opt/splunk/bin/splunk start --accept-license --answer-yes --no-prompt
@@ -82,22 +95,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Change admin password
-echo "Setting admin password..."
-sudo /opt/splunk/bin/splunk edit user admin -password $SPLUNK_PASS -auth admin:changeme
-if [ $? -ne 0 ]; then
-    echo "Failed to set admin password. Exiting."
-    exit 1
-fi
-
-# Restart Splunk for changes to take effect
-echo "Restarting Splunk..."
-sudo /opt/splunk/bin/splunk restart
-if [ $? -ne 0 ]; then
-    echo "Failed to restart Splunk. Exiting."
-    exit 1
-fi
-
 # Configure Splunk to receive logs on ports 9997 and 514
 echo "Configuring Splunk ports..."
 sudo /opt/splunk/bin/splunk add udp 514 -auth admin:$SPLUNK_PASS
@@ -110,5 +107,9 @@ if [ $? -ne 0 ]; then
     echo "Final restart failed. Please investigate."
     exit 1
 fi
+
+# Clean up user-seed.conf for security
+echo "Cleaning up user-seed.conf..."
+sudo rm /opt/splunk/etc/system/local/user-seed.conf
 
 echo "Splunk installation and configuration complete!"
