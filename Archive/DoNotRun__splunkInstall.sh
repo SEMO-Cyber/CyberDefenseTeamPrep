@@ -9,8 +9,11 @@
 
 
 # Define variables
-SPLUNK_VERSION="9.4.2"
-SPLUNK_BUILD="e9664af3d956"
+#SPLUNK_VERSION="9.4.2"
+#SPLUNK_BUILD="e9664af3d956"
+
+SPLUNK_VERSION="9.3.2"
+SPLUNK_BUILD="d8bb32809498"
 SPLUNK_PASS="Changeme1!"
 
 # Detect package manager
