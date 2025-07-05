@@ -9,11 +9,8 @@
 
 
 # Define variables
-#SPLUNK_VERSION="9.4.2"
-#SPLUNK_BUILD="e9664af3d956"
-
-SPLUNK_VERSION="9.3.2"
-SPLUNK_BUILD="d8bb32809498"
+SPLUNK_VERSION="9.4.2"
+SPLUNK_BUILD="e9664af3d956"
 SPLUNK_PASS="Changeme1!"
 
 # Detect package manager
@@ -110,9 +107,5 @@ if [ $? -ne 0 ]; then
     echo "Final restart failed. Please investigate."
     exit 1
 fi
-
-# Clean up user-seed.conf for security
-echo "Cleaning up user-seed.conf..."
-sudo rm /opt/splunk/etc/system/local/user-seed.conf
 
 echo "Splunk installation and configuration complete!"
